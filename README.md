@@ -22,6 +22,7 @@ A sim where COD is a rounding error actively mis-teaches this market.
 | [`docs/02-market-research-menu.md`](docs/02-market-research-menu.md) | 20 purchasable studies with prices, lags, error bands and bias rules |
 | [`docs/03-core-mechanisms.md`](docs/03-core-mechanisms.md) | Perception vs reality, projects with lead time and failure risk, the second market |
 | [`docs/05-start-mode.md`](docs/05-start-mode.md) | Round 0 founding round vs starting as a going concern, the 14 founding decisions, pro-forma preview and balance constraints |
+| [`docs/06-build-sequencing.md`](docs/06-build-sequencing.md) | Why the engine is built once at Advanced depth while presets ship incrementally; Path A vs Path B cost comparison |
 | [`docs/04-configurability.md`](docs/04-configurability.md) | Team count 2–16, the 92-decision registry and presets, instructor unlock timing, round length and horizon, parameter safe ranges and validation invariants |
 
 ## Design principles
@@ -45,6 +46,10 @@ A sim where COD is a rounding error actively mis-teaches this market.
 ## Build status
 
 Specification phase. Engine, team console and instructor console not yet started.
+
+**Build rule:** the engine is built once at Advanced (56-decision) depth.
+Presets ship incrementally as configuration over that engine — never as
+separate engines. See `docs/06-build-sequencing.md`.
 
 Default configuration: **12 monthly rounds**, 8 teams, Advanced (56-decision)
 preset, `founding` start mode (Round 0 setup + 12 operating rounds). See `docs/04-configurability.md` for the alternatives and the reasoning

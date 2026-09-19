@@ -168,12 +168,19 @@ building-from-zero was rejected for.
 
 ---
 
-## Recommendation
+## Decision — LOCKED
 
-Run `founding` mode for *E-Commerce in Practice*.
+**`founding` is the build target and the default.** Equal capital, 14 founding
+decisions, pro-forma preview, then 12 operating rounds.
 
-Run `going_concern` for the **first calibration cohort only**. During
-calibration you want every team on an identical starting position, because
-otherwise you cannot tell whether a divergent outcome came from a decision or
-from a founding configuration you had not yet balanced. Once the engine is
-validated, switch to `founding` and keep it.
+`going_concern` remains available as a configuration and costs almost nothing
+to retain, since it is simply Round 0 skipped with a fixed initial state vector.
+Two uses for it:
+
+- **Engine calibration.** While tuning parameters, an identical start across
+  all teams isolates decision effects from founding-configuration effects.
+  Balance work should be done in `going_concern` even though students never
+  see it.
+- **Short modules.** A 6-week guest module has no room for a founding round.
+
+Neither changes what gets built. `founding` is the product.
