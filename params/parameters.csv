@@ -26,7 +26,6 @@ gap_return_coef,M5,1.8,0.9,3.0,0.0,5.0,coefficient,,Return rate uplift per unit 
 gap_repeat_coef,M5,1.5,0.8,2.5,0.0,4.0,coefficient,,Repeat rate penalty per unit of excess gap
 gap_brand_decay_coef,M5,2.0,1.0,3.5,0.0,5.0,coefficient,,Brand decay uplift per unit of excess gap
 undermkt_traffic_coef,M5,0.6,0.3,1.0,0.0,1.8,coefficient,,Traffic penalty when actual exceeds perceived
-undermkt_cac_coef,M5,0.8,0.4,1.3,0.0,2.2,coefficient,,CAC uplift when actual exceeds perceived
 adstock_carryover,M6,0.35,0.20,0.50,0.0,0.70,ratio,,Above 0.70 past spend dominates current decisions
 saturation_exponent,M6,0.60,0.45,0.75,0.30,0.90,exponent,HIGH,Above 0.90 spend-to-win dominates every other decision
 cpm_inflation_phi,M6,0.25,0.10,0.45,0.0,0.70,coefficient,,Above 0.70 any spend increase is self-defeating

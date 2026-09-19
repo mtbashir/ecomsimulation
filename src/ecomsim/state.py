@@ -76,6 +76,10 @@ class TeamState:
     experience_penalty: float = 0.0
     predictions: list[dict] = field(default_factory=list)
     reports: dict[int, dict] = field(default_factory=dict)
+    # Studies bought but not yet delivered. Each entry carries the report as it
+    # was measured on the day it was bought, so a lagged study arrives stale
+    # rather than arriving empty or arriving rewritten with today's numbers.
+    queued_reports: list[dict] = field(default_factory=list)
     in_administration: bool = False
     founding: object | None = None
     brand_name: str = ""

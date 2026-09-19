@@ -79,6 +79,15 @@ def run(world, params, resolved, ctx) -> None:
         )
         _assortment_fit(team, params, ctx)
 
+        # What the team committed to spend on research this round. M16 cannot
+        # do this: it runs after M14, so a cost it computed there was written
+        # into ctx after the P&L had already read it, and research was free.
+        ctx.setdefault("research_cost", {})[tid] = sum(
+            float(params.study(code)["price"])
+            for code in (d.get("12.1") or [])
+            if any(st["code"] == code for st in params.studies)
+        )
+
     # Price index is relative, so it needs every team's price first. Incumbents
     # sit in the average too - they are part of the market a team is priced against.
     incumbent_price = world.market_avg_price

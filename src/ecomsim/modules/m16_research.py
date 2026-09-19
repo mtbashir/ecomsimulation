@@ -24,31 +24,31 @@ def run(world, params, resolved, ctx) -> None:
         d = ctx["resolved"][tid]
 
         purchased = d.get("12.1") or []
-        cost = sum(float(params.study(c)["price"]) for c in purchased
-                   if _exists(params, c))
-        ctx.setdefault("research_cost", {})[tid] = cost
 
         reports: dict[str, dict] = {}
+
+        # Studies bought earlier that land now. They carry the numbers as they
+        # stood when the study was commissioned, which is the whole point of a
+        # lagged study: the answer is real, and it is a month out of date.
+        still_waiting = []
+        for q in team.queued_reports:
+            if q["deliver"] <= world.round:
+                reports[q["code"]] = dict(q["report"], status="lagged")
+            else:
+                still_waiting.append(q)
+        team.queued_reports = still_waiting
+
         for code in purchased:
             if not _exists(params, code):
                 continue
             study = params.study(code)
-            if int(study["lag_rounds"]) > 0:
-                ctx.setdefault("queued_reports", {}).setdefault(tid, []).append(
-                    {"code": code, "as_of": world.round,
-                     "deliver": world.round + int(study["lag_rounds"])}
-                )
+            report = _generate(world, params, ctx, tid, study)
+            lag = int(study["lag_rounds"])
+            if lag > 0:
+                team.queued_reports.append(
+                    {"code": code, "deliver": world.round + lag, "report": report})
                 continue
-            reports[code] = _generate(world, params, ctx, tid, study)
-
-        # Lag-1 studies bought earlier land now, stamped with their as-of round.
-        due = [q for q in ctx.get("queued_reports", {}).get(tid, [])
-               if q["deliver"] <= world.round]
-        for q in getattr(team, "_queued", []):
-            if q["deliver"] <= world.round:
-                reports[q["code"]] = {"as_of_round": q["as_of"], "status": "lagged"}
-        team._queued = [q for q in getattr(team, "_queued", []) if q["deliver"] > world.round]
-        team._queued += due
+            reports[code] = report
 
         ctx.setdefault("reports", {})[tid] = reports
         team.reports[world.round] = reports
@@ -86,7 +86,7 @@ def _generate(world, params, ctx, tid: str, study: dict) -> dict:
     }
 
 
-def _forward_view(world, params, tid: str, code: str):
+def _forward_view(world, params, tid: str, code: str):  # noqa: C901
     """Studies whose value is what they say about the NEXT rounds.
 
     This is what makes research worth buying: MR-01 shows the seasonal peaks,
@@ -122,6 +122,20 @@ def _forward_view(world, params, tid: str, code: str):
             return {"warning": {"round": r, "event": ev[0]}}
         return {"warning": None}
 
+    if code == "MR-06":
+        # The hidden weights themselves. Nothing else reveals what a segment
+        # actually trades off, which is why it is the dearest customer study.
+        return {"segments": [
+            {"code": seg["code"], "name": seg["name"],
+             "share": float(seg["share"]),
+             "repeat_propensity": float(seg["repeat_propensity"]),
+             "weights": {k[2:]: float(seg[k]) for k in seg
+                         if k.startswith("w_")}}
+            for seg in params.segments]}
+
+    if code == "MR-19":
+        return {"bundles": ["MR-02", "MR-03", "MR-04"]}
+
     return None
 
 
@@ -147,4 +161,35 @@ def _true_value(world, params, ctx, tid: str, code: str):
         return ctx["courier_success"][tid]
     if code == "MR-16":
         return ctx["return_rate"][tid]
+
+    team = world.teams[tid]
+    if code == "MR-04":
+        # What rivals are spending, estimated from the outside. The study's own
+        # bias of 0.90 is what makes this deliberately understated.
+        rivals = [sum(float(ctx["resolved"][o].get(k, 0) or 0)
+                      for k in ("3.1", "3.2", "3.4", "3.9"))
+                  for o in ctx["resolved"] if o != tid]
+        return sum(rivals) / len(rivals) if rivals else None
+    if code == "MR-08":
+        return team.brand_equity
+    if code == "MR-09":
+        return ctx["nps"][tid]
+    if code == "MR-12":
+        # The flagship lesson: what the marketing actually contributed, against
+        # the over-attributed number the platforms hand out for free.
+        marketing = ctx["pnl"][tid]["marketing"]
+        return ctx["net_revenue"][tid] / marketing if marketing > 0 else None
+    if code == "MR-13":
+        d = ctx["resolved"][tid]
+        if not d.get("4.1") or str(d.get("4.1")) == "off":
+            return None          # nothing to rank if you are not listed
+        return ctx["net_revenue"][tid] / max(sum(ctx["net_revenue"].values()), 1.0)
+    if code == "MR-14":
+        return team.creative_quality
+    if code == "MR-18":
+        return ctx["assortment_fit_mean"][tid]
+    if code == "MR-20":
+        # Readiness is delivery speed and stock depth, which is what quick
+        # commerce actually demands of you.
+        return 0.5 * ctx["sla_attainment"][tid] + 0.5 * ctx["instock_ratio"][tid]
     return None

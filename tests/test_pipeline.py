@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 
 from ecomsim import bootstrap, params as P
-from ecomsim.engine import run_game
+from ecomsim.engine import run_game, run_round
 
 
 @pytest.fixture(scope="module")
@@ -95,3 +95,51 @@ def test_binding_constraint_is_diagnosed(played):
     valid = {"under_marketing", "wasted_spend", "stock_out", "balanced"}
     for team in world.teams.values():
         assert all(h["binding_constraint"] in valid for h in team.history)
+
+
+def test_research_is_actually_charged_to_the_pl():
+    """M16 runs after M14, so a cost computed there was never billed.
+
+    Research was free for every team in every round: M16 wrote research_cost
+    into ctx after the P&L had already read it.
+    """
+    params = P.load({"n_teams": 3, "events_enabled": 0})
+    world = bootstrap.new_world(params, run_id="charge")
+    studies = ["MR-01", "MR-07", "MR-10"]
+    expected = sum(float(params.study(c)["price"]) for c in studies)
+
+    run_round(world, params, {"team_01": {"12.1": studies}})
+    billed = world.teams["team_01"].history[-1]["pnl"]["research"]
+    assert billed == pytest.approx(expected), "studies must be paid for"
+    assert world.teams["team_02"].history[-1]["pnl"]["research"] == 0
+
+
+def test_a_lagged_study_arrives_late_but_arrives():
+    """Lag-1 studies used to be queued and then dropped on the same line."""
+    params = P.load({"n_teams": 3, "events_enabled": 0})
+    world = bootstrap.new_world(params, run_id="lag")
+    run_round(world, params, {"team_01": {"12.1": ["MR-06"]}})
+    team = world.teams["team_01"]
+    assert "MR-06" not in team.reports.get(1, {}), "it must not arrive early"
+
+    run_round(world, params, {})
+    landed = team.reports.get(2, {}).get("MR-06")
+    assert landed is not None, "a study bought and paid for must arrive"
+    assert landed["status"] == "lagged"
+    assert landed["segments"], "and must carry the data it was bought for"
+
+
+def test_every_study_reports_something():
+    """Ten of twenty studies returned no_data: paid for, and silent."""
+    params = P.load({"n_teams": 3, "events_enabled": 0})
+    world = bootstrap.new_world(params, run_id="all")
+    codes = [s["code"] for s in params.studies]
+    # Marketplace participation unlocks in round 3, and MR-13 has nothing to
+    # rank until it is on - so run far enough in for every study to apply.
+    decisions = {"team_01": {"12.1": codes, "4.1": "on"}}
+    for _ in range(4):
+        run_round(world, params, decisions)
+
+    silent = [c for c, r in world.teams["team_01"].reports[4].items()
+              if r.get("status") == "no_data"]
+    assert not silent, f"studies that report nothing: {silent}"

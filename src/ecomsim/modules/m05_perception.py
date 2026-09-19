@@ -106,9 +106,10 @@ def _gap(team, params, round_, ctx) -> None:
 
     if under < -thr:
         # Immediate, not lagged: you are paying for capability nobody knows about.
+        # CAC is derived - marketing over new customers - so the lost traffic
+        # here already raises it. A separate cac_mult would be a second bite
+        # at the same effect, and nothing ever read it.
         ctx.setdefault("traffic_mult", {})[team.team_id] = \
             1 + params["undermkt_traffic_coef"] * under
-        ctx.setdefault("cac_mult", {})[team.team_id] = \
-            1 - params["undermkt_cac_coef"] * under
 
     ctx.setdefault("perception_gap", {})[team.team_id] = over

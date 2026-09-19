@@ -40,46 +40,46 @@ Error band ≈ 95% interval on the reported figure.
 
 | Code | Study | Tells you | Price (PKR) | Lag | Error | Notes |
 |---|---|---|---|---|---|---|
-| MR-01 | Category Demand & Seasonality | Category size, growth, **next 3 rounds' seasonal index** | 150,000 | 0 | ±8% | The cheapest high-value study. Most teams find it in Round 5, too late |
-| MR-02 | Competitor Price Tracker | Every team's avg net selling price and discount depth | 200,000 | 0 | ±3% | Net of promo — the free scrape is not |
-| MR-03 | Market Share Report | Revenue and order share by team | 250,000 | 0 | ±5% | |
-| MR-04 | Competitor Ad Spend Estimate | Est. spend by channel by competitor | 300,000 | 0 | ±20% **and biased −10%** | Deliberately unreliable. Teaches that competitive intel is an estimate |
-| MR-05 | Category Signal Report | Forward-looking: entrants, regulation, supply signals | 180,000 | 0 | Qualitative | Gives a 1-round warning on ~60% of events |
+| MR-01 | Category Demand & Seasonality | Category size, growth, **next 3 rounds' seasonal index** | 40,000 | 0 | ±8% | The cheapest high-value study. Most teams find it in Round 5, too late |
+| MR-02 | Competitor Price Tracker | Every team's avg net selling price and discount depth | 50,000 | 0 | ±3% | Net of promo — the free scrape is not |
+| MR-03 | Market Share Report | Revenue and order share by team | 60,000 | 0 | ±5% | |
+| MR-04 | Competitor Ad Spend Estimate | Est. spend by channel by competitor | 75,000 | 0 | ±20% **and biased −10%** | Deliberately unreliable. Teaches that competitive intel is an estimate |
+| MR-05 | Category Signal Report | Forward-looking: entrants, regulation, supply signals | 45,000 | 0 | Qualitative | Gives a 1-round warning on ~60% of events |
 
 ### Tier 2 — Customer & Brand
 
 | Code | Study | Tells you | Price | Lag | Error | Notes |
 |---|---|---|---|---|---|---|
-| MR-06 | Segment Size & Needs | Segment sizes, price sensitivity, attribute importance weights | 350,000 | 1 | ±6% | Valid ~3 rounds. Without it, segment targeting in 6.2 is guesswork |
-| MR-07 | **Brand Perception Tracker** | Your and competitors' *perceived* quality / value / delivery reliability | 300,000 | 0 | ±7% | **Core study.** The only way to see the perception-reality gap before it bites |
-| MR-08 | Brand Funnel Study | Awareness → consideration → preference, by segment | 250,000 | 1 | ±8% | Justifies 3.9 brand spend; without it brand spend looks like waste |
-| MR-09 | NPS & CSAT Deep-dive | NPS drivers, complaint themes | 120,000 | 0 | ±5% | Cheap. Usually the first sign of an ops problem |
-| MR-10 | Cohort & Churn Analysis | Your retention curves by acquisition cohort and channel | 150,000 | 0 | ±4% | Reveals that Deal Hunter cohorts never repeat |
+| MR-06 | Segment Size & Needs | Segment sizes, price sensitivity, attribute importance weights | 90,000 | 1 | ±6% | Valid ~3 rounds. Without it, segment targeting in 6.2 is guesswork |
+| MR-07 | **Brand Perception Tracker** | Your and competitors' *perceived* quality / value / delivery reliability | 75,000 | 0 | ±7% | **Core study.** The only way to see the perception-reality gap before it bites |
+| MR-08 | Brand Funnel Study | Awareness → consideration → preference, by segment | 60,000 | 1 | ±8% | Justifies 3.9 brand spend; without it brand spend looks like waste |
+| MR-09 | NPS & CSAT Deep-dive | NPS drivers, complaint themes | 30,000 | 0 | ±5% | Cheap. Usually the first sign of an ops problem |
+| MR-10 | Cohort & Churn Analysis | Your retention curves by acquisition cohort and channel | 40,000 | 0 | ±4% | Reveals that Deal Hunter cohorts never repeat |
 
 ### Tier 3 — Channel & Marketing
 
 | Code | Study | Tells you | Price | Lag | Error | Notes |
 |---|---|---|---|---|---|---|
-| MR-11 | Channel CAC & ROAS Benchmark | Market-level CAC, CPM, CTR by channel | 200,000 | 0 | ±10% | Tells you if your CAC is bad or the market's is |
-| MR-12 | **Attribution Study (MMM-lite)** | *True incremental* contribution by channel vs platform-reported | 450,000 | 1 | ±12% | **The most expensive and most valuable study in the sim** |
-| MR-13 | Marketplace Ranking Report | Your category ranking, marketplace share | 100,000 | 0 | ±5% | Only useful if 4.1 is on |
-| MR-14 | Creative Effectiveness Pre-test | Creative Quality Score *before* you spend behind it | 80,000 | 0 | ±10% | Cheap insurance on a large spend |
+| MR-11 | Channel CAC & ROAS Benchmark | Market-level CAC, CPM, CTR by channel | 50,000 | 0 | ±10% | Tells you if your CAC is bad or the market's is |
+| MR-12 | **Attribution Study (MMM-lite)** | *True incremental* contribution by channel vs platform-reported | 110,000 | 1 | ±12% | **The most expensive and most valuable study in the sim** |
+| MR-13 | Marketplace Ranking Report | Your category ranking, marketplace share | 25,000 | 0 | ±5% | Only useful if 4.1 is on |
+| MR-14 | Creative Effectiveness Pre-test | Creative Quality Score *before* you spend behind it | 20,000 | 0 | ±10% | Cheap insurance on a large spend |
 
 ### Tier 4 — Operations & Product
 
 | Code | Study | Tells you | Price | Lag | Error | Notes |
 |---|---|---|---|---|---|---|
-| MR-15 | Delivery & Logistics Benchmark | Courier SLA, success, RTO by courier vs market | 120,000 | 0 | ±4% | Courier stated rates drift from actual — this shows actual |
-| MR-16 | Return Reason Analysis | Return drivers by SKU and reason code | 90,000 | 0 | ±3% | Distinguishes quality returns from expectation returns |
-| MR-17 | Supplier & Lead Time Intelligence | Supplier reliability, **lead-time forecast next 2 rounds** | 200,000 | 0 | ±15% | Forewarns the Round 5 supply disruption ~70% of the time |
-| MR-18 | Product Concept Test | Demand estimate for a private-label concept pre-launch | 280,000 | 1 | ±15% | Should gate decision 1.3. Most teams skip it and regret it |
+| MR-15 | Delivery & Logistics Benchmark | Courier SLA, success, RTO by courier vs market | 30,000 | 0 | ±4% | Courier stated rates drift from actual — this shows actual |
+| MR-16 | Return Reason Analysis | Return drivers by SKU and reason code | 22,000 | 0 | ±3% | Distinguishes quality returns from expectation returns |
+| MR-17 | Supplier & Lead Time Intelligence | Supplier reliability, **lead-time forecast next 2 rounds** | 50,000 | 0 | ±15% | Forewarns the Round 5 supply disruption ~70% of the time |
+| MR-18 | Product Concept Test | Demand estimate for a private-label concept pre-launch | 70,000 | 1 | ±15% | Should gate decision 1.3. Most teams skip it and regret it |
 
 ### Tier 5 — Premium & Conditional
 
 | Code | Study | Tells you | Price | Lag | Error | Notes |
 |---|---|---|---|---|---|---|
-| MR-19 | Full Competitive Dossier | MR-02 + MR-03 + MR-04 **plus competitor stock position** | 800,000 | 0 | ±5% | Costs 1.07× buying the three separately, but tightens MR-04's band from ±20% to ±5% and adds stock data. Genuinely good value — and a big cash hit |
-| MR-20 | Q-Commerce Readiness | City-level demand, dark-store unit economics | 350,000 | 0 | ±10% | Available from Round 4 only. Effectively required before 4.3 |
+| MR-19 | Full Competitive Dossier | MR-02 + MR-03 + MR-04 **plus competitor stock position** | 200,000 | 0 | ±5% | Costs 1.08× buying the three separately, but tightens MR-04's band from ±20% to ±5% and adds stock data. Genuinely good value — and a big cash hit |
+| MR-20 | Q-Commerce Readiness | City-level demand, dark-store unit economics | 90,000 | 0 | ±10% | Available from Round 4 only. Effectively required before 4.3 |
 
 ---
 

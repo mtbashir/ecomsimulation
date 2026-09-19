@@ -1,21 +1,21 @@
 code,name,price,lag_rounds,error_band,bias,tier,min_round,note
-MR-01,Category Demand & Seasonality,150000,0,0.08,1.00,market,1,Reveals seasonal index three rounds ahead
-MR-02,Competitor Price Tracker,200000,0,0.03,1.00,market,1,Net of promo unlike the free scrape
-MR-03,Market Share Report,250000,0,0.05,1.00,market,1,Revenue and order share by team
-MR-04,Competitor Ad Spend Estimate,300000,0,0.20,0.90,market,1,Deliberately noisy and biased low
-MR-05,Category Signal Report,180000,0,0.00,1.00,market,1,Warns of 60 percent of events one round ahead
-MR-06,Segment Size & Needs,350000,1,0.06,1.00,customer,1,Reveals hidden segment weights; decays 4 percent per round
-MR-07,Brand Perception Tracker,300000,0,0.07,1.00,customer,1,The only route to the perception gap
-MR-08,Brand Funnel Study,250000,1,0.08,1.00,customer,2,Justifies brand spend
-MR-09,NPS & CSAT Deep-dive,120000,0,0.05,1.00,customer,1,Cheap early warning on operations
-MR-10,Cohort & Churn Analysis,150000,0,0.04,1.00,customer,1,Reveals the deal-cohort churn rate
-MR-11,Channel CAC & ROAS Benchmark,200000,0,0.10,1.00,channel,1,Market level not own performance
-MR-12,Attribution Study,450000,1,0.12,1.00,channel,2,True incremental contribution versus platform reported
-MR-13,Marketplace Ranking Report,100000,0,0.05,1.00,channel,3,Only useful with marketplace participation on
-MR-14,Creative Effectiveness Pre-test,80000,0,0.10,1.00,channel,1,Creative quality score before committing spend
-MR-15,Delivery & Logistics Benchmark,120000,0,0.04,1.00,operations,1,Actual courier performance versus stated
-MR-16,Return Reason Analysis,90000,0,0.03,1.00,operations,1,Separates quality returns from expectation returns
-MR-17,Supplier & Lead Time Intelligence,200000,0,0.15,1.00,operations,1,Warns of the lead time shock 70 percent of the time
-MR-18,Product Concept Test,280000,1,0.15,1.00,operations,3,Should gate the private label decision
-MR-19,Full Competitive Dossier,800000,0,0.05,1.00,premium,1,Bundles MR-02 MR-03 MR-04 plus competitor stock
-MR-20,Q-Commerce Readiness,350000,0,0.10,1.00,premium,4,Required before Quick Commerce entry
+MR-01,Category Demand & Seasonality,40000,0,0.08,1.00,market,1,Reveals seasonal index three rounds ahead
+MR-02,Competitor Price Tracker,50000,0,0.03,1.00,market,1,Net of promo unlike the free scrape
+MR-03,Market Share Report,60000,0,0.05,1.00,market,1,Revenue and order share by team
+MR-04,Competitor Ad Spend Estimate,75000,0,0.20,0.90,market,1,Deliberately noisy and biased low
+MR-05,Category Signal Report,45000,0,0.00,1.00,market,1,Warns of 60 percent of events one round ahead
+MR-06,Segment Size & Needs,90000,1,0.06,1.00,customer,1,Reveals hidden segment weights; decays 4 percent per round
+MR-07,Brand Perception Tracker,75000,0,0.07,1.00,customer,1,The only route to the perception gap
+MR-08,Brand Funnel Study,60000,1,0.08,1.00,customer,2,Justifies brand spend
+MR-09,NPS & CSAT Deep-dive,30000,0,0.05,1.00,customer,1,Cheap early warning on operations
+MR-10,Cohort & Churn Analysis,40000,0,0.04,1.00,customer,1,Reveals the deal-cohort churn rate
+MR-11,Channel CAC & ROAS Benchmark,50000,0,0.10,1.00,channel,1,Market level not own performance
+MR-12,Attribution Study,110000,1,0.12,1.00,channel,2,True incremental contribution versus platform reported
+MR-13,Marketplace Ranking Report,25000,0,0.05,1.00,channel,3,Only useful with marketplace participation on
+MR-14,Creative Effectiveness Pre-test,20000,0,0.10,1.00,channel,1,Creative quality score before committing spend
+MR-15,Delivery & Logistics Benchmark,30000,0,0.04,1.00,operations,1,Actual courier performance versus stated
+MR-16,Return Reason Analysis,22000,0,0.03,1.00,operations,1,Separates quality returns from expectation returns
+MR-17,Supplier & Lead Time Intelligence,50000,0,0.15,1.00,operations,1,Warns of the lead time shock 70 percent of the time
+MR-18,Product Concept Test,70000,1,0.15,1.00,operations,3,Should gate the private label decision
+MR-19,Full Competitive Dossier,200000,0,0.05,1.00,premium,1,Bundles MR-02 MR-03 MR-04 plus competitor stock
+MR-20,Q-Commerce Readiness,90000,0,0.10,1.00,premium,4,Required before Quick Commerce entry
