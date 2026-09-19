@@ -92,6 +92,7 @@ def run(world, params, resolved, ctx) -> None:
             "return_rate": ctx["return_rate"][tid],
             "cash_balance": ctx["cash"][tid],
             "runway_rounds": ctx["runway_rounds"][tid],
+            "credit_drawn": ctx["credit_drawn"][tid],
             "market_share": ctx["net_revenue"][tid] / total_revenue,
             "binding_constraint": ctx["binding_constraint"][tid],
             "perception_gap": ctx["perception_gap"].get(tid, 0.0),

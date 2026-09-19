@@ -74,11 +74,10 @@ def final_score(team, params, all_teams: dict) -> dict:
           + 3 * anchor(turns, 4.0, 7.5, 12.0)) / 100
 
     # P5 Cash & capital (10)
-    cum_fcf = last["cash_balance"] - params["starting_cash"]
+    liquidity = _flow(h, lambda x: _runway_band(x["runway_rounds"]), w)
     ccc = _flow(h, lambda x: x["pnl"]["net_profit"] / max(x["revenue_net"], 1.0), w)
-    p5 = 0.0 if insolvent else (5 * _runway_band(last["runway_rounds"])
-                                + 3 * anchor(cum_fcf, -24e6, -15e6, -5e6)
-                                + 2 * anchor(ccc, -0.30, -0.14, -0.02)) / 100
+    p5 = 0.0 if insolvent else (7 * liquidity
+                                + 3 * anchor(ccc, -0.30, -0.14, -0.02)) / 100
 
     # P6 Decision quality (10) - not scorable in a scripted harness
     p6 = 10 * 0.5

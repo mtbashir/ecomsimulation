@@ -92,13 +92,14 @@ def new_team(params, team_id: str) -> TeamState:
 
 
 def _seed_pipeline(team, params, active, units_per_round) -> None:
-    """One round of demand already on order, arriving Round 1, payable Round 1.
+    """Put the team mid-cycle: stock arriving, suppliers owed, COD in transit.
 
-    Opening on-hand stock is deliberately thin (~1 week): arrivals land before
-    sales in M3, so the pipeline PO serves Round 1. Together they put the
-    inventory position just under the order-up-to target, so Round 1 places a
-    normal-sized order and cash is smooth from the first round. A going concern
-    is mid-cycle, not at a standstill.
+    A going concern is not at a standstill. Seeding discrete lumps - two whole
+    purchase orders, each paid in full on one round - produced a large payable
+    pile-up a few rounds in, which is a bootstrap artifact rather than anything
+    a team did. What it should carry is the STEADY-STATE ledger: in steady
+    state a business places a purchase order worth C each round and pays out
+    exactly C each round, spread across the rounds its terms span.
     """
     supplier = next(s for s in params.suppliers if s["code"] == "B")
     total_weight = sum(float(s["revenue_weight"]) for s in active)
@@ -111,14 +112,27 @@ def _seed_pipeline(team, params, active, units_per_round) -> None:
         * params["cogs_scale"]
         for s in active
     )
-    # Two rounds in flight: a going concern on a 14-day lead and 30-day terms
-    # has last month's order arriving and this month's already placed.
-    for arrives in (1, 2):
-        team.open_pos.append({
-            "placed": arrives - 1, "arrives": arrives, "units": dict(alloc),
-            "cost": cost, "supplier": "B",
-        })
-        team.payables[arrives] = team.payables.get(arrives, 0.0) + cost
+
+    # One round of demand already ordered and arriving next round.
+    team.open_pos.append({
+        "placed": 0, "arrives": 1, "units": dict(alloc),
+        "cost": cost, "supplier": "B",
+    })
+
+    round_days = 30.44 * params["round_months"]
+    lag = params["supplier_terms_days"] / round_days
+    frac = lag - int(lag)
+    # Owed to suppliers: one round's purchases due next round, plus the tail of
+    # the round before that.
+    team.payables[1] = cost
+    if frac > 0:
+        team.payables[2] = cost * frac
+
+    # COD already despatched and not yet remitted.
+    cod_lag = params["cod_remit_days"] / round_days
+    revenue = params["baseline_team_revenue"] * 0.78
+    team.receivables[1] = revenue * params["cod_share_base"] * min(cod_lag, 1.0)
+    team.cod_receivable = team.receivables[1]
 
 
 def _active_skus(params) -> list[dict]:

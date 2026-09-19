@@ -29,6 +29,52 @@ reasoned argument.
 
 ## Entries
 
+### 2026-09-19 · Burst 3b — working capital smoothed; inventory made a decision
+
+**DECIDED: smooth the working-capital cycle.** The ~40% cash swings were not
+"what this business does" - they were two modelling artifacts.
+
+1. Supplier terms and COD remittance were rounded to whole rounds, so a month
+   of purchasing landed in a single lump. Both now book across the rounds their
+   lag actually spans (`M15._schedule`), and terms moved 30 -> 45 days.
+2. The bootstrap seeded two discrete purchase orders whose payables piled up a
+   few rounds in. It now seeds the **steady-state ledger** - one round of
+   purchases due next round plus the tail of the one before, and COD already
+   despatched and not yet remitted.
+
+**Peak cash movement fell from 41% to 24%.** The test is back to a flat 30%
+with no exclusions and no xfail. I had moved that threshold five times across
+bursts 2 and 3; the cause was findable and none of those moves were justified.
+
+**DECIDED: keep growth_max insolvency.** Aggressive growth that outruns its
+working capital should bankrupt a team, so `growth_max` is reclassified as an
+archetype that exists to fail rather than a viable strategy the invariants must
+protect.
+
+### OPEN QUESTION — shrinking currently wins
+
+`cash_preservation` ranks **#1 of 20**, and the cause is structural rather than
+a bad anchor:
+
+- The business cannot reach EBITDA breakeven (burst 3, finding 7), so **cutting
+  spend always improves P1**, and nothing pushes back hard enough.
+- **LTV:CAC rewards not acquiring customers.** A team that acquires almost
+  nobody has excellent unit economics and no business. This is the same class
+  of defect as the harvester exploit, but it cannot be fixed by changing when
+  CAC is measured - the ratio itself is scale-blind.
+
+Three ways out, in order of how much I would trust them:
+
+| | Change | Cost |
+|---|---|---|
+| A | Make profitability reachable - `payroll_base` 1.4M -> ~1.0M | Softens "coasting is almost fatal", which was an explicit decision |
+| B | Pair LTV:CAC with scale - reweight P3 toward absolute customer value | Departs from the published docs/08 weights |
+| C | Accept and teach it - "why did shrinking win?" is a real debrief | Leaves a scorecard that rewards shrinking |
+
+This is a judgement about what the course should teach, not a parameter to
+tune, so it is left open.
+
+
 ### 2026-09-19 · Burst 3 — balance (11 of 12 invariants)
 
 Seven scoring and engine defects found by the invariant suite. Each was a real

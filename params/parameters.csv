@@ -102,7 +102,7 @@ payroll_base,M14,1400000,600000,3000000,200000,8000000,PKR,,Fixed monthly payrol
 warehouse_fixed_cost,M14,340000,120000,900000,50000,2500000,PKR,,Fixed warehouse cost per round
 tech_fixed_cost,M14,180000,60000,600000,0,2000000,PKR,,Baseline technology running cost per round
 cs_cost_per_agent,M14,62000,30000,140000,15000,300000,PKR,,Fully loaded monthly cost per service agent
-supplier_terms_days,M15,30,0,60,0,90,days,,Default supplier payment terms
+supplier_terms_days,M15,45,0,60,0,90,days,,Default supplier payment terms
 incumbent_a_utility,M7,0.46,0.25,0.65,0.0,1.0,utility,,Price-leader incumbent baseline attractiveness
 incumbent_b_utility,M7,0.50,0.25,0.70,0.0,1.0,utility,,Premium-service incumbent baseline attractiveness
 channel_k_scale,M6,1.1543,0.5,3.0,0.2,6.0,multiplier,,Global scale on channel k_base; the calibration handle for total paid traffic

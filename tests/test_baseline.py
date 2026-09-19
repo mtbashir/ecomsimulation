@@ -102,16 +102,6 @@ def test_seasonality_disabled_at_annual_rounds():
     assert abs(sizes[0] - sizes[1]) < 1e-6, "seasonality must vanish at annual rounds"
 
 
-@pytest.mark.xfail(
-    reason="At N=16 one team peaks at ~42% in the PO/COD cycle. I have moved "
-           "this threshold five times across bursts 2 and 3, which is the "
-           "wrong way to make a test pass. Marked visibly instead: the open "
-           "question is whether the working-capital cycle should be smoothed "
-           "(stagger PO timing, or move supplier terms to 45 days) or whether "
-           "a ~40% swing is simply what this business does. That is a "
-           "judgement for the calibration log, not a tolerance to nudge.",
-    strict=False,
-)
 @pytest.mark.parametrize("n_teams", [2, 8, 16])
 def test_cash_trajectory_is_predictable(n_teams):
     """The baseline business burns cash by design (see calibration log).
@@ -131,5 +121,5 @@ def test_cash_trajectory_is_predictable(n_teams):
     for team in world.teams.values():
         cash = [start] + [h["cash_balance"] for h in team.history]
         assert not any(h["insolvent"] for h in team.history), team.team_id
-        steps = [abs(b - a) / start for a, b in zip(cash, cash[1:])][2:]
-        assert max(steps) <= 0.35, f"{team.team_id} max step {max(steps):.1%}"
+        steps = [abs(b - a) / start for a, b in zip(cash, cash[1:])]
+        assert max(steps) <= 0.30, f"{team.team_id} max step {max(steps):.1%}"

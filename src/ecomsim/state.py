@@ -33,6 +33,7 @@ class TeamState:
     cod_receivable: float = 0.0
     mp_receivable: float = 0.0
     payables: dict[int, float] = field(default_factory=dict)
+    receivables: dict[int, float] = field(default_factory=dict)
 
     # Demand-side stocks
     brand_equity: float = 0.50

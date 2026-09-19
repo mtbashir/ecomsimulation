@@ -52,14 +52,22 @@ A sim where COD is a rounding error actively mis-teaches this market.
 
 ## Current status
 
-**Burst 3 in progress.** 11 of 12 invariants pass; 52 tests green.
+**Burst 3 nearly complete.** 11 of 12 invariants pass; 53 tests green, no xfail.
 
 | | |
 |---|---|
-| **Next** | **Finish I11 (scorecard discrimination), then burst 4** |
-| Tests | 52 passing |
-| Invariants | 11/12 — I11 open (spread 29 vs 35-75 target) |
+| **Next** | **Decide the open question below, then burst 4 (Round 0 + decision I/O)** |
+| Tests | 53 passing |
+| Invariants | 11/12 — I11 open |
 | Suites | `pytest -q` · `python calibrate.py` · `python validate.py --games 160` |
+
+### Open question — shrinking currently wins
+
+`cash_preservation` ranks #1 of 20. The business cannot reach EBITDA breakeven,
+so cutting spend always improves profitability, and **LTV:CAC rewards not
+acquiring customers** — great unit economics, no business. Three options are
+laid out in `docs/13-calibration-log.md`; it is a judgement about what the
+course should teach, not a parameter to tune.
 
 ### Invariant status
 
@@ -69,13 +77,13 @@ A sim where COD is a rounding error actively mis-teaches this market.
 | I2 No death spiral | PASS | none before R6 |
 | I3 Discounting is a trap | PASS | 100% of shared games |
 | I4 Margin viable | PASS | baseline CM 7.2% |
-| I5 Cash binding, survivable | PASS | 96% draw credit, 1% insolvent |
+| I5 Cash binding, survivable | PASS | 96% draw credit, 3% of viable insolvent |
 | I6 Share conserves | PASS | |
 | I7 Research pays | PASS | selective 50.6 > heavy 50.2 > zero 49.6 |
 | I8 Determinism | PASS | |
 | I9 Monotonicity | PASS | 6/6 levers |
 | I10 No free lunch | PASS | 8/8 levers |
-| **I11 Discrimination** | **FAIL** | spread 29; sandbagger #11, harvester #10 |
+| **I11 Discrimination** | **FAIL** | spread 28; sandbagger #10, harvester #11 |
 | I12 Event neutrality | PASS | rank rho 0.99 |
 
 ### Fixed during burst 3

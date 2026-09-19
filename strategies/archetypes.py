@@ -23,6 +23,16 @@ def _scale(mult: float) -> dict:
     return {k: v * mult for k, v in BASE.items()}
 
 
+def _stock(v: float, lo: float, hi: float) -> float:
+    """Safety-stock weeks across an archetype's variation range.
+
+    Inventory is a real decision now, so the suite has to span it - lean
+    enough to stock out at one end, heavy enough to tie up cash at the other.
+    Without this the operations pillar has nothing to measure.
+    """
+    return lo + (hi - lo) * v
+
+
 def _lerp(v: float, lo: float, hi: float) -> float:
     return lo + (hi - lo) * v
 
@@ -38,7 +48,7 @@ def balanced(world, r, tid, v):
     d = _scale(m)
     d["3.9"] = BASE["3.9"] * _lerp(v, 1.2, 1.6)
     d["6.1"] = _lerp(v, 120_000, 220_000)
-    d["7.5"] = 2.5
+    d["7.5"] = _stock(v, 1.5, 4.0)
     d["9.2"] = 0.03
     d["10.1"] = 5
     d["7.4"] = 120_000
@@ -49,6 +59,7 @@ def balanced(world, r, tid, v):
 
 def growth_max(world, r, tid, v):
     d = _scale(_lerp(v, 2.0, 4.0))
+    d["7.5"] = _stock(v, 0.5, 2.0)   # growth outruns its cover
     d["3.9"] = 0
     d["3.8"] = BASE["3.8"] * 0.5
     return d
@@ -56,12 +67,14 @@ def growth_max(world, r, tid, v):
 
 def discounter(world, r, tid, v):
     d = _scale(1.3)
+    d["7.5"] = _stock(v, 1.0, 3.0)
     d["2.2"] = _lerp(v, 0.15, 0.45)
     return d
 
 
 def premium(world, r, tid, v):
     d = _scale(1.0)
+    d["7.5"] = _stock(v, 2.5, 5.0)
     d["1.5"] = "premium"
     d["2.2"] = 0.0
     d["8.5"] = "premium"
@@ -94,6 +107,7 @@ def ops_excellence(world, r, tid, v):
 
 def cash_preservation(world, r, tid, v):
     d = _scale(_lerp(v, 0.3, 0.5))
+    d["7.5"] = _stock(v, 0.4, 1.4)   # starving stock to hold cash
     d["3.9"] = 0
     d["3.8"] = 0
     d["10.1"] = 3
@@ -111,6 +125,7 @@ def marketplace_first(world, r, tid, v):
 
 def own_site_purist(world, r, tid, v):
     d = _scale(1.1)
+    d["7.5"] = _stock(v, 1.0, 4.0)
     d["4.1"] = "off"
     d["5.1"] = _lerp(v, 200_000, 400_000)
     return d
@@ -118,6 +133,7 @@ def own_site_purist(world, r, tid, v):
 
 def tech_led(world, r, tid, v):
     d = _scale(1.0)
+    d["7.5"] = _stock(v, 1.5, 3.5)
     if r >= 3:
         for k in ("11.1", "11.2", "11.4", "11.5"):
             d[k] = True
@@ -146,6 +162,7 @@ def overspend(world, r, tid, v):
 
 def modest_capability(world, r, tid, v):
     d = _scale(1.0)
+    d["7.5"] = _stock(v, 1.2, 4.5)
     if r >= 3:
         d["11.1"] = True
     return d
@@ -230,4 +247,4 @@ ARCHETYPES = {
     "harvester": harvester, "cod_off": cod_off,
 }
 MUST_FAIL = {"discounter", "research_heavy", "research_zero", "sandbagger",
-             "harvester", "overspend"}
+             "harvester", "overspend", "growth_max"}

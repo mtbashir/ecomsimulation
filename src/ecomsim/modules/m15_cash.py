@@ -12,6 +12,22 @@ forgetting to press a button.
 from __future__ import annotations
 
 
+def _schedule(ledger: dict, now: int, amount: float, lag_rounds: float) -> None:
+    """Book an amount across the rounds a rolling lag actually spans.
+
+    A 45-day term on a 30-day round is not "next round" - roughly two thirds
+    falls in the next round and one third the round after. Rounding it to a
+    whole round makes a month of purchasing land in a single lump.
+    """
+    if amount == 0:
+        return
+    whole = int(lag_rounds)
+    frac = lag_rounds - whole
+    ledger[now + whole] = ledger.get(now + whole, 0.0) + amount * (1 - frac)
+    if frac > 0:
+        ledger[now + whole + 1] = ledger.get(now + whole + 1, 0.0) + amount * frac
+
+
 def run(world, params, resolved, ctx) -> None:
     round_days = 30.44 * params["round_months"]
 
@@ -23,25 +39,21 @@ def run(world, params, resolved, ctx) -> None:
         prepaid = net_revenue * ctx["prepaid_share"][tid]
         cod = net_revenue * ctx["cod_share"][tid]
 
-        # Prepaid settles inside the round; COD does not.
-        inflow = prepaid + team.cod_receivable + team.mp_receivable
-        if params["gateway_settle_days"] > round_days:
-            inflow -= prepaid
-            team.mp_receivable = prepaid
-        else:
-            team.mp_receivable = 0.0
-        team.cod_receivable = cod if params["cod_remit_days"] > round_days else 0.0
-        if params["cod_remit_days"] <= round_days:
-            inflow += cod
+        # Prepaid settles in days, so effectively within the round. COD remits
+        # on a rolling lag: orders placed early in the round are remitted
+        # inside it, later ones are not. The split is the share of the round
+        # that lies more than the remittance lag from its end.
+        _schedule(team.receivables, world.round, prepaid,
+                  params["gateway_settle_days"] / round_days)
+        _schedule(team.receivables, world.round, cod,
+                  params["cod_remit_days"] / round_days)
+        inflow = team.receivables.pop(world.round, 0.0)
+        team.cod_receivable = sum(team.receivables.values())
 
         payable_now = team.payables.pop(world.round, 0.0)
         po_cost = ctx.get("po_cost", {}).get(tid, 0.0)
-        terms_rounds = max(0, round(params["supplier_terms_days"] / round_days))
-        if terms_rounds == 0:
-            payable_now += po_cost
-        else:
-            due = world.round + terms_rounds
-            team.payables[due] = team.payables.get(due, 0.0) + po_cost
+        _schedule(team.payables, world.round, po_cost,
+                  params["supplier_terms_days"] / round_days)
 
         outflow = (
             payable_now
