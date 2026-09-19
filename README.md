@@ -22,6 +22,7 @@ A sim where COD is a rounding error actively mis-teaches this market.
 | [`docs/02-market-research-menu.md`](docs/02-market-research-menu.md) | 20 purchasable studies with prices, lags, error bands and bias rules |
 | [`docs/03-core-mechanisms.md`](docs/03-core-mechanisms.md) | Perception vs reality, projects with lead time and failure risk, the second market |
 | [`docs/05-start-mode.md`](docs/05-start-mode.md) | Round 0 founding round vs starting as a going concern, the 14 founding decisions, pro-forma preview and balance constraints |
+| [`docs/07-engine-chain.md`](docs/07-engine-chain.md) | **The round calculation.** 18 modules with formulas, ordering and dependencies; the calibration test that gates all other work |
 | [`docs/06-build-sequencing.md`](docs/06-build-sequencing.md) | Why the engine is built once at Advanced depth while presets ship incrementally; Path A vs Path B cost comparison |
 | [`docs/04-configurability.md`](docs/04-configurability.md) | Team count 2–16, the 92-decision registry and presets, instructor unlock timing, round length and horizon, parameter safe ranges and validation invariants |
 
@@ -61,8 +62,14 @@ software is the delivery mechanism.
 
 ## Next specification documents
 
-- `04-kpi-dictionary.md` — every metric, its formula, and where it surfaces
-- `05-engine-chain.md` — the round calculation, layer by layer
-- `06-event-library.md` — the ~18 scripted and dynamic market events
-- `07-scoring.md` — scorecard formulas and normalisation
-- `08-validation-harness.md` — the 200-strategy balance test suite
+- `08-scoring.md` — scorecard formulas and normalisation
+- `09-event-library.md` — the ~18 scripted and dynamic market events
+- `10-kpi-dictionary.md` — every metric, its formula, and where it surfaces
+- `11-validation-harness.md` — the 200-strategy balance test suite
+
+## First engineering task
+
+`docs/07-engine-chain.md` closes with a calibration test: at default decisions
+with 8 teams and no events, the engine must reproduce the Round 0 baseline to
+within 2% and hold it stable for 12 rounds. Nothing else should be built until
+that test passes.
