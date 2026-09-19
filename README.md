@@ -21,6 +21,7 @@ A sim where COD is a rounding error actively mis-teaches this market.
 | [`docs/01-decision-list.md`](docs/01-decision-list.md) | 56 decision fields across 12 groups, progressive unlock schedule, memo rubric |
 | [`docs/02-market-research-menu.md`](docs/02-market-research-menu.md) | 20 purchasable studies with prices, lags, error bands and bias rules |
 | [`docs/03-core-mechanisms.md`](docs/03-core-mechanisms.md) | Perception vs reality, projects with lead time and failure risk, the second market |
+| [`docs/04-configurability.md`](docs/04-configurability.md) | Team count 2–16, the 92-decision registry and presets, instructor unlock timing, round length and horizon, parameter safe ranges and validation invariants |
 
 ## Design principles
 
@@ -35,10 +36,18 @@ A sim where COD is a rounding error actively mis-teaches this market.
    Discounting is deliberately the most tempting trap.
 5. **Balanced scorecard, published upfront.** Profitability 25 / Growth 20 /
    Customer value 20 / Operational efficiency 15 / Cash 10 / Decision quality 10.
+6. **Configurable, within validated bounds.** Team count, decision set, unlock
+   timing, round length and every economic parameter are instructor-editable —
+   but parameters carry green/amber/red bands and any change outside default
+   triggers a 200-strategy validation run against seven balance invariants.
 
 ## Build status
 
 Specification phase. Engine, team console and instructor console not yet started.
+
+Default configuration: **12 monthly rounds**, 8 teams, Advanced (56-decision)
+preset. See `docs/04-configurability.md` for the alternatives and the reasoning
+behind the monthly-round default.
 
 Planned sequence: calibrate the economic model in a spreadsheet and run two
 cohorts manually before building the platform. The model is the product; the
@@ -50,3 +59,4 @@ software is the delivery mechanism.
 - `05-engine-chain.md` — the round calculation, layer by layer
 - `06-event-library.md` — the ~18 scripted and dynamic market events
 - `07-scoring.md` — scorecard formulas and normalisation
+- `08-validation-harness.md` — the 200-strategy balance test suite
