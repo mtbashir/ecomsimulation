@@ -68,7 +68,7 @@ def final_score(team, params, all_teams: dict) -> dict:
     unit_cost = _unit_cost(team, params) * params["cogs_scale"]
     cogs_flow = st.mean([x["pnl"]["cogs"] for x in h])
     turns = cogs_flow * periods / max(avg_units * unit_cost, 1.0)
-    p4 = (4 * anchor(_flow(h, "instock_rate", w), 0.955, 0.985, 0.998)
+    p4 = (4 * anchor(_flow(h, "service_level", w), 0.80, 0.93, 0.99)
           + 4 * anchor(_flow(h, "delivery_success", w), 0.936, 0.950, 0.964)
           + 4 * anchor(_flow(h, leak, w), 0.115, 0.085, 0.055)
           + 3 * anchor(turns, 4.0, 7.5, 12.0)) / 100

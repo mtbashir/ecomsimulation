@@ -12,6 +12,28 @@ from __future__ import annotations
 MARKETING_DECISIONS = ["3.1", "3.2", "3.3", "3.4", "3.5", "3.7", "3.8", "3.9"]
 
 
+def _inventory_costs(team, params, ctx, tid: str) -> tuple[float, float]:
+    """Holding cost on all stock, plus a write-down on cover beyond the
+    obsolescence horizon.
+
+    Without these, ordering far too much costs only tied-up cash, and a team
+    that floods its warehouse looks identical to one that plans.
+    """
+    units = sum(team.inventory.values())
+    if units <= 0:
+        return 0.0, 0.0
+    unit_cost = (sum(float(params.sku(c)["unit_cost"]) for c in team.active_skus)
+                 / max(len(team.active_skus), 1)) * params["cogs_scale"]
+    value = units * unit_cost
+    holding = value * params["inventory_holding_rate"]
+
+    demand_units = max(ctx["orders"][tid] * params["units_per_order"], 1.0)
+    cover_rounds = units / demand_units
+    excess = max(0.0, cover_rounds - params["inventory_obsolescence_rounds"])
+    ageing = min(value, excess * demand_units * unit_cost) * 0.10
+    return holding, ageing
+
+
 def run(world, params, resolved, ctx) -> None:
     for team in world.teams.values():
         tid = team.team_id
@@ -68,13 +90,15 @@ def run(world, params, resolved, ctx) -> None:
             - marketing - affiliate - commission
         )
 
+        holding, ageing = _inventory_costs(team, params, ctx, tid)
         research = float(ctx.get("research_cost", {}).get(tid, 0.0))
         below_line = (
             params["payroll_base"] + ctx["cs_cost"][tid]
             + params["warehouse_fixed_cost"]
             + params["tech_fixed_cost"] + ctx.get("ongoing_tech_cost", {}).get(tid, 0.0)
             + research
-            + float(d.get("5.1", 0) or 0)
+            + float(d.get("5.1", 0) or 0) + float(d.get("7.4", 0) or 0)
+            + holding + ageing
         )
         ebitda = contribution - below_line
         interest = team.credit_drawn * params["credit_rate_annual"] * (
@@ -102,6 +126,8 @@ def run(world, params, resolved, ctx) -> None:
             "interest": interest,
             "net_profit": net_profit,
             "research": research,
+            "holding": holding,
+            "ageing": ageing,
         }
         ctx.setdefault("gross_margin_pct", {})[tid] = (
             gross_profit / net_revenue if net_revenue > 0 else 0.0

@@ -32,7 +32,13 @@ def run(world, params, resolved, ctx) -> None:
         # What this team could have sold had stock not bound - the honest
         # forecasting basis for M3. Potential alone carries the headroom that
         # traffic never converts, so forecasting on it over-orders by design.
-        ctx.setdefault("sellable", {})[tid] = min(potential, traffic_capacity)
+        sellable = min(potential, traffic_capacity)
+        ctx.setdefault("sellable", {})[tid] = sellable
+        # Share of servable demand actually served. A stock-out does not show up
+        # as an unfilled order - orders are capped at available stock - it shows
+        # up as demand that never became an order at all.
+        ctx.setdefault("service_level", {})[tid] = (
+            realised / sellable if sellable > 0 else 1.0)
         spare[tid] = max(0.0, min(traffic_capacity, stock_capacity) - realised)
 
         # The diagnosis a debrief actually needs: which of the three actually

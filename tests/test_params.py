@@ -88,3 +88,18 @@ def test_deal_cohort_churn_is_the_trap():
     organic = next(c for c in p.channels if c["code"] == "organic")
     assert float(deal["churn_base"]) > 3 * float(organic["churn_base"])
     assert float(deal["freq_per_round"]) < 0.3 * float(organic["freq_per_round"])
+
+
+def test_csv_rows_are_well_formed():
+    """A comma inside a note field silently shifts every later column.
+
+    It cost a debugging cycle once; it should never cost another.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "params"
+    for path in sorted(root.glob("*.csv")):
+        rows = path.read_text(encoding="utf-8").rstrip().split("\n")
+        width = len(rows[0].split(","))
+        for i, row in enumerate(rows[1:], start=2):
+            assert len(row.split(",")) == width, f"{path.name} line {i}: wrong column count"

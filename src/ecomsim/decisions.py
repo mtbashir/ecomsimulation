@@ -54,7 +54,11 @@ REGISTRY: dict[str, DecisionSpec] = {
                      frozenset({"standard", "advanced", "expert"}), unlock_round=2),
         DecisionSpec("7.2", "G7", "Supplier selection", "select", "B",
                      frozenset({"foundation", "standard", "advanced", "expert"})),
-        DecisionSpec("7.5", "G7", "Safety stock target (weeks)", "num", 2,
+        # None means "use the order-up-to policy" - the default the engine
+        # applies when the decision is disabled, so Foundation still runs.
+        DecisionSpec("7.1", "G7", "Purchase order quantity (units)", "num", None,
+                     frozenset({"standard", "advanced", "expert"})),
+        DecisionSpec("7.5", "G7", "Safety stock target (weeks)", "num", 3,
                      frozenset({"foundation", "standard", "advanced", "expert"})),
         DecisionSpec("9.1", "G9", "COD policy", "select", "on",
                      frozenset({"foundation", "standard", "advanced", "expert"})),

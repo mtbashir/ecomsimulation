@@ -93,7 +93,7 @@ weight_decision_quality,M17,10,5,25,5,30,points,,Pillar P6 weight; must not be z
 units_per_order,M9,2.424,1.0,4.0,1.0,8.0,units,,Units per order; AOV divided by this gives average unit price
 active_sku_count,M0,14,6,20,3,20,count,,SKUs active at baseline out of the 20-SKU catalogue
 starting_active_customers,M12,11000,4000,40000,1000,120000,customers,,Seed customer base at Round 0; must be consistent with baseline orders and repeat share
-starting_inventory_weeks,M3,1.0,0.5,12.0,0.25,30.0,weeks,,Opening stock cover at Round 0
+starting_inventory_weeks,M3,4.5,0.5,12.0,0.25,30.0,weeks,,Opening stock cover at Round 0
 fulfil_pick_pack_cost,M14,42,20,90,5,200,PKR,,Pick and pack cost per order
 cod_handling_fee,M14,0.012,0.004,0.025,0.0,0.05,ratio,,COD handling fee as share of order value
 gateway_fee,M14,0.029,0.015,0.040,0.005,0.060,ratio,,Prepaid gateway fee as share of order value
@@ -110,3 +110,7 @@ cohort_freq_scale,M12,1.0219,0.3,2.5,0.1,5.0,multiplier,,Global scale on cohort 
 cogs_scale,M9,0.9492,0.85,1.15,0.6,1.5,multiplier,,Global scale on SKU unit costs; calibration handle for gross margin and the FX event
 potential_headroom,M1,1.45,1.05,2.2,1.0,4.0,multiplier,,Per-team potential demand at baseline as a multiple of baseline orders; above 1 means traffic binds before demand does
 events_enabled,M2,1,0,1,0,1,flag,,0 disables all events including EV-23 demand noise; used by the T2 baseline gate and by calibration
+forecast_error_sd,M3,0.16,0.05,0.30,0.0,0.60,ratio,,Standard deviation of the demand forecast shown to teams; the reason inventory is a judgement rather than arithmetic
+forecast_ai_error_reduction,M4,0.40,0.20,0.60,0.0,0.85,ratio,,Forecast error reduction once the forecasting AI module is live
+inventory_holding_rate,M14,0.021,0.008,0.040,0.0,0.080,ratio,,Holding cost per round as a share of average inventory value - storage  capital and shrinkage
+inventory_obsolescence_rounds,M14,6,3,12,2,24,rounds,,Cover beyond this many rounds is written down as ageing stock

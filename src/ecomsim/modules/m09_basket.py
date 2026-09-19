@@ -63,13 +63,21 @@ def _consume_stock(team, params, orders: float, ctx) -> None:
     total_w = sum(float(params.sku(c)["revenue_weight"]) for c in skus) or 1.0
     cogs = 0.0
     supplier = ctx.get("supplier", {}).get(team.team_id, {"cost_index": 1.0})
+    served_w = 0.0
     for code in skus:
-        want = units * float(params.sku(code)["revenue_weight"]) / total_w
+        weight = float(params.sku(code)["revenue_weight"]) / total_w
+        want = units * weight
         taken = min(team.inventory.get(code, 0.0), want)
         team.inventory[code] = team.inventory.get(code, 0.0) - taken
+        served_w += weight * (taken / want if want > 0 else 1.0)
         cogs += (taken * float(params.sku(code)["unit_cost"])
                  * float(supplier.get("cost_index", 1.0))
                  * params["cogs_scale"])
+    # Units served over units wanted. instock_ratio reads opening stock - what
+    # a customer sees on the listing page, and the right input to conversion -
+    # but it cannot see a round that sold out, so it is not an operational
+    # quality measure. This is.
+    ctx.setdefault("fill_rate", {})[team.team_id] = served_w
     ctx.setdefault("cogs", {})[team.team_id] = cogs
     ctx.setdefault("units_sold", {})[team.team_id] = units
 
