@@ -87,6 +87,12 @@ class TeamState:
     # How the team's Round 0 sourcing and positioning move its landed cost.
     # 1.0 for a going-concern game, which has no founding round.
     cost_multiplier: float = 1.0
+    # Sourcing is chosen per product, so its consequences are per product:
+    # what a unit costs, how exposed it is to the rupee, and how long it takes
+    # to arrive. Empty for a going-concern game, which sources nothing itself.
+    sku_sourcing: dict[str, str] = field(default_factory=dict)
+    sku_cost_index: dict[str, float] = field(default_factory=dict)
+    lead_time_multiplier: float = 1.0
     # What the team charges for each product, set in Round 0. Empty means the
     # team never priced anything itself, so the catalogue's reference price
     # scaled by the positioning tier stands in.

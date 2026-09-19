@@ -211,6 +211,13 @@ def founding_from_form(form, params) -> founding_mod.Founding:
     f.fulfilment = text("fulfilment", f.fulfilment)
     f.cod_enabled = text("cod_enabled", "on") != "off"
     f.gateway = text("gateway", f.gateway)
+    f.sourcing_by_sku = {}
+    for key in form:
+        if key.startswith("sourcing_"):
+            code = key[len("sourcing_"):]
+            how = (form.get(key) or "").strip()
+            if how in founding_mod.SOURCING:
+                f.sourcing_by_sku[code] = how
     f.prices = {}
     for key in form:
         if not key.startswith("price_"):
@@ -270,7 +277,8 @@ def product_catalogue(params, f: founding_mod.Founding) -> list[dict]:
     rows = []
     for sku in params.skus:
         code = sku["code"]
-        cost = founding_mod.unit_cost(sku, f.sourcing, f.tier, params,
+        sourcing = founding_mod.sourcing_of(f, code)
+        cost = founding_mod.unit_cost(sku, sourcing, f.tier, params,
                                       baseline_supplier)
         reference = founding_mod.reference_price(sku, f.tier)
         price = float((f.prices or {}).get(code) or reference)
@@ -279,6 +287,16 @@ def product_catalogue(params, f: founding_mod.Founding) -> list[dict]:
         rows.append({
             "code": code, "name": sku["name"], "category": sku["category"],
             "tier": sku["tier"], "cost": cost, "reference": reference,
+            "sourcing": sourcing,
+            # Both costs, so the page can move the figure the moment the team
+            # changes where a product comes from.
+            "cost_local": founding_mod.unit_cost(
+                sku, "local", f.tier, params, baseline_supplier),
+            "cost_import": founding_mod.unit_cost(
+                sku, "import", f.tier, params, baseline_supplier),
+            "cost_mixed": founding_mod.unit_cost(
+                sku, "mixed", f.tier, params, baseline_supplier),
+            "lead_days": founding_mod.SOURCING[sourcing][1],
             "price": price, "chosen": code in f.assortment,
             "demand_share": share,
             "demand": ("a large share of the category" if share >= 0.075
@@ -300,11 +318,16 @@ def blended_margin(rows: list[dict]) -> dict:
     weight = sum(r["demand_share"] for r in chosen) or 1.0
     revenue = sum(r["price"] * r["demand_share"] for r in chosen)
     cost = sum(r["cost"] * r["demand_share"] for r in chosen)
+    imported = sum(r["demand_share"] for r in chosen
+                   if r["sourcing"] == "import")
     return {
         "lines": len(chosen),
         "avg_price": revenue / weight,
         "avg_cost": cost / weight,
         "gross_margin": (revenue - cost) / revenue if revenue > 0 else 0.0,
+        "imported_share": imported / weight if weight else 0.0,
+        "avg_lead_days": (sum(r["lead_days"] * r["demand_share"] for r in chosen)
+                          / weight) if chosen else 0.0,
     }
 
 

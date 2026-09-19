@@ -33,21 +33,25 @@ FOUNDING_STAGES = [
      "Two categories out of five, and where you sit on quality. These set your "
      "margin profile, your return rate and how expensive your customers are "
      "to acquire. Positioning is the hardest of all of them to change later."),
-    ("offer", "3. What you sell and where",
+    ("offer", "3. What you sell, where it comes from, and what you charge",
      "Your opening range and the channel you sell it through. A wide range "
      "spreads your stock thin; a narrow one leaves demand on the table."),
-    ("supply", "4. Where the stock comes from",
-     "Cheap, slow and far, or expensive, quick and near. This decides how much "
-     "cash sits in a container and how fast you can react to a good month."),
-    ("build", "5. What you build it on",
+    ("supply", "",
+     "Sourcing is a decision per product, not one decision for the business. "
+     "Local costs about 6% more and lands in nine days. Imported is about 9% "
+     "cheaper, takes twenty-two days, ties up more cash in the pipeline, and "
+     "is the line that hurts when the rupee moves. Dual-sourcing a product "
+     "splits the difference on all four. Which products you put on which side "
+     "is the judgement."),
+    ("build", "4. What you build it on",
      "Your storefront, your warehouse and your payments. The capex is paid now "
      "and is not refundable, so what you choose here constrains what you can "
      "spend on customers for months."),
-    ("money", "6. Where the money and the people go",
+    ("money", "5. Where the money and the people go",
      "Twelve million rupees, split four ways, and a payroll to allocate. The "
      "floors and ceilings exist because an all-in bet on stock puts most teams "
      "out of cash by month three."),
-    ("plan", "7. What you are promising",
+    ("plan", "6. What you are promising",
      "Buy the founding research at half price if you want evidence first. Then "
      "write down the targets you expect to hit - you will be asked to explain "
      "the variance against them at the end."),

@@ -209,3 +209,103 @@ def test_never_pricing_anything_leaves_the_tier_in_charge():
         return world.teams["team_01"].history[-1]["aov_net"]
 
     assert aov("premium") > aov("mainstream") > aov("value")
+
+
+def _sourced(params, how):
+    f = F.Founding.default(params)
+    f.sourcing_by_sku = {c: how for c in f.assortment}
+    f.prices = {c: F.reference_price(params.sku(c), f.tier) for c in f.assortment}
+    return f
+
+
+def _cogs_per_unit(params, f, rounds=1, overrides=None):
+    world = bootstrap.new_world(params, run_id="src")
+    F.apply(f, world.teams["team_01"], params)
+    for _ in range(rounds):
+        run_round(world, params, overrides or {})
+    h = world.teams["team_01"].history[-1]
+    return h["pnl"]["cogs"] / max(h["orders"], 1)
+
+
+def test_sourcing_a_product_abroad_makes_that_product_cheaper():
+    params = P.load({"n_teams": 3, "events_enabled": 0})
+    assert _cogs_per_unit(params, _sourced(params, "import")) < \
+           _cogs_per_unit(params, _sourced(params, "local"))
+
+
+def test_sourcing_is_per_product_not_per_business():
+    """Half the range abroad must land between all-local and all-imported."""
+    params = P.load({"n_teams": 3, "events_enabled": 0})
+    f = F.Founding.default(params)
+    f.prices = {c: F.reference_price(params.sku(c), f.tier) for c in f.assortment}
+    f.sourcing_by_sku = {c: ("import" if i % 2 else "local")
+                         for i, c in enumerate(f.assortment)}
+    mixed = _cogs_per_unit(params, f)
+    assert (_cogs_per_unit(params, _sourced(params, "import")) < mixed
+            < _cogs_per_unit(params, _sourced(params, "local")))
+
+
+def test_importing_ties_up_more_stock_than_buying_locally():
+    """A 22-day pipeline has to be covered; a 9-day one does not.
+
+    Rounds are months, so both orders still arrive next month - the cost of
+    the longer lead time is the cover you carry to bridge it, which is where
+    an importer's working capital actually goes.
+    """
+    params = P.load({"n_teams": 3, "events_enabled": 0})
+    world = bootstrap.new_world(params, run_id="lead")
+    F.apply(_sourced(params, "import"), world.teams["team_01"], params)
+    F.apply(_sourced(params, "local"), world.teams["team_02"], params)
+
+    def position(team):
+        """On the shelf plus on the water - the whole pipeline."""
+        return (sum(team.inventory.values())
+                + sum(sum(po["units"].values()) for po in team.open_pos))
+
+    # Averaged, because stock on hand alone saws up and down with the
+    # replenishment cycle and says nothing on its own.
+    imported, local = [], []
+    for _ in range(6):
+        run_round(world, params, {})
+        imported.append(position(world.teams["team_01"]))
+        local.append(position(world.teams["team_02"]))
+
+    avg_imported = sum(imported) / len(imported)
+    avg_local = sum(local) / len(local)
+    assert avg_imported > avg_local * 1.05, (
+        f"importer carries {avg_imported:,.0f} units against {avg_local:,.0f}")
+
+
+def test_a_currency_shock_is_paid_for_by_whoever_imports():
+    """EV-09 raises import costs from round 10. It is charged on the purchase
+    order, which is where a rupee move hits first - so it shows in what the
+    stock costs to buy, not in the margin on stock already bought."""
+    params = P.load({"n_teams": 3})
+
+    def stock_bill(how):
+        """What the team pays per unit ordered, before and after the shock."""
+        world = bootstrap.new_world(params, run_id="fx")
+        team = world.teams["team_01"]
+        F.apply(_sourced(params, how), team, params)
+        seen, before, after = set(), [], []
+        for rnd in range(1, 13):       # EV-09 lands in round 10 and stays
+            run_round(world, params, {})
+            for po in team.open_pos:
+                key = (po["placed"], round(po["cost"]))
+                if key in seen:
+                    continue
+                seen.add(key)
+                units = sum(po["units"].values()) or 1
+                if po["placed"] in (7, 8, 9):
+                    before.append(po["cost"] / units)
+                elif po["placed"] in (10, 11, 12):
+                    after.append(po["cost"] / units)
+        if not before or not after:
+            return 1.0
+        return (sum(after) / len(after)) / (sum(before) / len(before))
+
+    imported = stock_bill("import")
+    local = stock_bill("local")
+    assert imported > local * 1.03, (
+        f"the rupee moved and the importer barely felt it: "
+        f"imported {imported:.3f} vs local {local:.3f}")

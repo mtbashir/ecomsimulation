@@ -105,8 +105,10 @@ works against you.</p>
 {% endfor %}
 </div>
 
+<p class="stage-intro">{{ stages[3][2] }}</p>
+
 <div class="field">
-<label>Opening range and prices <span class="note">(choose 12 to 18
+<label>Opening range, sourcing and prices <span class="note">(choose 12 to 18
   products)</span></label>
 <p class="help">Tick what you will sell and set what you will charge for it.
 Cost is what one unit lands at, given how you have chosen to source and
@@ -117,7 +119,7 @@ buy.</p>
 
 <table class="catalogue">
 <thead><tr>
-  <th>Sell</th><th>Product</th><th class="num">Cost</th>
+  <th>Sell</th><th>Product</th><th>Source from</th><th class="num">Cost</th>
   <th class="num">Market</th><th class="num">Your price</th>
   <th class="num">Margin</th>
 </tr></thead>
@@ -130,10 +132,21 @@ buy.</p>
     &middot; {{ row.tier }} &middot; {{ row.demand }}
     ({{ '{:.0%}'.format(row.demand_share) }} of category)
     &middot; {{ row.returns }}</span></td>
-  <td class="num">{{ '{:,.0f}'.format(row.cost) }}</td>
+  <td><select name="sourcing_{{ row.code }}" class="src-input"
+       data-local="{{ '%.2f'|format(row.cost_local) }}"
+       data-import="{{ '%.2f'|format(row.cost_import) }}"
+       data-mixed="{{ '%.2f'|format(row.cost_mixed) }}">
+    <option value="local" {% if row.sourcing == 'local' %}selected{% endif %}>
+      Local &middot; 9 days</option>
+    <option value="import" {% if row.sourcing == 'import' %}selected{% endif %}>
+      Imported &middot; 22 days</option>
+    <option value="mixed" {% if row.sourcing == 'mixed' %}selected{% endif %}>
+      Both &middot; 14 days</option>
+  </select></td>
+  <td class="num cost-cell">{{ '{:,.0f}'.format(row.cost) }}</td>
   <td class="num note">{{ '{:,.0f}'.format(row.reference) }}</td>
   <td class="num"><input type="text" inputmode="decimal" class="price-input"
-      name="price_{{ row.code }}" data-cost="{{ '%.2f'|format(row.cost) }}"
+      name="price_{{ row.code }}"
       value="{{ '{:,.0f}'.format(row.price) }}"></td>
   <td class="num margin-cell">{{ '{:.0%}'.format(row.margin) }}</td>
 </tr>
@@ -146,6 +159,8 @@ buy.</p>
   average price PKR {{ '{:,.0f}'.format(blended.avg_price) }},
   average cost PKR {{ '{:,.0f}'.format(blended.avg_cost) }},
   gross margin <strong>{{ '{:.1%}'.format(blended.gross_margin) }}</strong>.
+  {{ '{:.0%}'.format(blended.imported_share) }} of it imported, so stock takes
+  about {{ '%.0f'|format(blended.avg_lead_days) }} days to arrive.
   Saving the page recalculates it.</div>
 <div class="hint">That is the margin on the shelf. The projection at the bottom
 of this page will show a point or two less, because the discount for paying
@@ -156,20 +171,7 @@ lot of e-commerce businesses get lost.</div>
 </section>
 
 {# 4 --- Supply -------------------------------------------------------------- #}
-<section>
-<h2>{{ stages[3][1] }}</h2>
-<p class="stage-intro">{{ stages[3][2] }}</p>
-<div class="field">
-<label>Sourcing strategy</label>
-{% for value, label, note in sourcing %}
-<label class="check" style="margin-bottom:7px">
-  <input type="radio" name="sourcing" value="{{ value }}"
-         {% if f.sourcing == value %}checked{% endif %}>
-  <span><strong>{{ label }}</strong><br><span class="note">{{ note }}</span></span>
-</label>
-{% endfor %}
-</div>
-</section>
+
 
 {# 5 --- Build --------------------------------------------------------------- #}
 <section>
@@ -364,9 +366,14 @@ month 1 is the first lesson of the run.</p>
   var rows = document.querySelectorAll(".cat-row");
   function paint(row) {
     var box = row.querySelector(".price-input");
+    var src = row.querySelector(".src-input");
     var cell = row.querySelector(".margin-cell");
+    var costCell = row.querySelector(".cost-cell");
     var price = parseFloat(box.value.replace(/,/g, ""));
-    var cost = parseFloat(box.dataset.cost);
+    var cost = parseFloat(src.dataset[src.value === "import" ? "import"
+                                      : src.value === "local" ? "local"
+                                      : "mixed"]);
+    costCell.textContent = Math.round(cost).toLocaleString();
     if (!(price > 0)) { cell.textContent = "\u2014"; return; }
     var m = (price - cost) / price;
     cell.textContent = Math.round(m * 100) + "%";
@@ -377,6 +384,9 @@ month 1 is the first lesson of the run.</p>
     var box = row.querySelector(".price-input");
     var tick = row.querySelector("input[type=checkbox]");
     box.addEventListener("input", function () { paint(row); });
+    row.querySelector(".src-input").addEventListener("change", function () {
+      paint(row);
+    });
     tick.addEventListener("change", function () {
       row.classList.toggle("on", tick.checked);
     });

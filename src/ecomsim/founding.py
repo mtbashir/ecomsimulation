@@ -30,9 +30,14 @@ MODELS = {
 SOURCING = {
     # strategy -> (cost index, lead-time days, FX exposure)
     "local": (1.06, 9, 0.0),
+    # "mixed" is no longer a choice a team makes - a team that sources some
+    # lines locally and some abroad IS mixed. It stays as the blended fallback
+    # for a product nobody assigned, and for records written before the
+    # decision moved to the product.
     "mixed": (1.00, 14, 0.5),
     "import": (0.91, 22, 1.0),
 }
+SOURCING_BASELINE_DAYS = 14.0
 TECH_STACKS = {
     # stack -> (capex, ux ceiling, rounds to launch, ongoing per round)
     "basic":    (400_000, 0.55, 0, 40_000),
@@ -56,13 +61,28 @@ def reference_price(sku: dict, tier: str) -> float:
 
 
 def cost_multiplier(sourcing: str, tier: str) -> float:
-    """How a team's sourcing strategy and positioning scale its landed cost."""
+    """How a product's sourcing and the team's positioning scale landed cost."""
     return (SOURCING.get(sourcing, SOURCING["mixed"])[0]
             * TIERS.get(tier, TIERS["mainstream"])[1])
 
 
+def sourcing_of(f: "Founding", code: str) -> str:
+    """How this team sources this product: its own choice, or the default."""
+    return (f.sourcing_by_sku or {}).get(code) or f.sourcing
+
+
+def lead_time_factor(sourcing: str) -> float:
+    """How much slower or faster this product is than a mixed supply chain."""
+    return SOURCING.get(sourcing, SOURCING["mixed"])[1] / SOURCING_BASELINE_DAYS
+
+
+def fx_exposure(sourcing: str) -> float:
+    """How much of a currency shock this product takes. Local takes none."""
+    return SOURCING.get(sourcing, SOURCING["mixed"])[2]
+
+
 def unit_cost(sku: dict, sourcing: str, tier: str, params=None,
-              supplier_index: float = 1.0) -> float:
+              supplier_index: float = 1.0) -> float:  # noqa: D401
     """What one unit will actually cost, as the P&L will charge it.
 
     Must agree with M9: catalogue cost times the global cogs scale, the
@@ -89,7 +109,8 @@ class Founding:
     model: str = "d2c"                                # D0.5
     assortment: list[str] = field(default_factory=list)                              # D0.6
     prices: dict[str, float] = field(default_factory=dict)                           # D0.6
-    sourcing: str = "mixed"                           # D0.7
+    sourcing: str = "mixed"                           # D0.7 - the default
+    sourcing_by_sku: dict[str, str] = field(default_factory=dict)             # D0.7
     capital_inventory: float = 0.0                    # D0.8
     capital_marketing: float = 0.0
     capital_technology: float = 0.0
@@ -154,6 +175,10 @@ def validate(f: Founding, params) -> list[str]:
                 f"four times the market reference of {ref:,.0f}")
     if f.sourcing not in SOURCING:
         errors.append(f"D0.7: sourcing must be one of {', '.join(SOURCING)}")
+    for code, how in (f.sourcing_by_sku or {}).items():
+        if how not in SOURCING:
+            errors.append(
+                f"D0.7: {params.sku(code)['name']} cannot be sourced {how!r}")
     if f.tech_stack not in TECH_STACKS:
         errors.append(f"D0.9: stack must be one of {', '.join(TECH_STACKS)}")
     if f.fulfilment not in FULFILMENT:
@@ -213,6 +238,19 @@ def apply(f: Founding, team, params) -> None:
     # Sourcing and positioning were described as cost decisions and only ever
     # touched the opening stock purchase. They follow the team now.
     team.cost_multiplier = _cost_index * cost_mult
+    # Sourcing is a per-product decision, so the cost, the currency exposure
+    # and the wait are per-product too. The team's blended figures above stay
+    # as the fallback for anything it never assigned.
+    team.sku_sourcing = {c: sourcing_of(f, c) for c in f.assortment}
+    team.sku_cost_index = {
+        c: cost_multiplier(team.sku_sourcing[c], f.tier) for c in f.assortment
+    }
+    weights = {c: float(params.sku(c)["revenue_weight"]) for c in f.assortment}
+    total = sum(weights.values()) or 1.0
+    team.lead_time_multiplier = sum(
+        lead_time_factor(team.sku_sourcing[c]) * w / total
+        for c, w in weights.items()
+    ) or 1.0
     team.traffic_multiplier = _traffic
     team.rating = max(1.0, min(5.0, team.rating + rating_bonus))
     team.ux_score = min(ux_ceiling, 0.62 if launch_rounds == 0 else 0.42)
@@ -224,12 +262,23 @@ def apply(f: Founding, team, params) -> None:
         team.warehouse_capacity = 6_000.0
 
     # Opening stock is bought with the inventory allocation, not handed over.
-    unit_cost = _basket_cost(f, params) * team.cost_multiplier
+    unit_cost = _basket_cost(f, params) * _blended_cost_index(f, params)
     units = f.capital_inventory / max(unit_cost, 1.0)
     weights = {c: float(params.sku(c)["revenue_weight"]) for c in f.assortment}
     total_w = sum(weights.values()) or 1.0
     team.inventory = {c: units * w / total_w for c, w in weights.items()}
     team.cash -= f.capital_inventory
+
+
+def _blended_cost_index(f: Founding, params) -> float:
+    """The team's landed-cost multiplier across the range it chose."""
+    tier_cost = TIERS.get(f.tier, TIERS["mainstream"])[1]
+    weights = {c: float(params.sku(c)["revenue_weight"]) for c in f.assortment}
+    total = sum(weights.values()) or 1.0
+    return tier_cost * sum(
+        SOURCING.get(sourcing_of(f, c), SOURCING["mixed"])[0] * w / total
+        for c, w in weights.items()
+    )
 
 
 # --- Pro-forma preview ---------------------------------------------------------

@@ -336,3 +336,44 @@ def test_the_segment_choice_is_explained_in_business_terms(game):
     )
     assert "18% of the market" in page
     assert "cares most about quality" in page
+
+
+def test_each_product_carries_its_own_sourcing_choice(game):
+    app, pw, path = game
+    con = db.connect(path)
+    params = service.load_params(con)
+    team = _team(app, pw)
+
+    page = team.get("/found").data.decode()
+    assert "Source from" in page
+    assert "Local &middot; 9 days" in page or "Local · 9 days" in page
+    assert "Imported" in page
+
+    f = F.Founding.default(params)
+    data = _valid_setup(params)
+    for i, code in enumerate(f.assortment):
+        data[f"sourcing_{code}"] = "import" if i % 2 else "local"
+        data[f"price_{code}"] = str(F.reference_price(params.sku(code), "mainstream"))
+    team.post("/found", data=data, follow_redirects=True)
+
+    saved = db.founding(con, "team_01")["config"]["sourcing_by_sku"]
+    assert saved[f.assortment[0]] == "local"
+    assert saved[f.assortment[1]] == "import"
+
+
+def test_a_locally_sourced_product_costs_more_than_an_imported_one(game):
+    """The margin on the page has to move with the sourcing choice."""
+    app, pw, path = game
+    con = db.connect(path)
+    params = service.load_params(con)
+    f = F.Founding.default(params)
+    code = f.assortment[0]
+
+    f.sourcing_by_sku = {code: "local"}
+    local = next(r for r in service.product_catalogue(params, f) if r["code"] == code)
+    f.sourcing_by_sku = {code: "import"}
+    imported = next(r for r in service.product_catalogue(params, f) if r["code"] == code)
+
+    assert local["cost"] > imported["cost"]
+    assert local["margin"] < imported["margin"], (
+        "cheaper stock at the same price is a better margin")

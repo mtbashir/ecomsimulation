@@ -6,6 +6,8 @@ score that its actual price/quality position cannot support.
 """
 from __future__ import annotations
 
+from . import m03_supply as m03
+
 
 def run(world, params, resolved, ctx) -> None:
     aovs: dict[str, float] = {}
@@ -70,8 +72,13 @@ def _consume_stock(team, params, orders: float, ctx) -> None:
         taken = min(team.inventory.get(code, 0.0), want)
         team.inventory[code] = team.inventory.get(code, 0.0) - taken
         served_w += weight * (taken / want if want > 0 else 1.0)
+        # The currency shock is charged where it has always been charged - on
+        # the purchase order in M3, which is where a rupee move hits first and
+        # hardest. Putting it here as well moved baseline contribution margin
+        # by five points and is a recalibration, not a sourcing feature.
         cogs += (taken * float(params.sku(code)["unit_cost"])
                  * float(supplier.get("cost_index", 1.0))
+                 * m03.landed_index(team, code)
                  * params["cogs_scale"])
     # Units served over units wanted. instock_ratio reads opening stock - what
     # a customer sees on the listing page, and the right input to conversion -

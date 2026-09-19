@@ -24,12 +24,6 @@ def run(world, params, resolved, ctx) -> None:
         _return_rto_units(team)
 
         supplier = dict(_supplier(params, d))
-        # The team's founding sourcing strategy and positioning tier scale what
-        # a unit lands at, on top of which supplier it buys from. Folding it in
-        # here means every downstream cost - the purchase order in M3 and the
-        # COGS in M9 - sees the same landed cost.
-        supplier["cost_index"] = (float(supplier["cost_index"])
-                                  * team.cost_multiplier)
         ctx.setdefault("supplier_quality", {})[tid] = float(supplier["quality_index"])
         ctx.setdefault("supplier", {})[tid] = supplier
 
@@ -41,6 +35,30 @@ def run(world, params, resolved, ctx) -> None:
             units_available / params["units_per_order"]
         )
         ctx.setdefault("instock_ratio", {})[tid] = _instock_ratio(team, params)
+
+
+def landed_index(team, code: str) -> float:
+    """How this team's own choices scale the cost of one product.
+
+    Sourcing is chosen per product in Round 0 and positioning applies to all of
+    them. A going-concern team chose neither, so it lands at 1.0 and nothing
+    below it changes.
+    """
+    return team.sku_cost_index.get(code, team.cost_multiplier)
+
+
+def fx_multiplier(team, code: str, events) -> float:
+    """A currency shock hits imported lines and leaves local ones alone.
+
+    A team that never chose where its stock comes from - any going-concern
+    game - takes the shock in full, exactly as it did before sourcing became a
+    per-product decision. Choosing is what earns the shelter.
+    """
+    shock = events.get("import_cogs_mult", 1.0)
+    if shock == 1.0 or not team.sku_sourcing:
+        return shock
+    from ..founding import fx_exposure
+    return 1 + (shock - 1) * fx_exposure(team.sku_sourcing.get(code, "mixed"))
 
 
 def _supplier(params, d) -> dict:
@@ -115,7 +133,8 @@ def _place_orders(team, world, params, ctx, d, supplier, events, round_days) -> 
 
     safety_weeks = float(d.get("7.5", 2.0) or 2.0)
     round_weeks = 4.33 * params["round_months"]
-    lead_weeks = float(supplier["lead_time_days"]) * events.get("lead_time_mult", 1.0) / 7
+    lead_weeks = (float(supplier["lead_time_days"]) * team.lead_time_multiplier
+                  * events.get("lead_time_mult", 1.0) / 7)
     # Half a round of cycle stock, not a full one: an order goes out every
     # round, so the position only has to bridge half the review period plus
     # the lead time. A full round of cycle stock on top ties up roughly two
@@ -144,7 +163,8 @@ def _commit_po(team, world, params, ctx, supplier, events, units, round_days) ->
     units = max(units, float(supplier["moq_units"]))
 
 
-    lead_days = float(supplier["lead_time_days"]) * events.get("lead_time_mult", 1.0)
+    lead_days = (float(supplier["lead_time_days"]) * team.lead_time_multiplier
+                 * events.get("lead_time_mult", 1.0))
     noise = 1 + rng.normal(world.run_id, world.round, team.team_id,
                            "leadtime", 0.0, params["lead_time_noise_sd"])
     lead_days *= max(0.4, noise)
@@ -157,7 +177,7 @@ def _commit_po(team, world, params, ctx, supplier, events, units, round_days) ->
     }
     cost = sum(
         alloc[c] * float(params.sku(c)["unit_cost"]) * float(supplier["cost_index"])
-        * events.get("import_cogs_mult", 1.0)
+        * landed_index(team, c) * fx_multiplier(team, c, events)
         for c in skus
     )
 
