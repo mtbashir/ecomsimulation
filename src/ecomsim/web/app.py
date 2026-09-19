@@ -212,19 +212,32 @@ def register_routes(app: Flask) -> None:
         specs = service.open_decisions(g.db, rnd)
         current = db.submission(g.db, rnd, tid) or {}
         previous = db.submission(g.db, rnd - 1, tid) or {}
+        params = service.load_params(g.db)
+        # Readable choices for every lever backed by a reference table, so the
+        # form can offer names and prices instead of codes.
+        catalogues = {
+            s.code: service.catalogue_options(params, s.catalogue)
+            for s in specs if s.catalogue
+        }
 
         if request.method == "POST":
             values, errors = {}, []
             for spec in specs:
-                raw = (request.form.getlist(spec.code)
-                       if spec.code in service.LIST_DECISIONS
-                       else request.form.get(spec.code))
+                if spec.kind == "shares":
+                    raw = {o["value"]: request.form.get(f"{spec.code}__{o['value']}", "")
+                           for o in catalogues.get(spec.code, [])}
+                    if not any(v.strip() for v in raw.values()):
+                        raw = None
+                elif spec.code in service.LIST_DECISIONS:
+                    raw = request.form.getlist(spec.code)
+                else:
+                    raw = request.form.get(spec.code)
                 try:
                     value = service.coerce(spec.code, raw)
-                except ValueError:
+                except (ValueError, TypeError):
                     errors.append(f"{spec.name}: {raw!r} is not a number")
                     continue
-                if value is None or value == []:
+                if value is None or value == [] or value == {}:
                     continue           # blank means "use the default"
                 problem = service.validate(spec.code, value)
                 if problem:
@@ -245,8 +258,14 @@ def register_routes(app: Flask) -> None:
         by_group: dict[str, list] = {}
         for spec in specs:
             by_group.setdefault(spec.group, []).append(spec)
-        return render_template("submit.html", round=rnd, by_group=by_group,
-                               current=current, previous=previous)
+        return render_template(
+            "submit.html", round=rnd, by_group=by_group,
+            current=current, previous=previous, catalogues=catalogues,
+            default_shares={s.code: service.default_shares(params, s.catalogue)
+                            for s in specs if s.kind == "shares"},
+            standing={s.code: service.standing_choice(
+                          s, previous, catalogues.get(s.code, []))
+                      for s in specs if s.kind == "select"})
 
     @app.route("/results/<int:round_>")
     @login_required("team")

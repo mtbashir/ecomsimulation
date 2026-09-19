@@ -103,3 +103,36 @@ def test_report_shows_movement_against_the_prior_round(tmp_path):
     run_round(world, PARAMS, {"team_01": {"3.1": 1_200_000}})
     html = report.render(world.teams["team_01"], 2, tmp_path).read_text(encoding="utf-8")
     assert 'class="d' in html
+
+
+def test_courier_mix_reads_as_a_split(tmp_path):
+    """A bare list of courier codes used to parse and then be ignored."""
+    path = _write(tmp_path, [["team_01", "8.3", "speed:0.5;value:0.2;wide:0.3"]])
+    assert read_decisions(path)["team_01"]["8.3"] == {
+        "speed": 0.5, "value": 0.2, "wide": 0.3}
+
+    bad = _write(tmp_path, [["team_01", "8.3", "speed:0.5;value:0.2"]])
+    with pytest.raises(SubmissionError, match="add up"):
+        read_decisions(bad)
+
+
+def test_switching_cod_off_actually_switches_it_off(tmp_path):
+    """"off" on an on/off lever is the string "off", not the bool False.
+
+    Coercing it to False made the engine compare str(False) to "off" and leave
+    cash on delivery running.
+    """
+    path = _write(tmp_path, [["team_01", "9.1", "off"]])
+    assert read_decisions(path)["team_01"]["9.1"] == "off"
+
+    world = bootstrap.new_world(PARAMS, run_id="io")
+    run_round(world, PARAMS, read_decisions(path))
+    with_cod = bootstrap.new_world(PARAMS, run_id="io")
+    run_round(with_cod, PARAMS, {})
+    off = world.teams["team_01"].history[-1]
+    on = with_cod.teams["team_01"].history[-1]
+    assert off["pnl"]["rto_value"] == 0 < on["pnl"]["rto_value"], (
+        "prepaid-only must leave no cash-on-delivery order to come back")
+    assert off["cod_receivable"] < on["cod_receivable"], (
+        "and no COD cash stuck with the courier")
+    assert off["orders"] < on["orders"], "at the cost of orders"

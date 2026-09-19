@@ -7,6 +7,7 @@ stays available when the app is the problem.
 from __future__ import annotations
 
 import pytest
+from html import escape
 
 from ecomsim.web import db, service
 from ecomsim.web.app import create_app
@@ -150,6 +151,84 @@ def test_implausible_values_are_refused(game):
     ]:
         r = team.post("/submit", data={field: value}, follow_redirects=True)
         assert message in r.data, (field, value)
+
+
+# --- The form a student actually reads -----------------------------------------------
+
+def test_every_open_decision_explains_itself(game):
+    """No lever reaches a student as a bare code with no explanation."""
+    app, pw, path = game
+    con = db.connect(path)
+    db.set_game(con, open_round=1)
+    team = _client(app, "team_01", pw["team_01"])
+    page = team.get("/submit").data.decode()
+    for spec in service.open_decisions(con, 1):
+        assert spec.help, f"{spec.code} has no help text"
+        assert escape(spec.name) in page, spec.code
+        assert escape(spec.help[:40]) in page, f"{spec.code} help not rendered"
+
+
+def test_choices_are_offered_by_name_not_by_code(game):
+    """A team picks "Supplier C - 7-day lead time", never types "C"."""
+    app, pw, path = game
+    db.set_game(db.connect(path), open_round=1)
+    team = _client(app, "team_01", pw["team_01"])
+    page = team.get("/submit").data.decode()
+    assert "Speed Express" in page, "courier names must appear"
+    assert escape("Category Demand & Seasonality") in page, "study names must appear"
+    assert "Facewash 100ml" in page, "product names must appear"
+    assert "Cash on delivery" in page
+    assert "MR-01;MR-17" not in page, "no raw-code placeholder anywhere"
+
+
+def test_a_percentage_field_takes_a_percentage(game):
+    """The field says %, so 15 means 15% - not 1500%."""
+    app, pw, path = game
+    con = db.connect(path)
+    db.set_game(con, open_round=1)
+    team = _client(app, "team_01", pw["team_01"])
+    team.post("/submit", data={"2.2": "15"}, follow_redirects=True)
+    assert db.submission(con, 1, "team_01")["2.2"] == pytest.approx(0.15)
+
+
+def test_a_choice_outside_the_list_is_refused(game):
+    app, pw, path = game
+    db.set_game(db.connect(path), open_round=1)
+    team = _client(app, "team_01", pw["team_01"])
+    r = team.post("/submit", data={"9.1": "maybe"}, follow_redirects=True)
+    assert b"not one of the choices" in r.data
+
+
+def test_courier_mix_reaches_the_engine_as_a_mix(game):
+    """It is a split across couriers, and the engine reads a split."""
+    app, pw, path = game
+    con = db.connect(path)
+    db.set_game(con, open_round=1)
+    team = _client(app, "team_01", pw["team_01"])
+    team.post("/submit", data={"8.3__speed": "50", "8.3__value": "20",
+                               "8.3__wide": "30"}, follow_redirects=True)
+    saved = db.submission(con, 1, "team_01")["8.3"]
+    assert saved == {"speed": 0.5, "value": 0.2, "wide": 0.3}
+
+
+def test_a_courier_mix_that_does_not_add_up_is_refused(game):
+    app, pw, path = game
+    db.set_game(db.connect(path), open_round=1)
+    team = _client(app, "team_01", pw["team_01"])
+    r = team.post("/submit", data={"8.3__speed": "50", "8.3__value": "20",
+                                   "8.3__wide": "10"}, follow_redirects=True)
+    assert b"must add up to 100%" in r.data
+
+
+def test_research_is_picked_from_the_list_with_its_price(game):
+    app, pw, path = game
+    con = db.connect(path)
+    db.set_game(con, open_round=1)
+    team = _client(app, "team_01", pw["team_01"])
+    page = team.get("/submit").data.decode()
+    assert "150,000" in page, "each study must show what it costs"
+    team.post("/submit", data={"12.1": ["MR-01", "MR-03"]}, follow_redirects=True)
+    assert db.submission(con, 1, "team_01")["12.1"] == ["MR-01", "MR-03"]
 
 
 # --- Instructor control ------------------------------------------------------------

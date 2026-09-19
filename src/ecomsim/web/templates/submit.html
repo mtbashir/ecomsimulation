@@ -1,45 +1,115 @@
 {% extends "base.html" %}{% block title %}Round {{ round }} decisions{% endblock %}
 {% block body %}
 <h1>Round {{ round }} decisions</h1>
-<p class="sub">Leave anything blank to keep the default. Your previous round's
-value is shown beneath each field where there is one.</p>
+<p class="sub">Every field is optional. Leave one blank and it stays where it
+was last month. Where a typical range is given, it is a starting point, not a
+recommendation &mdash; the right answer depends on the strategy you are running.</p>
 <form method="post">
 {% for group, specs in by_group.items() %}
 <section>
 <h2>{{ group_names.get(group, group) }}</h2>
 {% for s in specs %}
 <div class="field">
-<label for="{{ s.code }}">{{ s.name }}
-  <span class="note" style="font-size:12px">&middot; {{ s.code }}</span></label>
+<label for="{{ s.code }}">{{ s.name }}{% if s.unit %}
+  <span class="note">({{ s.unit }})</span>{% endif %}</label>
+{% if s.help %}<p class="help">{{ s.help }}</p>{% endif %}
 {% set val = current.get(s.code, '') %}
-{% if s.kind == 'select' and s.default_when_disabled is sameas true or
-      s.kind == 'select' and s.default_when_disabled is sameas false %}
+
+{% if s.kind == 'shares' %}
+  {% set chosen = val if val is mapping else default_shares.get(s.code, {}) %}
+  <div class="shares">
+  {% for o in catalogues.get(s.code, []) %}
+    <div class="share-row">
+      <input id="{{ s.code }}__{{ o.value }}" name="{{ s.code }}__{{ o.value }}"
+             type="text" inputmode="decimal" class="share-input"
+             value="{{ '%0.0f'|format(chosen.get(o.value, 0) * 100) }}">
+      <span class="share-pct">%</span>
+      <span class="share-name">{{ o.label }}<br>
+        <span class="note">{{ o.note }}</span></span>
+    </div>
+  {% endfor %}
+  </div>
+  <div class="hint">These must add up to 100%.</div>
+
+{% elif s.kind == 'select' and s.default_when_disabled is sameas true
+        or s.kind == 'select' and s.default_when_disabled is sameas false %}
   <select id="{{ s.code }}" name="{{ s.code }}">
-    <option value="">— default —</option>
-    <option value="yes" {% if val is sameas true %}selected{% endif %}>Yes</option>
-    <option value="no" {% if val is sameas false %}selected{% endif %}>No</option>
+    <option value="">&mdash; keep {{ standing.get(s.code, 'current choice') }} &mdash;</option>
+    <option value="yes" {% if val is sameas true %}selected{% endif %}>Yes &mdash; switch it on</option>
+    <option value="no" {% if val is sameas false %}selected{% endif %}>No &mdash; do not use it</option>
   </select>
+
+{% elif s.kind == 'select' and s.catalogue %}
+  <select id="{{ s.code }}" name="{{ s.code }}">
+    <option value="">&mdash; keep {{ standing.get(s.code, 'current choice') }} &mdash;</option>
+    {% for o in catalogues.get(s.code, []) %}
+    <option value="{{ o.value }}" {% if val == o.value %}selected{% endif %}>
+      {{ o.label }}{% if o.note %} &mdash; {{ o.note }}{% endif %}</option>
+    {% endfor %}
+  </select>
+
+{% elif s.kind == 'select' and s.options %}
+  <select id="{{ s.code }}" name="{{ s.code }}">
+    {% if s.options[0][0] != '' %}
+    <option value="">&mdash; keep {{ standing.get(s.code, 'current choice') }} &mdash;</option>
+    {% endif %}
+    {% for value, label, note in s.options %}
+    <option value="{{ value }}" {% if val == value %}selected{% endif %}>
+      {{ label }}{% if note %} &mdash; {{ note }}{% endif %}</option>
+    {% endfor %}
+  </select>
+
 {% elif s.kind == 'multi' %}
-  <input id="{{ s.code }}" name="{{ s.code }}" type="text"
-         value="{{ val|join(';') if val else '' }}"
-         placeholder="semicolon separated, e.g. MR-01;MR-17">
+  {% set picked = val if val else [] %}
+  <div class="checks">
+  {% for o in catalogues.get(s.code, []) %}
+    <label class="check">
+      <input type="checkbox" name="{{ s.code }}" value="{{ o.value }}"
+             {% if o.value in picked %}checked{% endif %}>
+      <span>{{ o.label }}{% if o.note %}<br>
+        <span class="note">{{ o.note }}</span>{% endif %}</span>
+    </label>
+  {% endfor %}
+  </div>
+
 {% elif s.kind == 'pct' %}
-  <input id="{{ s.code }}" name="{{ s.code }}" type="text"
-         value="{{ val if val != '' else '' }}" placeholder="e.g. 0.15 or 15%">
+  <div class="with-suffix">
+    <input id="{{ s.code }}" name="{{ s.code }}" type="text" inputmode="decimal"
+           value="{{ '%0.4g'|format(val * 100) if val not in ('', None) else '' }}"
+           placeholder="{{ '%0.4g'|format(s.default_when_disabled * 100)
+                           if s.default_when_disabled is not none else '0' }}">
+    <span class="suffix">%</span>
+  </div>
+
+{% elif s.kind == 'curr' %}
+  <div class="with-prefix">
+    <span class="prefix">PKR</span>
+    <input id="{{ s.code }}" name="{{ s.code }}" type="text" inputmode="decimal"
+           value="{{ '{:,.0f}'.format(val) if val not in ('', None) else '' }}"
+           placeholder="{{ '{:,.0f}'.format(s.default_when_disabled)
+                           if s.default_when_disabled is not none else '' }}">
+  </div>
+
 {% elif s.kind == 'text' %}
-  <input id="{{ s.code }}" name="{{ s.code }}" type="text" value="{{ val }}">
-{% elif s.kind == 'select' %}
   <input id="{{ s.code }}" name="{{ s.code }}" type="text" value="{{ val }}"
-         placeholder="default: {{ s.default_when_disabled }}">
+         placeholder="One or two sentences.">
+
 {% else %}
-  <input id="{{ s.code }}" name="{{ s.code }}" type="text" value="{{ val }}"
-         inputmode="decimal"
-         placeholder="default: {{ s.default_when_disabled if s.default_when_disabled is not none else 'engine decides' }}">
+  <input id="{{ s.code }}" name="{{ s.code }}" type="text" inputmode="decimal"
+         value="{{ val }}"
+         placeholder="{{ '{:,.0f}'.format(s.default_when_disabled)
+                         if s.default_when_disabled is not none
+                         else 'leave blank and we order for you' }}">
 {% endif %}
+
+{% if s.guide %}<div class="hint">{{ s.guide }}</div>{% endif %}
 {% if s.code in previous %}
-<div class="hint">Last round: {{ previous[s.code]|join(';') if previous[s.code] is iterable
-  and previous[s.code] is not string else previous[s.code] }}</div>
+<div class="hint">Last month you chose:
+  {{ previous[s.code]|join(', ') if previous[s.code] is iterable
+     and previous[s.code] is not string and previous[s.code] is not mapping
+     else previous[s.code] }}</div>
 {% endif %}
+<div class="code-ref">Handbook reference {{ s.code }}</div>
 </div>
 {% endfor %}
 </section>

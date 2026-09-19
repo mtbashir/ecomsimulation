@@ -14,7 +14,9 @@ from pathlib import Path
 from .decisions import REGISTRY
 
 # Decisions whose value is a list of codes rather than a scalar.
-LIST_DECISIONS = {"12.1", "1.2", "8.3"}
+# Decisions submitted as a list of codes. Courier mix is not one of them:
+# it is a split, handled by the "shares" kind.
+LIST_DECISIONS = {"12.1", "1.2"}
 
 
 class SubmissionError(ValueError):
@@ -67,19 +69,46 @@ def read_decisions(path: str | Path) -> dict[str, dict]:
 
 
 def _coerce(code: str, raw: str):
+    spec = REGISTRY[code]
+    if spec.kind == "shares":
+        # "speed:0.3;value:0.4;wide:0.3" - a split, which is what the engine
+        # reads. A bare list of codes here used to parse cleanly and then be
+        # silently ignored downstream.
+        out = {}
+        for part in raw.replace(",", ";").split(";"):
+            if not part.strip():
+                continue
+            name, _, share = part.partition(":")
+            if not share:
+                raise SubmissionError(
+                    f"{code}: {part!r} needs a share, e.g. speed:0.3")
+            try:
+                out[name.strip()] = float(share.strip().rstrip("%")) / (
+                    100 if "%" in share else 1)
+            except ValueError:
+                raise SubmissionError(f"{code}: {share!r} is not a number")
+        total = sum(out.values())
+        if out and abs(total - 1.0) > 0.01:
+            raise SubmissionError(
+                f"{code}: shares add up to {total:.2f}, they must add up to 1")
+        return out
     if code in LIST_DECISIONS:
         return [v.strip() for v in raw.replace(",", ";").split(";") if v.strip()]
-    kind = REGISTRY[code].kind
+    kind = spec.kind
     if kind in {"num", "pct", "curr"}:
         try:
             return float(raw.replace(",", "").rstrip("%")) / (
                 100 if kind == "pct" and raw.endswith("%") else 1)
         except ValueError:
             raise SubmissionError(f"{code}: {raw!r} is not a number")
-    if kind == "select" and raw.lower() in {"true", "yes", "on"}:
-        return True
-    if kind == "select" and raw.lower() in {"false", "no", "off"}:
-        return False
+    # Only a genuinely yes/no lever converts to a bool. "off" on a lever whose
+    # values are "on"/"off" is the string "off": turning it into False made the
+    # engine read str(False) and leave the lever switched on.
+    if kind == "select" and isinstance(spec.default_when_disabled, bool):
+        if raw.lower() in {"true", "yes", "on", "1"}:
+            return True
+        if raw.lower() in {"false", "no", "off", "0"}:
+            return False
     return raw
 
 

@@ -42,12 +42,91 @@ def open_decisions(con, round_: int) -> list:
         by_preset = resolver.enabled(code) and resolver.unlocked(code)
         if manual.get(code, by_preset):
             out.append(spec)
-    return sorted(out, key=lambda s: (s.group, s.code))
+    return sorted(out, key=_reading_order)
+
+
+def _reading_order(spec):
+    """Groups and codes in the order a person counts, not in string order.
+
+    Plain sorting puts G12 Finance second, between G1 and G2, and 2.10 before
+    2.2 - which is how the form ended up opening on market research.
+    """
+    return (int(spec.group[1:]),
+            tuple(int(part) for part in spec.code.split(".")))
+
+
+def catalogue_options(params, name: str) -> list[dict]:
+    """Readable choices for a decision backed by a reference table.
+
+    The catalogues already carry names, prices and lead times. A student should
+    see "Speed Express - PKR 210 per order, 97.5% delivered, 2.1 days", not the
+    code ``speed``.
+    """
+    if name == "skus":
+        return [{"value": r["code"], "label": r["name"],
+                 "note": f'PKR {float(r["list_price"]):,.0f} - {r["tier"]}'}
+                for r in params.skus]
+    if name == "studies":
+        return [{"value": r["code"], "label": r["name"],
+                 "note": (f'PKR {float(r["price"]):,.0f}'
+                          + (" - arrives next month"
+                             if int(r["lag_rounds"]) else " - arrives this month")
+                          + f' - +/- {float(r["error_band"]) * 100:.0f}%'
+                          + (f' - {r["note"]}' if r.get("note") else ""))}
+                for r in params.studies]
+    if name == "couriers":
+        return [{"value": r["code"], "label": r["name"],
+                 "note": (f'PKR {float(r["cost_per_order"]):,.0f} per order - '
+                          f'{float(r["success_rate"]) * 100:.1f}% delivered - '
+                          f'{float(r["avg_days"]):.1f} days - '
+                          f'{float(r["rural_reach"]) * 100:.0f}% rural reach')}
+                for r in params.couriers]
+    if name == "suppliers":
+        return [{"value": r["code"], "label": r["name"],
+                 "note": (f'cost index {float(r["cost_index"]):.2f} - '
+                          f'{int(r["lead_time_days"])}-day lead time - '
+                          f'minimum order {int(r["moq_units"]):,} units')}
+                for r in params.suppliers]
+    return []
+
+
+def standing_choice(spec, previous, options) -> str:
+    """How to describe "change nothing" for a choice, in that team's terms.
+
+    "leave unchanged" tells a student nothing when they have never set the
+    lever. Naming what they are actually on - last month's pick, or the
+    standing default - does.
+    """
+    value = previous.get(spec.code, spec.default_when_disabled)
+    if value is True:
+        return "it switched on"
+    if value is False or value in (None, ""):
+        return "it as it is" if value is not False else "it switched off"
+    labels = {o["value"]: o["label"] for o in options}
+    labels.update({o[0]: o[1] for o in spec.options})
+    return labels.get(str(value), str(value))
+
+
+def default_shares(params, name: str) -> dict[str, float]:
+    """An even-ish starting split, so the shares widget is never blank."""
+    from ..modules.m10_fulfilment import DEFAULT_MIX
+    if name == "couriers":
+        return dict(DEFAULT_MIX)
+    rows = catalogue_options(params, name)
+    return {r["value"]: 1 / len(rows) for r in rows} if rows else {}
 
 
 def coerce(code: str, raw):
     """Turn a form value into what the engine expects."""
     spec = REGISTRY[code]
+    if spec.kind == "shares":
+        if not isinstance(raw, dict):
+            return None
+        shares = {k: float(str(v).replace("%", "").strip() or 0) for k, v in raw.items()}
+        # Accept either 0-1 or 0-100; a team typing "30" means 30 per cent.
+        if sum(shares.values()) > 1.5:
+            shares = {k: v / 100 for k, v in shares.items()}
+        return shares if sum(shares.values()) > 0 else None
     if code in LIST_DECISIONS:
         if isinstance(raw, list):
             return [v for v in raw if v]
@@ -56,6 +135,12 @@ def coerce(code: str, raw):
         return None
     if spec.kind in {"num", "pct", "curr"}:
         text = str(raw).replace(",", "").strip()
+        if spec.kind == "pct":
+            # The field is labelled "%" and shows its current value as a
+            # percentage, so a percentage is what comes back: 15 means 15%,
+            # not 1500%. The file runner keeps the 0.15 convention; this is
+            # the form, where nobody should have to know that.
+            return float(text.rstrip("%")) / 100
         if text.endswith("%"):
             return float(text[:-1]) / 100
         return float(text)
@@ -68,6 +153,19 @@ def validate(code: str, value) -> str | None:
     """Per-decision sanity, so a typo does not become a silent catastrophe."""
     spec = REGISTRY[code]
     if value is None:
+        return None
+    if spec.kind == "shares":
+        total = sum(float(v) for v in value.values())
+        if abs(total - 1.0) > 0.01:
+            return (f"{spec.name}: shares add up to {total * 100:.0f}%, "
+                    f"they must add up to 100%")
+        if any(float(v) < 0 for v in value.values()):
+            return f"{spec.name}: a share cannot be negative"
+        return None
+    if spec.kind == "select" and spec.options:
+        allowed = {o[0] for o in spec.options}
+        if str(value) not in allowed:
+            return f"{spec.name}: {value!r} is not one of the choices offered"
         return None
     if spec.kind == "pct" and not 0 <= float(value) <= 1:
         return f"{spec.name}: must be between 0% and 100%"
