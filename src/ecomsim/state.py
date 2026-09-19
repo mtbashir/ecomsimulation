@@ -70,6 +70,9 @@ class TeamState:
     delivered_prev: float = 0.0
     pending_gap_penalties: dict[int, dict] = field(default_factory=dict)
     predictions: list[dict] = field(default_factory=list)
+    reports: dict[int, dict] = field(default_factory=dict)
+    in_administration: bool = False
+    last_discretionary: dict[str, float] = field(default_factory=dict)
 
     # Per-round results, appended by M14/M15/M17
     history: list[dict] = field(default_factory=list)

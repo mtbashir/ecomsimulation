@@ -41,7 +41,17 @@ def run(world, params, resolved, ctx) -> None:
                 continue
             reports[code] = _generate(world, params, ctx, tid, study)
 
+        # Lag-1 studies bought earlier land now, stamped with their as-of round.
+        due = [q for q in ctx.get("queued_reports", {}).get(tid, [])
+               if q["deliver"] <= world.round]
+        for q in getattr(team, "_queued", []):
+            if q["deliver"] <= world.round:
+                reports[q["code"]] = {"as_of_round": q["as_of"], "status": "lagged"}
+        team._queued = [q for q in getattr(team, "_queued", []) if q["deliver"] > world.round]
+        team._queued += due
+
         ctx.setdefault("reports", {})[tid] = reports
+        team.reports[world.round] = reports
 
         # Free but biased - the most instructive line in the sim.
         marketing = ctx["pnl"][tid]["marketing"]
@@ -55,7 +65,12 @@ def _exists(params, code: str) -> bool:
 
 
 def _generate(world, params, ctx, tid: str, study: dict) -> dict:
-    true_value = _true_value(world, params, ctx, tid, str(study["code"]))
+    code = str(study["code"])
+    forward = _forward_view(world, params, tid, code)
+    if forward is not None:
+        return forward | {"as_of_round": world.round, "status": "ok"}
+
+    true_value = _true_value(world, params, ctx, tid, code)
     if true_value is None:
         return {"status": "no_data"}
 
@@ -69,6 +84,45 @@ def _generate(world, params, ctx, tid: str, study: dict) -> dict:
         "error_band": band,
         "status": "ok",
     }
+
+
+def _forward_view(world, params, tid: str, code: str):
+    """Studies whose value is what they say about the NEXT rounds.
+
+    This is what makes research worth buying: MR-01 shows the seasonal peaks,
+    MR-17 shows the lead-time shock coming, MR-05 names the events it catches.
+    Forewarning is probabilistic and seeded, so it cannot be re-rolled.
+    """
+    from .m01_market import SEASON
+    from .m02_events import SCHEDULED
+
+    if code == "MR-01":
+        idx = {}
+        for ahead in (1, 2, 3):
+            r = world.round + ahead
+            raw = SEASON[(r - 1) % len(SEASON)]
+            eps = rng.normal(world.run_id, world.round, tid, "study", 0.0, 0.04, code, r)
+            idx[r] = round(raw * (1 + eps), 3)
+        return {"seasonal_index": idx}
+
+    if code == "MR-17":
+        view = {}
+        for ahead in (1, 2):
+            r = world.round + ahead
+            ev = SCHEDULED.get(r)
+            shock = bool(ev and "lead_time_mult" in ev[1])
+            seen = rng.chance(0.70, world.run_id, world.round, tid, "study", code, r)
+            view[r] = {"lead_time_mult": ev[1]["lead_time_mult"] if (shock and seen) else 1.0}
+        return {"lead_time_forecast": view}
+
+    if code == "MR-05":
+        r = world.round + 1
+        ev = SCHEDULED.get(r)
+        if ev and rng.chance(0.60, world.run_id, world.round, tid, "study", code, r):
+            return {"warning": {"round": r, "event": ev[0]}}
+        return {"warning": None}
+
+    return None
 
 
 def _true_value(world, params, ctx, tid: str, code: str):

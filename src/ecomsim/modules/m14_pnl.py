@@ -19,6 +19,9 @@ def run(world, params, resolved, ctx) -> None:
 
         gross_revenue = ctx["gross_revenue"][tid]
         aov = ctx["aov"][tid]
+        # The prepaid incentive is a discount given to the prepaid share.
+        prepaid_disc = gross_revenue * ctx["prepaid_share"][tid] * float(d.get("9.2", 0) or 0)
+        gross_revenue -= prepaid_disc
 
         returns_value = ctx["returned_orders"][tid] * aov
         rto_value = ctx["rto_orders"][tid] * aov
@@ -53,6 +56,7 @@ def run(world, params, resolved, ctx) -> None:
         cod_cost = net_revenue * ctx["cod_share"][tid] * params["cod_handling_fee"]
 
         marketing = sum(float(d.get(k, 0) or 0) for k in MARKETING_DECISIONS)
+        marketing += float(d.get("6.1", 0) or 0)  # CRM is marketing (docs/10)
         affiliate = net_revenue * float(d.get("3.6", 0) or 0)
         commission = 0.0
         if d.get("4.1") and str(d.get("4.1")) != "off":
@@ -70,7 +74,7 @@ def run(world, params, resolved, ctx) -> None:
             + params["warehouse_fixed_cost"]
             + params["tech_fixed_cost"] + ctx.get("ongoing_tech_cost", {}).get(tid, 0.0)
             + research
-            + float(d.get("5.1", 0) or 0) + float(d.get("6.1", 0) or 0)
+            + float(d.get("5.1", 0) or 0)
         )
         ebitda = contribution - below_line
         interest = team.credit_drawn * params["credit_rate_annual"] * (
@@ -80,6 +84,7 @@ def run(world, params, resolved, ctx) -> None:
 
         ctx.setdefault("pnl", {})[tid] = {
             "gross_revenue": gross_revenue,
+            "prepaid_discount": prepaid_disc,
             "returns_value": returns_value,
             "rto_value": rto_value,
             "net_revenue": net_revenue,
@@ -96,6 +101,7 @@ def run(world, params, resolved, ctx) -> None:
             "ebitda": ebitda,
             "interest": interest,
             "net_profit": net_profit,
+            "research": research,
         }
         ctx.setdefault("gross_margin_pct", {})[tid] = (
             gross_profit / net_revenue if net_revenue > 0 else 0.0

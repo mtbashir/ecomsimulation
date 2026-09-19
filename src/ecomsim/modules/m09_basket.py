@@ -31,6 +31,7 @@ def run(world, params, resolved, ctx) -> None:
         if recsys is None and "recsys" in team.capabilities:
             recsys = 0.07
         aov *= 1 + (recsys or 0.0)
+        aov *= 1 - ctx["prepaid_incentive_effect"][tid]
 
         aovs[tid] = aov
         orders = ctx["orders"][tid]

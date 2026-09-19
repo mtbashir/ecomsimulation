@@ -60,6 +60,10 @@ def run(world, params, resolved, ctx) -> None:
             team.cash += draw
 
         insolvent = team.cash < 0
+        if insolvent:
+            team.in_administration = True
+        elif team.in_administration and team.credit_drawn < 0.5 * params["credit_ceiling"]:
+            team.in_administration = False  # recovered
         operating_cf = inflow - outflow
         runway = team.cash / abs(operating_cf) if operating_cf < 0 else 99.0
 

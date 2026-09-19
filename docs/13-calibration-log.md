@@ -29,6 +29,64 @@ reasoned argument.
 
 ## Entries
 
+### 2026-09-19 · Burst 3 — balance (11 of 12 invariants)
+
+Seven scoring and engine defects found by the invariant suite. Each was a real
+bug, not a tuning gap; the archetypes designed to fail were what surfaced them.
+
+**1. Growth was measured against the team's own Round 1.** Sandbagger coasted
+six rounds to suppress its own denominator, then scored 19.8/20 on growth off
+the trough it had dug. Growth is now measured against the shared starting
+position. *Sandbagger fell from #1 to #11.*
+
+**2. LTV:CAC read ~0.25 for every team** — it charged acquisition cost twice
+(contribution margin is already net of marketing, then divided by CAC again)
+and excluded the customer's first order. LTV now uses pre-marketing
+contribution and counts the acquisition order. **Ratios now run 1.67-2.71,
+with discounter at 0.23** - the deal-cohort trap finally visible in the metric
+built to show it.
+
+**3. LTV:CAC used terminal CAC**, so a team that stopped marketing in the last
+rounds had CAC near zero and scored maximum. The scorecard was paying for the
+harvest it exists to punish. Now lifetime marketing over lifetime customers
+acquired, which timing cannot game.
+
+**4. P4 anchors were never updated after burst 2 rebased courier success.**
+Every team maxed operations, 15 points of dead weight. Re-anchored twice, to
+the reachable frontier.
+
+**5. Inventory turns was a hardcoded 50** for every team - three more dead
+points. Now computed from average inventory and COGS flow.
+
+**6. Administration capped spend at the prior round**, which constrains nothing
+for a team that blew up spending 3x. Now halves discretionary spend and blocks
+research as well as capex.
+
+**7. No strategy could reach EBITDA breakeven.** Best achievable is
+-1.28M/round against fixed costs of 2.17M; the contribution ceiling is ~0.9M,
+which IS the approved 9% CM. The scorecard anchors assumed a profitable
+business; what we calibrated is a scaling startup. **Re-anchored P1 EBITDA to
+the reachable frontier (-22% / -14% / -5%) and re-banded P5 runway to the burn
+(<1 fatal, 2.5-6 ideal, >10 under-invested).** The business is unchanged - the
+ruler was wrong, not the thing being measured.
+
+**Judgement: `credit_ceiling` 15M -> 25M.** At 15M, coasting consumed exactly
+the starting capital over 12 rounds, leaving no headroom for any strategy at
+all: retention_led died 41% of the time, tech_led 61%. Raising the ceiling
+keeps the burn and keeps coasting fatal - a coasting team still ends at zero,
+now carrying interest - while letting a team with a plan fund it at 22% p.a.
+*Viable-strategy insolvency fell from 22% to 1%.* Still in the green band.
+
+**Open: I11 scorecard discrimination.** Spread is 29 points against a 35-75
+target; sandbagger #11 and harvester #10 against a bottom-40% (#13+)
+requirement. Both are now below balanced, so the defences work directionally.
+Two known causes: P6 is constant in a scripted harness (real memos and
+prediction accuracy add ~6 points of live spread), and **P4 is compressed
+because the engine auto-reorders inventory, so decision 7.1 is not really a
+team decision yet.** The second is a genuine finding for a later burst, not a
+tuning problem.
+
+
 ### 2026-09-19 · Burst 2 — baseline now holds at all N (T2 green)
 
 Solved numerically (`calibrate.py`), not by hand. Nine metrics within

@@ -111,10 +111,14 @@ def _seed_pipeline(team, params, active, units_per_round) -> None:
         * params["cogs_scale"]
         for s in active
     )
-    team.open_pos.append({
-        "placed": 0, "arrives": 1, "units": alloc, "cost": cost, "supplier": "B",
-    })
-    team.payables[1] = team.payables.get(1, 0.0) + cost
+    # Two rounds in flight: a going concern on a 14-day lead and 30-day terms
+    # has last month's order arriving and this month's already placed.
+    for arrives in (1, 2):
+        team.open_pos.append({
+            "placed": arrives - 1, "arrives": arrives, "units": dict(alloc),
+            "cost": cost, "supplier": "B",
+        })
+        team.payables[arrives] = team.payables.get(arrives, 0.0) + cost
 
 
 def _active_skus(params) -> list[dict]:

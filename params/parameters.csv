@@ -40,7 +40,7 @@ share_sensitivity,M7,2.0,1.2,3.0,0.6,4.5,exponent,HIGH,Above 4.5 winner-take-all
 price_index_floor,M7,0.5,0.3,0.8,0.1,0.9,ratio,,Lower clamp on price index
 price_index_cap,M7,2.0,1.4,3.0,1.1,5.0,ratio,,Upper clamp on price index
 redistribution_iterations,M7,2,1,3,1,5,count,,Unmet demand redistribution passes; not to convergence
-cr_base,M8,0.0175,0.012,0.035,0.005,0.080,ratio,,Below 0.005 traffic economics collapse
+cr_base,M8,0.0176,0.012,0.035,0.005,0.080,ratio,,Below 0.005 traffic economics collapse
 price_elasticity,M8,-1.8,-2.4,-1.3,-3.5,-0.9,exponent,,Beyond -3.5 price war spirals to zero margin
 ux_cr_coef,M8,0.45,0.20,0.70,0.0,1.0,coefficient,,Conversion uplift per unit of UX score above 0.5
 rating_cr_coef,M8,0.20,0.10,0.35,0.0,0.50,coefficient,,Above 0.50 rating becomes the only thing that matters
@@ -67,18 +67,18 @@ ltv_horizon_months,M12,24,12,36,6,60,months,,Horizon for lifetime value computat
 active_window_rounds,M12,3,2,6,1,12,rounds,,Rounds since last order for a customer to count as active
 churn_experience_coef,M12,0.9,0.4,1.5,0.0,2.5,coefficient,,Churn uplift from prior-round experience failure
 churn_retention_coef,M12,0.5,0.2,0.8,0.0,1.0,coefficient,,Churn reduction from retention investment
-ticket_rate,M13,0.11,0.05,0.20,0.0,0.40,ratio,,Support tickets per order
+ticket_rate,M13,0.72,0.40,1.10,0.10,2.0,ratio,,Contacts per order incl. COD confirmation calls; 4 agents are right-sized at baseline
 agent_capacity,M13,900,500,1500,200,3000,tickets,,Tickets per agent per month
 ai_cs_multiplier,M13,2.5,1.5,4.0,1.0,6.0,multiplier,,Capacity multiplier when the AI service module is live
 backlog_return_coef,M13,0.6,0.3,0.9,0.0,1.5,coefficient,,Tickets generated per return
 rating_convergence,M13,0.30,0.15,0.45,0.05,0.70,ratio,,Share of distance to target rating closed per round
-rating_base,M13,2.5,2.0,3.0,1.0,3.5,score,,Rating intercept
+rating_base,M13,2.2891,2.0,3.0,1.0,3.5,score,,Rating intercept
 rating_aq_coef,M13,1.2,0.7,1.7,0.0,2.5,coefficient,,Rating contribution from actual quality
 rating_adr_coef,M13,0.6,0.3,1.0,0.0,1.5,coefficient,,Rating contribution from actual delivery reliability
 rating_sla_coef,M13,0.4,0.2,0.7,0.0,1.2,coefficient,,Rating contribution from service SLA attainment
 rating_pack_coef,M13,0.2,0.05,0.40,0.0,0.80,coefficient,,Rating contribution from packaging tier
 gross_margin_base,M14,0.38,0.28,0.50,0.20,0.65,ratio,,Below 0.20 unplayable; above 0.65 no trade-offs exist
-credit_ceiling,M15,15000000,5000000,30000000,0,50000000,PKR,,Above 50M cash never binds
+credit_ceiling,M15,25000000,5000000,30000000,0,50000000,PKR,,Above 50M cash never binds
 credit_rate_annual,M15,0.22,0.12,0.32,0.0,0.50,ratio,,Annual interest on drawn credit
 cod_remit_days,M15,16,8,28,1,45,days,,COD remittance lag; above one round length it crosses rounds
 gateway_settle_days,M15,3,1,10,0,20,days,,Prepaid gateway settlement lag
@@ -105,8 +105,8 @@ cs_cost_per_agent,M14,62000,30000,140000,15000,300000,PKR,,Fully loaded monthly 
 supplier_terms_days,M15,30,0,60,0,90,days,,Default supplier payment terms
 incumbent_a_utility,M7,0.46,0.25,0.65,0.0,1.0,utility,,Price-leader incumbent baseline attractiveness
 incumbent_b_utility,M7,0.50,0.25,0.70,0.0,1.0,utility,,Premium-service incumbent baseline attractiveness
-channel_k_scale,M6,1.0859,0.5,3.0,0.2,6.0,multiplier,,Global scale on channel k_base; the calibration handle for total paid traffic
-cohort_freq_scale,M12,1.0391,0.3,2.5,0.1,5.0,multiplier,,Global scale on cohort purchase frequency; the calibration handle for repeat share
-cogs_scale,M9,0.9750,0.85,1.15,0.6,1.5,multiplier,,Global scale on SKU unit costs; calibration handle for gross margin and the FX event
+channel_k_scale,M6,1.1543,0.5,3.0,0.2,6.0,multiplier,,Global scale on channel k_base; the calibration handle for total paid traffic
+cohort_freq_scale,M12,1.0219,0.3,2.5,0.1,5.0,multiplier,,Global scale on cohort purchase frequency; the calibration handle for repeat share
+cogs_scale,M9,0.9492,0.85,1.15,0.6,1.5,multiplier,,Global scale on SKU unit costs; calibration handle for gross margin and the FX event
 potential_headroom,M1,1.45,1.05,2.2,1.0,4.0,multiplier,,Per-team potential demand at baseline as a multiple of baseline orders; above 1 means traffic binds before demand does
 events_enabled,M2,1,0,1,0,1,flag,,0 disables all events including EV-23 demand noise; used by the T2 baseline gate and by calibration

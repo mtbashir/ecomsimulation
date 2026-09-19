@@ -52,37 +52,50 @@ A sim where COD is a rounding error actively mis-teaches this market.
 
 ## Current status
 
-**Burst 2 complete.** Baseline holds within tolerance for 12 rounds at
-N = 2, 4, 8, 12, 16 with events off. **Not balanced** — that is burst 3.
+**Burst 3 in progress.** 11 of 12 invariants pass; 52 tests green.
 
 | | |
 |---|---|
-| **Next** | **Burst 3 — validation harness: 20 archetypes, 12 invariants (`docs/11`)** |
-| Tests | 38 passing, 0 xfailed |
-| Gate | `tests/test_baseline.py` green; `calibrate.py` re-solves in ~2 min |
-| Engine speed | ~30ms per 12-round 8-team game |
+| **Next** | **Finish I11 (scorecard discrimination), then burst 4** |
+| Tests | 52 passing |
+| Invariants | 11/12 — I11 open (spread 29 vs 35-75 target) |
+| Suites | `pytest -q` · `python calibrate.py` · `python validate.py --games 160` |
 
-### Where the defaults land (events off, settled rounds 7–12)
+### Invariant status
 
-| Metric | Engine | Target |
+| | | |
 |---|---|---|
-| Gross revenue | 11.99M | 12.0M |
-| Orders | 3,997 | 4,000 |
-| Sessions | 190k | 190k |
-| Conversion | 2.10% | 2.10% |
-| Gross margin | 38.0% | 38% |
-| Contribution margin | 9.1% | 9% |
-| Repeat share | 22.0% | 22% |
-| Rating | 4.14 | 4.10 |
-| Net revenue (derived) | 9.55M | — |
-| CAC (derived) | PKR 477 | — |
+| I1 No dominant strategy | PASS | best/median 1.34x |
+| I2 No death spiral | PASS | none before R6 |
+| I3 Discounting is a trap | PASS | 100% of shared games |
+| I4 Margin viable | PASS | baseline CM 7.2% |
+| I5 Cash binding, survivable | PASS | 96% draw credit, 1% insolvent |
+| I6 Share conserves | PASS | |
+| I7 Research pays | PASS | selective 50.6 > heavy 50.2 > zero 49.6 |
+| I8 Determinism | PASS | |
+| I9 Monotonicity | PASS | 6/6 levers |
+| I10 No free lunch | PASS | 8/8 levers |
+| **I11 Discrimination** | **FAIL** | spread 29; sandbagger #11, harvester #10 |
+| I12 Event neutrality | PASS | rank rho 0.99 |
 
-### Decided — burn rate
+### Fixed during burst 3
 
-**The baseline burns ~2.1M/round; coasting is almost fatal.** A do-nothing team
-ends Round 12 with ~1.6M of 25M, at zero with events on. Kept deliberately
-(`docs/13` entry 3). `payroll_base` 1.4M → 0.9M is the softer setting for an
-undergraduate or pilot cohort.
+Seven scoring and engine defects, all surfaced by the must-fail archetypes —
+see `docs/13-calibration-log.md` for each.
+
+- **Growth measured against the team's own Round 1**, so sandbagging inflated
+  it by suppressing the denominator (#1 → #11 once fixed)
+- **LTV:CAC read ~0.25 for everyone** — acquisition charged twice and the first
+  order omitted. Now 1.67–2.71, discounter 0.23
+- **LTV:CAC used terminal CAC**, paying for the harvest it exists to punish
+- **P4 anchors never updated** after burst 2 rebased couriers; 15 dead points
+- **Inventory turns hardcoded to 50**
+- **Administration capped spend at the prior round** — no constraint at all
+- **No strategy could reach EBITDA breakeven**; P1/P5 anchors re-based to the
+  reachable frontier
+
+`credit_ceiling` 15M → 25M: coasting stays fatal, but a team with a plan can
+fund it. Viable-strategy insolvency fell 22% → 1%.
 
 ### Fixed during burst 2
 

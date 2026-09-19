@@ -19,12 +19,34 @@ RETURN_POLICY_KEY = {
 }
 
 
+DISCRETIONARY = ("3.1", "3.2", "3.3", "3.4", "3.5", "3.7", "3.8", "3.9",
+                 "5.1", "6.1", "7.4")
+CAPEX = ("11.1", "11.2", "11.3", "11.4", "11.5")
+
+
+def _administration(team, d) -> None:
+    """Halve discretionary spend, block new capex and research.
+
+    Capping at the prior round is no constraint on a team that blew up while
+    spending 3x - it just keeps buying growth on the administrator's money.
+    """
+    if team.in_administration:
+        for k in DISCRETIONARY:
+            cap = 0.5 * team.last_discretionary.get(k, 0.0)
+            d[k] = min(float(d.get(k, 0) or 0), cap)
+        for k in CAPEX:
+            d[k] = False
+        d["12.1"] = []
+    team.last_discretionary = {k: float(d.get(k, 0) or 0) for k in DISCRETIONARY}
+
+
 def run(world, params, resolved, ctx) -> None:
     net_prices: dict[str, float] = {}
 
     for team in world.teams.values():
         tid = team.team_id
         d = ctx["resolved"][tid]
+        _administration(team, d)
 
         discount = _clamp(float(d.get("2.2", 0) or 0), 0.0, 0.50)
         ctx.setdefault("discount", {})[tid] = discount
@@ -40,7 +62,11 @@ def run(world, params, resolved, ctx) -> None:
         ctx.setdefault("gateway_success", {})[tid] = GATEWAY_SUCCESS.get(
             str(d.get("9.3", "A")), 0.91
         )
-        ctx.setdefault("cod_enabled", {})[tid] = str(d.get("9.1", "on")) != "off"
+        cod_on = str(d.get("9.1", "on")) != "off"
+        ctx.setdefault("cod_enabled", {})[tid] = cod_on
+        incentive = float(d.get("9.2", 0) or 0)
+        cod_est = max(0.0, (params["cod_share_base"] if cod_on else 0.0) - 2.4 * incentive)
+        ctx.setdefault("prepaid_incentive_effect", {})[tid] = incentive * (1 - cod_est)
         ctx.setdefault("packaging", {})[tid] = PACKAGING_SCORE.get(
             str(d.get("8.5", "basic")), 0.25
         )

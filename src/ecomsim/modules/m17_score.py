@@ -51,6 +51,9 @@ def run(world, params, resolved, ctx) -> None:
         tid = team.team_id
         pnl = ctx["pnl"][tid]
 
+        from .m12_ledger import _ltv
+        ctx["ltv"][tid] = _ltv(team, params, ctx)
+
         record = {
             "round": world.round,
             "orders": ctx["orders"][tid],
@@ -74,6 +77,8 @@ def run(world, params, resolved, ctx) -> None:
             "rating": ctx["rating"][tid],
             "nps": ctx["nps"][tid],
             "instock_rate": ctx["instock_ratio"][tid],
+            "inventory_units": sum(team.inventory.values()),
+            "cs_backlog": ctx["cs_backlog"][tid],
             "delivery_success": ctx["courier_success"][tid],
             "rto_rate": ctx["rto_rate"][tid],
             "return_rate": ctx["return_rate"][tid],
@@ -84,7 +89,7 @@ def run(world, params, resolved, ctx) -> None:
             "perception_gap": ctx["perception_gap"].get(tid, 0.0),
             "insolvent": ctx["insolvent"][tid],
             "events": ctx.get("event_codes", []),
-            "pnl": pnl,
+            "pnl": pnl | {"cogs": ctx["cogs"][tid]},
         }
         team.history.append(record)
         ctx.setdefault("scorecard", {})[tid] = _scorecard(team, params, record)

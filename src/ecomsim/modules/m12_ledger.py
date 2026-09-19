@@ -100,22 +100,40 @@ def _dominant_channel(team, ctx) -> str:
         return "organic"
     return max(spends, key=spends.get)
 
-
 def _ltv(team, params, ctx) -> float:
-    """Contribution-margin LTV over the configured horizon, from the ledger."""
-    aov = ctx.get("aov", {}).get(team.team_id, params["aov_base"])
-    margin = ctx.get("contribution_margin_pct", {}).get(
-        team.team_id, params["gross_margin_base"] - 0.29
-    )
-    horizon = params["ltv_horizon_months"] / params["round_months"]
+    """Lifetime contribution per acquired customer, from the cohort ledger.
+
+    Margin is contribution BEFORE marketing. LTV is compared against CAC, and
+    CAC is the marketing cost - charging it inside the margin as well subtracts
+    acquisition twice, which made every team's LTV:CAC read about 0.25.
+
+    The acquisition order counts. A customer's first purchase is theirs;
+    excluding it measures repeat value, not lifetime value.
+    """
+    tid = team.team_id
+    aov = ctx.get("aov", {}).get(tid, params["aov_base"])
+    margin = _pre_marketing_margin(tid, params, ctx)
+    horizon = int(params["ltv_horizon_months"] / params["round_months"])
+    scale = params["cohort_freq_scale"]
 
     active_total = sum(c.active for c in team.cohorts) or 1.0
     ltv = 0.0
     for cohort in team.cohorts:
         weight = cohort.active / active_total
-        survival, orders = 1.0, 0.0
-        for _ in range(int(horizon)):
-            orders += survival * cohort.freq * params["cohort_freq_scale"]
+        survival, orders = 1.0, 1.0          # the acquisition order
+        for _ in range(horizon):
+            orders += survival * cohort.freq * scale
             survival *= 1 - cohort.churn_base
-        ltv += weight * orders * aov * max(margin, 0.01)
+        ltv += weight * orders * aov * margin
     return ltv
+
+
+def _pre_marketing_margin(tid: str, params, ctx) -> float:
+    """Gross profit less fulfilment, RTO, returns and payment costs, over net
+    revenue. Marketing is deliberately excluded - see _ltv."""
+    pnl = ctx.get("pnl", {}).get(tid)
+    if not pnl or pnl["net_revenue"] <= 0:
+        return max(params["gross_margin_base"] - 0.14, 0.02)
+    above = (pnl["gross_profit"] - pnl["fulfilment"] - pnl["rto_cost"]
+             - pnl["return_cost"] - pnl["payment_costs"] - pnl["commission"])
+    return max(above / pnl["net_revenue"], 0.02)

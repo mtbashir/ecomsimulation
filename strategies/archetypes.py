@@ -1,0 +1,233 @@
+"""The 20 scripted strategy archetypes (docs/11-validation-harness.md).
+
+A strategy is a pure function (world, round, team_id, v) -> decisions, where v
+in [0, 1] is the variation across the archetype's defining parameter. No AI,
+no randomness: these must be reproducible.
+
+Six archetypes exist solely to fail - discounter, research_heavy,
+research_zero, sandbagger, harvester, overspend. If one of them wins, a
+specific design intent has broken, and the invariant names which.
+"""
+from __future__ import annotations
+
+BASE = {"3.1": 468_000, "3.2": 234_000, "3.4": 168_000, "3.8": 200_000, "3.9": 267_000}
+STUDIES_ALL = [f"MR-{i:02d}" for i in range(1, 21)]
+SELECTIVE_ROTATION = [
+    ["MR-01", "MR-17", "MR-07", "MR-10"],
+    ["MR-01", "MR-05", "MR-07", "MR-09"],
+    ["MR-01", "MR-17", "MR-10", "MR-15"],
+]
+
+
+def _scale(mult: float) -> dict:
+    return {k: v * mult for k, v in BASE.items()}
+
+
+def _lerp(v: float, lo: float, hi: float) -> float:
+    return lo + (hi - lo) * v
+
+
+# --- The archetypes ------------------------------------------------------------
+
+def baseline(world, r, tid, v):
+    return {}
+
+
+def balanced(world, r, tid, v):
+    m = _lerp(v, 1.05, 1.30)
+    d = _scale(m)
+    d["3.9"] = BASE["3.9"] * _lerp(v, 1.2, 1.6)
+    d["6.1"] = _lerp(v, 120_000, 220_000)
+    d["7.5"] = 2.5
+    d["9.2"] = 0.03
+    d["10.1"] = 5
+    d["7.4"] = 120_000
+    if r >= 3:
+        d["11.1"] = True
+    return d
+
+
+def growth_max(world, r, tid, v):
+    d = _scale(_lerp(v, 2.0, 4.0))
+    d["3.9"] = 0
+    d["3.8"] = BASE["3.8"] * 0.5
+    return d
+
+
+def discounter(world, r, tid, v):
+    d = _scale(1.3)
+    d["2.2"] = _lerp(v, 0.15, 0.45)
+    return d
+
+
+def premium(world, r, tid, v):
+    d = _scale(1.0)
+    d["1.5"] = "premium"
+    d["2.2"] = 0.0
+    d["8.5"] = "premium"
+    d["3.9"] = BASE["3.9"] * _lerp(v, 1.6, 2.4)
+    d["3.8"] = BASE["3.8"] * 1.5
+    d["7.4"] = 200_000
+    d["10.1"] = 6
+    return d
+
+
+def retention_led(world, r, tid, v):
+    d = _scale(0.9)
+    d["6.1"] = _lerp(v, 300_000, 600_000)
+    d["10.1"] = 6
+    d["10.4"] = "free"
+    d["7.4"] = 150_000
+    return d
+
+
+def ops_excellence(world, r, tid, v):
+    d = _scale(1.0)
+    d["7.5"] = _lerp(v, 3.0, 5.0)
+    d["7.4"] = 250_000
+    d["8.3"] = {"speed": 0.6, "value": 0.1, "wide": 0.3}
+    d["8.5"] = "branded"
+    d["10.1"] = 7
+    d["9.2"] = 0.05
+    return d
+
+
+def cash_preservation(world, r, tid, v):
+    d = _scale(_lerp(v, 0.3, 0.5))
+    d["3.9"] = 0
+    d["3.8"] = 0
+    d["10.1"] = 3
+    d["6.1"] = 0
+    return d
+
+
+def marketplace_first(world, r, tid, v):
+    d = _scale(0.7)
+    if r >= 3:
+        d["4.1"] = "basic"
+        d["3.7"] = _lerp(v, 200_000, 400_000)
+    return d
+
+
+def own_site_purist(world, r, tid, v):
+    d = _scale(1.1)
+    d["4.1"] = "off"
+    d["5.1"] = _lerp(v, 200_000, 400_000)
+    return d
+
+
+def tech_led(world, r, tid, v):
+    d = _scale(1.0)
+    if r >= 3:
+        for k in ("11.1", "11.2", "11.4", "11.5"):
+            d[k] = True
+        if v > 0.5:
+            d["11.3"] = True
+    return d
+
+
+def capability_early(world, r, tid, v):
+    d = _scale(1.0)
+    if r >= 3:
+        d["11.1"] = True
+        d["11.2"] = True
+    d["7.5"] = 2.5
+    return d
+
+
+def overspend(world, r, tid, v):
+    d = _scale(_lerp(v, 2.5, 3.5))
+    if r >= 3:
+        for k in ("11.1", "11.2", "11.3", "11.4", "11.5"):
+            d[k] = True
+    d["10.1"] = 8
+    return d
+
+
+def modest_capability(world, r, tid, v):
+    d = _scale(1.0)
+    if r >= 3:
+        d["11.1"] = True
+    return d
+
+
+def research_zero(world, r, tid, v):
+    return _informed(world, r, tid, v, buy=[])
+
+
+def research_heavy(world, r, tid, v):
+    return _informed(world, r, tid, v, buy=STUDIES_ALL)
+
+
+def research_selective(world, r, tid, v):
+    return _informed(world, r, tid, v, buy=SELECTIVE_ROTATION[r % 3])
+
+
+def sandbagger(world, r, tid, v):
+    return cash_preservation(world, r, tid, v) if r <= 6 else growth_max(world, r, tid, v)
+
+
+def harvester(world, r, tid, v):
+    if r <= 9:
+        return balanced(world, r, tid, v)
+    return {"3.1": 0, "3.2": 0, "3.4": 0, "3.8": 0, "3.9": 0, "6.1": 0,
+            "10.1": 2, "7.4": 0, "7.5": 0.5}
+
+
+def cod_off(world, r, tid, v):
+    d = _scale(1.0)
+    d["9.1"] = "off"
+    d["9.2"] = _lerp(v, 0.05, 0.10)
+    return d
+
+
+# --- The informed core: acts on what it bought ---------------------------------
+
+def _informed(world, r, tid, v, buy: list[str]) -> dict:
+    """balanced() plus actions conditioned on reports actually received.
+
+    This is what makes I7 meaningful: research is pure cost unless someone reads
+    it. The three actions below are the mechanically sound ones - pre-build
+    before a seasonal peak, switch supplier before a lead-time shock, and cut
+    discount when the cohort mix is rotting. A team that buys these studies and
+    ignores them is research_heavy's real lesson.
+    """
+    d = balanced(world, r, tid, v)
+    d["12.1"] = list(buy)
+
+    team = world.teams[tid]
+    latest = team.reports.get(r - 1, {}) if r > 1 else {}
+
+    mr01 = latest.get("MR-01", {}).get("seasonal_index", {})
+    peak_ahead = any(idx >= 1.15 for rr, idx in mr01.items() if rr <= r + 1)
+    if peak_ahead:
+        d["7.5"] = 4.0
+        d["3.1"] = d["3.1"] * 1.25
+
+    mr17 = latest.get("MR-17", {}).get("lead_time_forecast", {})
+    shock_ahead = any(x["lead_time_mult"] > 1.2 for x in mr17.values())
+    if shock_ahead:
+        d["7.2"] = "C"
+        d["7.5"] = 4.5
+
+    mr10 = latest.get("MR-10", {})
+    if mr10.get("status") == "ok" and mr10.get("reported", 0) > 0.30:
+        d["2.2"] = 0.0
+        d["6.1"] = d["6.1"] * 1.5
+
+    return d
+
+
+ARCHETYPES = {
+    "baseline": baseline, "balanced": balanced, "growth_max": growth_max,
+    "discounter": discounter, "premium": premium, "retention_led": retention_led,
+    "ops_excellence": ops_excellence, "cash_preservation": cash_preservation,
+    "marketplace_first": marketplace_first, "own_site_purist": own_site_purist,
+    "tech_led": tech_led, "capability_early": capability_early,
+    "overspend": overspend, "modest_capability": modest_capability,
+    "research_heavy": research_heavy, "research_zero": research_zero,
+    "research_selective": research_selective, "sandbagger": sandbagger,
+    "harvester": harvester, "cod_off": cod_off,
+}
+MUST_FAIL = {"discounter", "research_heavy", "research_zero", "sandbagger",
+             "harvester", "overspend"}

@@ -85,6 +85,8 @@ def autocalibrate(passes: int = 4) -> dict:
         found["cogs_scale"] = solve(
             "cogs_scale", "gross_margin_pct", TARGETS["gross_margin_pct"],
             1.25, 0.70, found)
+        found["rating_base"] = solve(
+            "rating_base", "rating", TARGETS["rating"], 1.0, 3.5, found)
         found["cohort_freq_scale"] = solve(
             "cohort_freq_scale", "repeat_order_share",
             TARGETS["repeat_order_share"], 0.3, 2.5, found)
