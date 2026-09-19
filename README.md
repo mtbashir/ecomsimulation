@@ -77,13 +77,12 @@ N = 2, 4, 8, 12, 16 with events off. **Not balanced** — that is burst 3.
 | Net revenue (derived) | 9.55M | — |
 | CAC (derived) | PKR 477 | — |
 
-### Open judgement — read before burst 3
+### Decided — burn rate
 
-**The baseline business burns ~2.1M/round.** A do-nothing team ends Round 12
-with ~1.6M of 25M; with events on, at zero. That is deliberate pressure, but it
-was not in the original brief. `docs/13-calibration-log.md` entry 3 has the
-one-line alternative (`payroll_base` 1.4M → 0.9M). Decide before balancing,
-because invariant I2 (no death spiral) depends on it.
+**The baseline burns ~2.1M/round; coasting is almost fatal.** A do-nothing team
+ends Round 12 with ~1.6M of 25M, at zero with events on. Kept deliberately
+(`docs/13` entry 3). `payroll_base` 1.4M → 0.9M is the softer setting for an
+undergraduate or pilot cohort.
 
 ### Fixed during burst 2
 

@@ -54,8 +54,14 @@ which means CM ~4% or lower fulfilment costs.
 Contribution +9.1% but fixed costs (payroll 1.4M, warehouse 340k, tech 180k,
 CS 250k) exceed it, and inventory is bought ahead of sale. **A team that does
 nothing ends Round 12 with ~1.6M of 25M - and with events on, at zero.**
-Inaction is close to insolvency by design; whether that is the right pressure
-for a first cohort is the single most important open judgement here. Defensible - a 12M-GMV D2C brand with ~15 staff does burn,
+Inaction is close to insolvency by design.
+
+**DECIDED 2026-09-19: keep `payroll_base` at 1.4M. Coasting is almost fatal.**
+Basis: matches how a 12M-GMV D2C brand with ~15 staff actually feels, and
+gives the runway lesson teeth. Softer setting (0.9M, ~1.6M burn, ~7M left at
+R12) is retained as the option for an undergraduate or pilot cohort.
+*Watch in burst 3:* I2 - a team that fumbles R1-R3 may enter administration by
+R8. That is acceptable; elimination is not, and the engine does not eliminate. Defensible - a 12M-GMV D2C brand with ~15 staff does burn,
 and it gives the runway lesson teeth. **Left as-is; needs an explicit
 decision.** *Alternative:* `payroll_base` 1.4M -> 0.9M gives ~-1.0M/round.
 *Watch in burst 3:* invariant I2 (no death spiral) - teams that experiment
