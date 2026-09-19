@@ -77,6 +77,9 @@ class TeamState:
     predictions: list[dict] = field(default_factory=list)
     reports: dict[int, dict] = field(default_factory=dict)
     in_administration: bool = False
+    founding: object | None = None
+    price_multiplier: float = 1.0
+    traffic_multiplier: float = 1.0
     last_discretionary: dict[str, float] = field(default_factory=dict)
 
     # Per-round results, appended by M14/M15/M17

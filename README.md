@@ -52,15 +52,27 @@ A sim where COD is a rounding error actively mis-teaches this market.
 
 ## Current status
 
-**Burst 3 complete.** Engine calibrated and balanced; 11 of 12 invariants
-pass. Ready for burst 4.
+**Burst 4 complete.** Round 0 founding round and the delivery surface are
+built. A cohort can be run end to end from files.
 
 | | |
 |---|---|
-| **Next** | **Burst 4 — Round 0 founding round + decision I/O (form → CSV → report)** |
-| Tests | 53 passing, 0 xfail |
+| **Next** | **Burst 5 — polish the delivery surface, then burst 6 (course materials)** |
+| Tests | 81 passing, 0 xfail |
 | Invariants | 11/12 — only I11 open, and narrow |
 | Suites | `pytest -q` · `python calibrate.py` · `python validate.py --games 160` |
+
+### Running a cohort
+
+```bash
+python run.py new --teams 8 --out game/     # start a game
+python run.py template --game game/         # blank decisions file
+#   ... teams fill it in (a Google Form export works too) ...
+python run.py round --game game/            # process; writes reports + results.csv
+python run.py preview --game game/          # Round 0 pro-forma
+```
+
+Files in, HTML out. No server, and students never touch the engine.
 
 ### Resolved — profitability is reachable
 

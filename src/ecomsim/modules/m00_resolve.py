@@ -92,10 +92,16 @@ def run(world, params, resolved, ctx) -> None:
 
 
 def _basket_list_price(team, params) -> float:
-    """Revenue-weighted average unit list price across the team's active SKUs."""
+    """Revenue-weighted average unit list price across the team's active SKUs.
+
+    Scaled by the founding positioning tier: premium charges more for the same
+    catalogue, value charges less.
+    """
     skus = [params.sku(c) for c in team.active_skus] or params.skus
     total_w = sum(float(s["revenue_weight"]) for s in skus) or 1.0
-    return sum(float(s["list_price"]) * float(s["revenue_weight"]) for s in skus) / total_w
+    base = sum(float(s["list_price"]) * float(s["revenue_weight"])
+               for s in skus) / total_w
+    return base * team.price_multiplier
 
 
 def _quality_tier(team, params, d) -> float:

@@ -79,4 +79,5 @@ def run(world, params, resolved, ctx) -> None:
             sessions *= 1 - params["channel_overlap"] * (1 - 1 / active_channels)
 
         sessions *= ctx.get("traffic_mult", {}).get(team.team_id, 1.0)
+        sessions *= team.traffic_multiplier   # founding business model
         ctx.setdefault("sessions", {})[team.team_id] = sessions

@@ -75,7 +75,7 @@ delivering the ownership and founding lessons it lacks.
 | D0.5 | Business model | SELECT | Own-site D2C / Marketplace-first / Hybrid. Sets starting traffic mix and commission exposure |
 | D0.6 | Opening assortment | MULTI | 12–18 SKUs from the filtered catalogue |
 | D0.7 | Sourcing strategy | SELECT | Local / Import / Mixed. Cost, lead time, FX exposure |
-| D0.8 | Capital allocation | CURR ×4 | Inventory / marketing / technology / reserve. Must sum to PKR 25M |
+| D0.8 | Capital allocation | CURR ×4 | Inventory / marketing / technology / reserve. Must sum to PKR 12M |
 | D0.9 | Technology stack | SELECT | Basic (PKR 800k, UX ceiling 0.55) / Standard (2.5M, ceiling 0.75) / Custom (6M, ceiling 0.92, +2 rounds to launch) |
 | D0.10 | Fulfilment model | SELECT | 3PL (variable, no capex) / Own warehouse (PKR 5M capex, lower variable) |
 | D0.11 | Payment setup | SELECT ×2 | COD on/off; gateway A/B/C |
@@ -106,6 +106,7 @@ Enforced by the engine; a configuration violating these cannot be submitted.
 | Projected Round 1 revenue across all valid configs | Within ±15% of PKR 12,000,000 |
 | Projected contribution margin | ≥ 4% |
 | Projected runway at Round 1 burn | ≥ 8 rounds |
+| Technology allocation | ≤ 55% of capital |
 | Inventory allocation | ≥ 25% and ≤ 60% of capital |
 | Reserve allocation | ≥ 10% of capital |
 
