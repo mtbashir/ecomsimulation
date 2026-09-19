@@ -102,6 +102,11 @@ def _autoinit(path: Path) -> None:
 
 # --- Auth ---------------------------------------------------------------------
 
+def role_home(role: str | None) -> str:
+    """Where a signed-in user of this role belongs."""
+    return url_for("admin") if role == "admin" else url_for("home")
+
+
 def login_required(role: str | None = None):
     def deco(fn):
         @wraps(fn)
@@ -111,14 +116,50 @@ def login_required(role: str | None = None):
             if role and session.get("role") != role:
                 abort(403)
             return fn(*a, **kw)
+        wrapper._required_role = role
         return wrapper
     return deco
+
+
+def _endpoint_role(app: Flask, path: str) -> str | None:
+    """The role a path demands, or None if it is open to any signed-in user."""
+    try:
+        endpoint, _ = app.url_map.bind("localhost").match(path, method="GET")
+    except Exception:
+        return "__unroutable__"
+    return getattr(app.view_functions.get(endpoint), "_required_role", None)
+
+
+def safe_next(app: Flask, target: str | None, role: str | None) -> str | None:
+    """Validate a ``next`` parameter: same-site, routable, and open to *role*.
+
+    Anything else is dropped so the caller falls back to the role's home page.
+    Without the role check an admin who lands on ``/`` first is bounced to
+    ``/login?next=/`` and then straight back to a team-only page.
+    """
+    if not target:
+        return None
+    # Same-site only: one leading slash, no scheme, no protocol-relative "//",
+    # no backslash (some browsers normalise it to "/").
+    if not target.startswith("/") or target.startswith("//") or "\\" in target:
+        return None
+    path = target.split("?", 1)[0].split("#", 1)[0]
+    required = _endpoint_role(app, path)
+    if required == "__unroutable__":
+        return None
+    if required is not None and required != role:
+        return None
+    return target
 
 
 def register_routes(app: Flask) -> None:
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
+        if "user" in session and request.method == "GET":
+            return redirect(safe_next(app, request.args.get("next"),
+                                      session.get("role"))
+                            or role_home(session.get("role")))
         if request.method == "POST":
             row = db.authenticate(g.db, request.form.get("username", ""),
                                   request.form.get("password", ""))
@@ -129,8 +170,8 @@ def register_routes(app: Flask) -> None:
                                team_id=row["team_id"], name=row["display_name"])
                 with g.db:
                     db.log(g.db, row["username"], "auth.login", "")
-                return redirect(request.args.get("next")
-                                or url_for("admin" if row["role"] == "admin" else "home"))
+                dest = safe_next(app, request.args.get("next"), row["role"])
+                return redirect(dest or role_home(row["role"]))
         return render_template("login.html")
 
     @app.route("/logout")
@@ -141,8 +182,12 @@ def register_routes(app: Flask) -> None:
     # --- Team portal ----------------------------------------------------------
 
     @app.route("/")
-    @login_required("team")
+    @login_required()
     def home():
+        # The front door. An instructor who types the bare URL lands here, so
+        # send them on to their own console rather than refusing the page.
+        if session.get("role") != "team":
+            return redirect(url_for("admin"))
         game = db.game(g.db)
         tid = session["team_id"]
         open_round = game["open_round"]

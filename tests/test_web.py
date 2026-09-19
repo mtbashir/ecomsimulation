@@ -55,6 +55,41 @@ def test_a_team_cannot_reach_the_instructor_pages(game):
     assert team.post("/admin/run").status_code == 403
 
 
+def test_an_admin_who_opens_the_site_root_first_reaches_the_console(game):
+    """The 403 people hit in class: root -> /login?next=/ -> team-only page."""
+    app, _pw, _p = game
+    c = app.test_client()
+    assert c.get("/").headers["Location"].endswith("/login?next=/")
+    r = c.post("/login?next=/", data={"username": "admin", "password": "admin-pw"})
+    assert r.status_code == 302
+    assert c.get(r.headers["Location"], follow_redirects=True).status_code == 200
+
+
+def test_the_root_page_sends_an_instructor_to_the_console(game):
+    app, _pw, _p = game
+    admin = _client(app, "admin", "admin-pw")
+    assert admin.get("/").headers["Location"].endswith("/admin")
+
+
+def test_a_team_is_still_sent_where_it_asked_for(game):
+    app, pw, _p = game
+    c = app.test_client()
+    r = c.post("/login?next=/submit", data={"username": "team_01",
+                                            "password": pw["team_01"]})
+    assert r.headers["Location"].endswith("/submit")
+
+
+def test_login_will_not_bounce_to_another_site(game):
+    """``next`` is attacker-supplied: only same-site paths are honoured."""
+    app, _pw, _p = game
+    for bad in ("//evil.example.com/", "https://evil.example.com/",
+                "/\\evil.example.com/", "/no/such/route"):
+        c = app.test_client()
+        r = c.post("/login?next=" + bad, data={"username": "admin",
+                                               "password": "admin-pw"})
+        assert r.headers["Location"].endswith("/admin"), bad
+
+
 def test_a_team_only_ever_sees_its_own_results(game):
     """There is no route that takes a team id - identity comes from the session."""
     app, pw, path = game
