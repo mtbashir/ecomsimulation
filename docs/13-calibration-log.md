@@ -51,7 +51,53 @@ working capital should bankrupt a team, so `growth_max` is reclassified as an
 archetype that exists to fail rather than a viable strategy the invariants must
 protect.
 
-### OPEN QUESTION — shrinking currently wins
+### 2026-09-19 · Option A — payroll cut, and three more dead mechanisms
+
+**DECIDED: `payroll_base` 1.4M -> 1.0M.** Fixed costs fell from 2.83M to
+1.94M a round.
+
+Chasing why retention never paid uncovered three defects, each of which had
+been silently live for the whole project:
+
+**1. Churn modifiers were never applied at all.** `retention_effect` and
+`experience_penalty` were written by M13 and read by M12 - which runs first.
+`ctx` is rebuilt every round, so both always read zero. **Churn has been the
+flat base rate since the ledger was written**, meaning retention spend did
+nothing and service failure had no downstream cost. `experience_penalty` now
+persists on the team (a deliberate one-round lag that only exists if the value
+survives the round); `retention_effect` resolves in M0, same round.
+
+**2. Returning customers generated no traffic.** Every order required a session
+from paid or organic traffic, so a loyal customer still needed a paid click to
+come back. Repeat demand was therefore capped by marketing spend. Returning
+visitors now arrive direct, sized from the cohort ledger.
+
+**3. Returning traffic converted at the blended rate.** Sessions were sized in
+M6 using an elevated repeat conversion rate and then converted in M8 at the
+cold rate, so loyal customers delivered a fraction of the orders the ledger
+says they place. M8 now converts cold and returning traffic separately.
+
+Also: reported `conversion_rate` was the modelled base rate rather than orders
+over sessions (the docs/10 definition). Once returning traffic converts at its
+own rate the two diverge, and the solver was fitting the wrong number.
+
+**Option A did NOT solve the open question.** Best EBITDA across all twenty
+archetypes is now **-678k a round against 1.94M of fixed costs**, so
+profitability is still unreachable, `cash_preservation` still ranks third, and
+`retention_led` still ranks eighteenth.
+
+Two consequences to weigh:
+
+- **`growth_max` insolvency fell from 52% to 9%.** The extra headroom from the
+  payroll cut undid the "keep growth_max insolvency" decision of the same day.
+- **Retention still does not pay.** At the approved 22% repeat share the
+  installed base buys about 0.05 times per round, so a retained customer is
+  worth very little however well retention works. **This is a consequence of
+  the repeat-share target itself, not of the retention mechanics**, which are
+  now correct. Raising the repeat-share target (or purchase frequency) is the
+  lever that would make loyalty a winning strategy.
+
+### SUPERSEDED — earlier framing of the open question
 
 `cash_preservation` ranks **#1 of 20**, and the cause is structural rather than
 a bad anchor:

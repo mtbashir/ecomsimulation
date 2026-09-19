@@ -61,13 +61,16 @@ A sim where COD is a rounding error actively mis-teaches this market.
 | Invariants | 11/12 — I11 open |
 | Suites | `pytest -q` · `python calibrate.py` · `python validate.py --games 160` |
 
-### Open question — shrinking currently wins
+### Open question — profitability is still unreachable
 
-`cash_preservation` ranks #1 of 20. The business cannot reach EBITDA breakeven,
-so cutting spend always improves profitability, and **LTV:CAC rewards not
-acquiring customers** — great unit economics, no business. Three options are
-laid out in `docs/13-calibration-log.md`; it is a judgement about what the
-course should teach, not a parameter to tune.
+`payroll_base` was cut 1.4M → 1.0M (option A) and three dead mechanisms were
+repaired, but best EBITDA across all twenty archetypes is **−678k a round
+against 1.94M of fixed costs**. `cash_preservation` still ranks third and
+`retention_led` eighteenth.
+
+The remaining lever is the **22% repeat-share target**: at that level the
+installed base buys ~0.05 times per round, so a retained customer is worth
+little however well retention works. See `docs/13-calibration-log.md`.
 
 ### Invariant status
 

@@ -60,7 +60,7 @@ def run(world, params, resolved, ctx) -> None:
             "potential": ctx["potential"][tid],
             "sellable": ctx["sellable"][tid],
             "sessions": ctx["sessions"][tid],
-            "conversion_rate": ctx["conversion_rate"][tid],
+            "conversion_rate": ctx["orders"][tid] / max(ctx["sessions"][tid], 1.0),
             "aov_net": ctx["aov"][tid],
             "revenue_net": ctx["net_revenue"][tid],
             "gross_margin_pct": ctx["gross_margin_pct"][tid],

@@ -13,6 +13,20 @@ CHANNEL_DECISIONS = {
 }
 
 
+def _returning_sessions(team, params) -> float:
+    """Direct traffic from customers who already bought.
+
+    Sized so that, at the team's conversion rate, it produces the repeat demand
+    its cohort ledger implies. Returning customers convert far better than cold
+    traffic, so they need proportionally fewer sessions.
+    """
+    expected_repeat = sum(
+        c.active * c.freq * params["cohort_freq_scale"] for c in team.cohorts
+    )
+    effective_cr = params["cr_base"] * params["repeat_cr_multiplier"]
+    return expected_repeat / max(effective_cr, 1e-6)
+
+
 def run(world, params, resolved, ctx) -> None:
     sigma = params["saturation_exponent"]
     lam = params["adstock_carryover"]
@@ -58,7 +72,9 @@ def run(world, params, resolved, ctx) -> None:
             * (1 + params["organic_ux_coef"] * (team.ux_score - 0.5))
         )
 
-        sessions = paid + organic
+        returning = _returning_sessions(team, params)
+        sessions = paid + organic + returning
+        ctx.setdefault("sessions_returning", {})[team.team_id] = returning
         if active_channels > 1:
             sessions *= 1 - params["channel_overlap"] * (1 - 1 / active_channels)
 

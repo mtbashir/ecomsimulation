@@ -70,6 +70,10 @@ class TeamState:
     brand_spend_history: list[float] = field(default_factory=list)
     delivered_prev: float = 0.0
     pending_gap_penalties: dict[int, dict] = field(default_factory=dict)
+    # Written by M13, read by M12 the FOLLOWING round. These lived in ctx,
+    # which is rebuilt every round, so M12 - which runs first - always read
+    # zero and neither retention spend nor service failure ever touched churn.
+    experience_penalty: float = 0.0
     predictions: list[dict] = field(default_factory=list)
     reports: dict[int, dict] = field(default_factory=dict)
     in_administration: bool = False

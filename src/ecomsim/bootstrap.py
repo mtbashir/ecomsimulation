@@ -65,7 +65,9 @@ def _category_scale(world, params) -> float:
         e_inc = sum(math.exp(beta * i["utility"]) for i in world.incumbents)
         team_share += float(seg["share"]) * e_team / (n * e_team + e_inc)
 
-    baseline_orders = params["baseline_team_revenue"] / params["aov_base"]
+    # Category sizing targets the acquisition pool: repeat demand is added on
+    # top in M7, so only the new-customer share is competed for here.
+    baseline_orders = (params["baseline_team_revenue"] / params["aov_base"]) * 0.78
     raw_category_orders = (n * params["baseline_team_revenue"] / params["team_share_total"]) / params["aov_base"]
     wanted = baseline_orders * params["potential_headroom"]
     return wanted / max(raw_category_orders * team_share, 1e-9)

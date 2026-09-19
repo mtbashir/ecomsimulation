@@ -39,7 +39,22 @@ def run(world, params, resolved, ctx) -> None:
         for tid, e in exps.items():
             potential[tid] += seg_orders * (e / total)
 
+    # Repeat demand sits on top of the contested pool.
+    for team in world.teams.values():
+        repeat = _repeat_demand(team, params, ctx)
+        potential[team.team_id] += repeat
+        ctx.setdefault("repeat_demand", {})[team.team_id] = repeat
+
     ctx["potential"] = potential
+
+
+def _repeat_demand(team, params, ctx) -> float:
+    """Orders the installed base will place, from the cohort ledger."""
+    uplift = 1 + 0.45 * ctx.get("retention_effect", {}).get(team.team_id, 0.0)
+    return sum(
+        c.active * c.freq * params["cohort_freq_scale"] * uplift
+        for c in team.cohorts
+    )
 
 
 def _utility(team, seg, params, ctx) -> float:

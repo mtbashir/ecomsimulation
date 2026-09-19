@@ -53,7 +53,7 @@ def run(world, params, resolved, ctx) -> None:
 
 def _age_cohorts(team, params, ctx, pending) -> float:
     """Churn each cohort, then count the repeat orders the survivors place."""
-    experience_penalty = ctx.get("experience_penalty", {}).get(team.team_id, 0.0)
+    experience_penalty = team.experience_penalty   # set by M13 last round
     retention_effect = ctx.get("retention_effect", {}).get(team.team_id, 0.0)
     repeat_mult = pending.get("repeat_mult", 1.0)
 
@@ -66,7 +66,8 @@ def _age_cohorts(team, params, ctx, pending) -> float:
         )
         cohort.active *= max(0.0, 1 - max(0.0, min(0.95, churn)))
         repeat_orders += (cohort.active * cohort.freq * repeat_mult
-                          * params["cohort_freq_scale"])
+                          * params["cohort_freq_scale"]
+                          * (1 + 0.45 * retention_effect))
 
     team.cohorts = [c for c in team.cohorts if c.active > 1.0]
     return repeat_orders

@@ -74,6 +74,9 @@ def run(world, params, resolved, ctx) -> None:
             RETURN_POLICY_KEY.get(str(d.get("10.4", "customer_pays")),
                                   "policy_mult_customer_pays")
         ]
+        ctx.setdefault("retention_effect", {})[tid] = min(
+            1.0, (float(d.get("6.1", 0) or 0) / 400_000) ** 0.5
+        )
         _assortment_fit(team, params, ctx)
 
     # Price index is relative, so it needs every team's price first. Incumbents

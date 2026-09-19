@@ -23,7 +23,15 @@ def run(world, params, resolved, ctx) -> None:
         cr = _conversion_rate(team, params, ctx)
         ctx.setdefault("conversion_rate", {})[tid] = cr
 
-        traffic_capacity = ctx["sessions"][tid] * cr
+        # Returning visitors convert far better than cold traffic. Applying
+        # one blended rate to both made retention self-defeating: the sessions
+        # were sized at the higher rate in M6 and then converted at the lower
+        # one here, so loyal customers delivered a fraction of the orders the
+        # cohort ledger says they place.
+        returning = ctx.get("sessions_returning", {}).get(tid, 0.0)
+        cold = max(0.0, ctx["sessions"][tid] - returning)
+        traffic_capacity = (cold * cr
+                            + returning * cr * params["repeat_cr_multiplier"])
         stock_capacity = ctx.get("stock_capacity", {}).get(tid, float("inf"))
         potential = ctx["potential"][tid]
 

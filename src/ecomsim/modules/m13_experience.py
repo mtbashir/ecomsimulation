@@ -47,12 +47,10 @@ def run(world, params, resolved, ctx) -> None:
 
         # Experience failure feeds NEXT round's churn (M12 reads this from ctx,
         # so it lands one round later by construction).
-        ctx.setdefault("experience_penalty", {})[tid] = max(
-            0.0, (4.0 - team.rating) / 2.0
-        )
-        ctx.setdefault("retention_effect", {})[tid] = min(
-            1.0, (float(d.get("6.1", 0) or 0) / 400_000) ** 0.5
-        )
+        # Persisted on the team so M12 sees it NEXT round - the lag is
+        # deliberate, but it only exists if the value survives the round.
+        team.experience_penalty = max(0.0, (4.0 - team.rating) / 2.0)
+        ctx.setdefault("experience_penalty", {})[tid] = team.experience_penalty
         ctx.setdefault("cs_backlog", {})[tid] = team.cs_backlog
         ctx.setdefault("sla_hit", {})[tid] = sla_hit
         ctx.setdefault("rating", {})[tid] = team.rating
