@@ -24,7 +24,7 @@ BASELINE = {
     "conversion_rate": 0.021,
     "gross_margin_pct": 0.38,
     "contribution_margin_pct": 0.09,
-    "repeat_order_share": 0.22,
+    "repeat_order_share": 0.35,
     "rating": 4.1,
 }
 TOLERANCE = 0.03

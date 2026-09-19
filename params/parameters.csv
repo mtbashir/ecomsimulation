@@ -40,7 +40,7 @@ share_sensitivity,M7,2.0,1.2,3.0,0.6,4.5,exponent,HIGH,Above 4.5 winner-take-all
 price_index_floor,M7,0.5,0.3,0.8,0.1,0.9,ratio,,Lower clamp on price index
 price_index_cap,M7,2.0,1.4,3.0,1.1,5.0,ratio,,Upper clamp on price index
 redistribution_iterations,M7,2,1,3,1,5,count,,Unmet demand redistribution passes; not to convergence
-cr_base,M8,0.0150,0.012,0.035,0.005,0.080,ratio,,Below 0.005 traffic economics collapse
+cr_base,M8,0.0135,0.012,0.035,0.005,0.080,ratio,,Below 0.005 traffic economics collapse
 price_elasticity,M8,-1.8,-2.4,-1.3,-3.5,-0.9,exponent,,Beyond -3.5 price war spirals to zero margin
 ux_cr_coef,M8,0.45,0.20,0.70,0.0,1.0,coefficient,,Conversion uplift per unit of UX score above 0.5
 rating_cr_coef,M8,0.20,0.10,0.35,0.0,0.50,coefficient,,Above 0.50 rating becomes the only thing that matters
@@ -105,8 +105,8 @@ cs_cost_per_agent,M14,62000,30000,140000,15000,300000,PKR,,Fully loaded monthly 
 supplier_terms_days,M15,45,0,60,0,90,days,,Default supplier payment terms
 incumbent_a_utility,M7,0.46,0.25,0.65,0.0,1.0,utility,,Price-leader incumbent baseline attractiveness
 incumbent_b_utility,M7,0.50,0.25,0.70,0.0,1.0,utility,,Premium-service incumbent baseline attractiveness
-channel_k_scale,M6,1.0566,0.5,3.0,0.2,6.0,multiplier,,Global scale on channel k_base; the calibration handle for total paid traffic
-cohort_freq_scale,M12,0.8500,0.3,2.5,0.1,5.0,multiplier,,Global scale on cohort purchase frequency; the calibration handle for repeat share
+channel_k_scale,M6,0.9688,0.5,3.0,0.2,6.0,multiplier,,Global scale on channel k_base; the calibration handle for total paid traffic
+cohort_freq_scale,M12,1.5375,0.3,2.5,0.1,5.0,multiplier,,Global scale on cohort purchase frequency; the calibration handle for repeat share
 cogs_scale,M9,0.9492,0.85,1.15,0.6,1.5,multiplier,,Global scale on SKU unit costs; calibration handle for gross margin and the FX event
 potential_headroom,M1,1.45,1.05,2.2,1.0,4.0,multiplier,,Per-team potential demand at baseline as a multiple of baseline orders; above 1 means traffic binds before demand does
 events_enabled,M2,1,0,1,0,1,flag,,0 disables all events including EV-23 demand noise; used by the T2 baseline gate and by calibration

@@ -29,6 +29,54 @@ reasoned argument.
 
 ## Entries
 
+### 2026-09-19 · Repeat share raised to 35% — and why the two goals cannot both hold
+
+**DONE: repeat-share target 22% -> 35%.** Baseline re-solved and holding;
+`cohort_freq_scale` 1.02 -> 1.54. A welcome side effect: **CAC now derives to
+PKR 543**, much closer to the 850 originally quoted than the 452 it had drifted
+to. `sandbagger` also fell from #11 to #13, into the bottom 40% that I11 wants.
+
+**It did not make retention pay, and the reason is arithmetic, not mechanics.**
+The mechanics are now correct (see the previous entry). At 400k of retention
+spend, repeat share goes 29% -> 46% and net revenue rises 9.16M -> 9.47M. That
+is +310k of revenue at ~24% pre-marketing margin = **+75k of contribution for
+400k of spend**. Retention loses money at any level.
+
+To break even, 400k of retention must generate ~555 extra orders. It generates
+about 105, because repeat demand substitutes for acquisition more than it adds.
+
+### THE STRUCTURAL FINDING — the two goals are mutually exclusive
+
+Writing it out plainly, because it governs everything above:
+
+- Baseline contribution is **897k** a round (that IS the approved 9% CM).
+- Best contribution across all twenty archetypes is **1.63M** a round.
+- Fixed costs are currently **1.93M**.
+
+"Coasting is almost fatal" means a do-nothing team exhausts 25M in 12 rounds,
+so it must burn ~2M a round: `897k - fixed = -2M`, giving **fixed = 2.9M**.
+
+"Good play reaches profit" means `1.63M - fixed > 0`, giving **fixed < 1.63M**.
+
+**There is no value of fixed costs that satisfies both.** The gap between
+baseline and best contribution (897k vs 1.63M) is smaller than the burn that
+"almost fatal" requires. No amount of payroll cutting resolves this - it is a
+statement about how much strategy moves contribution.
+
+Three ways out, and this one genuinely needs a decision:
+
+| | Change | What it costs |
+|---|---|---|
+| **A** | **Lower starting cash** 25M -> ~12M. A 1M/round burn then exhausts capital in 12 rounds, so fixed can sit near 1.6M and good play turns a profit | Teams have less room to invest; the credit line carries more of the game |
+| **B** | **Widen the contribution spread** - make strategy move unit economics harder (stronger premium pricing, bigger ops savings, real scale economies) | Real engine work, and it risks I1 if one lever becomes too strong |
+| **C** | **Drop "good play reaches profit"** - teach the path to profitability instead, with P1 anchored to the reachable frontier as it is today | The sim stays one where nobody ever turns a profit |
+
+C is what is currently implemented and it is defensible for a 12-month horizon:
+most Pakistani D2C brands at 12M GMV are not profitable, and "who improved
+fastest toward breakeven" is a real board question. But it should be a choice,
+not a default.
+
+
 ### 2026-09-19 · Burst 3b — working capital smoothed; inventory made a decision
 
 **DECIDED: smooth the working-capital cycle.** The ~40% cash swings were not

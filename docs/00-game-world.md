@@ -40,8 +40,8 @@ At Round 5 a **second market** opens (Quick Commerce). See `03-core-mechanisms.m
 | Marketing spend | PKR 1,800,000 |
 | Blended CAC | PKR 850 |
 | New customers | 2,100 |
-| Repeat order share | 22% |
-| Active customer base | 31,000 |
+| Repeat order share | 35% |
+| Active customer base | 35,000 |
 | COD share of orders | 62% |
 | RTO rate on COD | 18% |
 | Return rate on delivered | 9% |

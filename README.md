@@ -61,7 +61,15 @@ A sim where COD is a rounding error actively mis-teaches this market.
 | Invariants | 11/12 — I11 open |
 | Suites | `pytest -q` · `python calibrate.py` · `python validate.py --games 160` |
 
-### Open question — profitability is still unreachable
+### Open question — two goals that cannot both hold
+
+Baseline contribution is 897k a round; the best any archetype reaches is 1.63M.
+"Coasting is almost fatal" needs fixed costs near 2.9M; "good play reaches
+profit" needs them below 1.63M. **No cost base satisfies both** — the gap
+between baseline and best contribution is smaller than the required burn. See
+`docs/13-calibration-log.md` for the three ways out.
+
+### Previously — profitability is still unreachable
 
 `payroll_base` was cut 1.4M → 1.0M (option A) and three dead mechanisms were
 repaired, but best EBITDA across all twenty archetypes is **−678k a round
@@ -86,7 +94,7 @@ little however well retention works. See `docs/13-calibration-log.md`.
 | I8 Determinism | PASS | |
 | I9 Monotonicity | PASS | 6/6 levers |
 | I10 No free lunch | PASS | 8/8 levers |
-| **I11 Discrimination** | **FAIL** | spread 28; sandbagger #10, harvester #11 |
+| **I11 Discrimination** | **FAIL** | spread 27; sandbagger #13, harvester #9 |
 | I12 Event neutrality | PASS | rank rho 0.99 |
 
 ### Fixed during burst 3
