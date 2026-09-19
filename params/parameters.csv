@@ -1,0 +1,92 @@
+name,module,default,green_min,green_max,hard_min,hard_max,unit,danger,note
+rounds,structural,12,6,20,4,24,rounds,,Total operating rounds excluding Round 0
+round_months,structural,1,1,12,1,12,months,,Round length; 12 disables seasonality
+n_teams,structural,8,2,16,2,16,count,,Adjustments auto-apply at N<=3 and N>=12
+starting_cash,structural,25000000,15000000,50000000,8000000,80000000,PKR,HIGH,Below 8M one ordinary R2 mistake is unrecoverable
+baseline_team_revenue,M1,12000000,8000000,20000000,5000000,40000000,PKR,,Round 0 revenue per team; drives category sizing
+team_share_total,M1,0.64,0.5,0.8,0.3,0.9,ratio,,Share of category held by teams; remainder to incumbents
+category_growth_per_round,M1,0.025,0.0,0.05,-0.02,0.10,ratio,,Above 0.10 growth covers every mistake
+seasonality_amplitude,M1,1.0,0.0,1.35,0.0,2.2,multiplier,,Scales the seasonal index deviation from 1.0
+event_severity,M2,1.0,0.5,1.6,0.0,2.5,multiplier,,Above 2.5 outcomes become event luck
+lead_time_noise_sd,M3,0.15,0.05,0.30,0.0,0.50,ratio,,Lognormal-ish noise on supplier lead time
+rto_recovery,M3,0.92,0.80,0.98,0.50,1.0,ratio,,Share of RTO units returned to sellable stock
+obsolescence_per_round,M4,0.07,0.03,0.12,0.0,0.20,ratio,,Capability benefit decay per round after first availability
+obsolescence_floor,M4,0.55,0.40,0.80,0.20,1.0,ratio,,Minimum benefit retained however late
+brand_decay,M5,0.08,0.04,0.15,0.0,0.25,ratio,,Above 0.25 brand investment never pays
+brand_alpha,M5,0.10,0.05,0.20,0.0,0.35,coefficient,,Brand equity gain per unit of reference spend
+brand_ref_spend,M5,400000,200000,800000,50000,2000000,PKR,,Reference brand spend per round
+creative_decay,M5,0.15,0.08,0.25,0.0,0.40,ratio,,Creative quality decay per round
+creative_kappa,M5,0.22,0.12,0.35,0.0,0.50,coefficient,,Creative quality gain coefficient
+creative_ref_spend,M5,300000,150000,600000,50000,1500000,PKR,,Reference creative production spend
+ai_creative_ceiling,M5,0.75,0.60,0.85,0.50,1.0,score,,Quality ceiling when AI creative module is active
+perception_convergence,M5,0.25,0.15,0.40,0.05,0.60,ratio,,Share of gap to actual closed per round
+gap_threshold,M5,0.15,0.08,0.25,0.0,0.40,score,,Perception gap below which no penalty applies
+gap_rating_coef,M5,1.2,0.6,2.0,0.0,3.5,coefficient,,Rating penalty per unit of excess gap
+gap_return_coef,M5,1.8,0.9,3.0,0.0,5.0,coefficient,,Return rate uplift per unit of excess gap
+gap_repeat_coef,M5,1.5,0.8,2.5,0.0,4.0,coefficient,,Repeat rate penalty per unit of excess gap
+gap_brand_decay_coef,M5,2.0,1.0,3.5,0.0,5.0,coefficient,,Brand decay uplift per unit of excess gap
+undermkt_traffic_coef,M5,0.6,0.3,1.0,0.0,1.8,coefficient,,Traffic penalty when actual exceeds perceived
+undermkt_cac_coef,M5,0.8,0.4,1.3,0.0,2.2,coefficient,,CAC uplift when actual exceeds perceived
+adstock_carryover,M6,0.35,0.20,0.50,0.0,0.70,ratio,,Above 0.70 past spend dominates current decisions
+saturation_exponent,M6,0.60,0.45,0.75,0.30,0.90,exponent,HIGH,Above 0.90 spend-to-win dominates every other decision
+cpm_inflation_phi,M6,0.25,0.10,0.45,0.0,0.70,coefficient,,Above 0.70 any spend increase is self-defeating
+channel_overlap,M6,0.12,0.05,0.25,0.0,0.40,ratio,,Correction for double-counted reachable audience
+organic_base,M6,38000,20000,70000,5000,150000,sessions,,Baseline organic and direct sessions per round
+organic_brand_coef,M6,0.6,0.3,0.9,0.0,1.0,coefficient,,Share of organic traffic driven by brand equity
+organic_cust_coef,M6,0.25,0.10,0.45,0.0,0.80,coefficient,,Log uplift from active customer base
+organic_ux_coef,M6,0.30,0.15,0.50,0.0,0.80,coefficient,,Organic uplift from UX score
+mp_pool_share,M6,0.18,0.08,0.30,0.0,0.50,ratio,,Marketplace session pool as share of category traffic
+share_sensitivity,M7,2.0,1.2,3.0,0.6,4.5,exponent,HIGH,Above 4.5 winner-take-all; below 0.6 decisions feel inert
+price_index_floor,M7,0.5,0.3,0.8,0.1,0.9,ratio,,Lower clamp on price index
+price_index_cap,M7,2.0,1.4,3.0,1.1,5.0,ratio,,Upper clamp on price index
+redistribution_iterations,M7,2,1,3,1,5,count,,Unmet demand redistribution passes; not to convergence
+cr_base,M8,0.021,0.012,0.035,0.005,0.080,ratio,,Below 0.005 traffic economics collapse
+price_elasticity,M8,-1.8,-2.4,-1.3,-3.5,-0.9,exponent,,Beyond -3.5 price war spirals to zero margin
+ux_cr_coef,M8,0.45,0.20,0.70,0.0,1.0,coefficient,,Conversion uplift per unit of UX score above 0.5
+rating_cr_coef,M8,0.20,0.10,0.35,0.0,0.50,coefficient,,Above 0.50 rating becomes the only thing that matters
+stockout_cr_penalty,M8,0.45,0.25,0.65,0.0,0.85,coefficient,,Above 0.85 one stock-out ends a team's run
+cod_cr_lift,M8,0.18,0.08,0.30,0.0,0.50,coefficient,,Conversion uplift from offering cash on delivery
+deliv_cr_coef,M8,0.30,0.15,0.50,0.0,0.80,coefficient,,Conversion uplift from perceived delivery reliability
+assort_cr_coef,M8,0.15,0.05,0.30,0.0,0.50,coefficient,,Conversion uplift from assortment fit
+aov_base,M9,3000,1500,6000,500,15000,PKR,,Baseline average order value net of discount
+bundle_aov_coef,M9,0.08,0.03,0.15,0.0,0.30,coefficient,,AOV uplift at full bundle penetration
+freeship_coef,M9,0.12,0.05,0.22,0.0,0.40,coefficient,,AOV uplift from a free-shipping threshold above basket
+sla_overflow_coef,M10,0.6,0.3,0.9,0.0,1.0,coefficient,,SLA attainment loss per unit of capacity overflow
+cod_share_base,M10,0.62,0.30,0.75,0.0,0.90,ratio,,Above 0.90 the cash model degenerates
+rto_base,M10,0.18,0.08,0.28,0.0,0.40,ratio,,Above 0.40 disabling COD becomes trivially correct
+rto_sla_coef,M10,0.5,0.2,0.9,0.0,1.5,coefficient,,RTO uplift from missed delivery SLA
+rto_prepaid_coef,M10,0.6,0.3,0.9,0.0,1.0,coefficient,,RTO reduction from prepaid incentive
+return_base,M11,0.09,0.04,0.18,0.0,0.30,ratio,,Above 0.30 returns swamp every other effect
+return_quality_coef,M11,0.8,0.4,1.3,0.0,2.0,coefficient,,Return uplift from low actual quality
+resell_rate,M11,0.78,0.60,0.90,0.30,1.0,ratio,,Share of returned units resellable
+policy_mult_free_returns,M11,1.35,1.15,1.60,1.0,2.2,multiplier,,Return rate multiplier under free returns
+policy_mult_customer_pays,M11,0.85,0.70,0.95,0.50,1.0,multiplier,,Return rate multiplier when customer pays
+policy_mult_restocking,M11,0.70,0.55,0.88,0.35,1.0,multiplier,,Return rate multiplier with a restocking fee
+first_order_units,M12,1.0,1.0,1.4,1.0,2.0,units,,Orders per newly acquired customer in their first round
+ltv_horizon_months,M12,24,12,36,6,60,months,,Horizon for lifetime value computation
+active_window_rounds,M12,3,2,6,1,12,rounds,,Rounds since last order for a customer to count as active
+churn_experience_coef,M12,0.9,0.4,1.5,0.0,2.5,coefficient,,Churn uplift from prior-round experience failure
+churn_retention_coef,M12,0.5,0.2,0.8,0.0,1.0,coefficient,,Churn reduction from retention investment
+ticket_rate,M13,0.11,0.05,0.20,0.0,0.40,ratio,,Support tickets per order
+agent_capacity,M13,900,500,1500,200,3000,tickets,,Tickets per agent per month
+ai_cs_multiplier,M13,2.5,1.5,4.0,1.0,6.0,multiplier,,Capacity multiplier when the AI service module is live
+backlog_return_coef,M13,0.6,0.3,0.9,0.0,1.5,coefficient,,Tickets generated per return
+rating_convergence,M13,0.30,0.15,0.45,0.05,0.70,ratio,,Share of distance to target rating closed per round
+rating_base,M13,2.5,2.0,3.0,1.0,3.5,score,,Rating intercept
+rating_aq_coef,M13,1.2,0.7,1.7,0.0,2.5,coefficient,,Rating contribution from actual quality
+rating_adr_coef,M13,0.6,0.3,1.0,0.0,1.5,coefficient,,Rating contribution from actual delivery reliability
+rating_sla_coef,M13,0.4,0.2,0.7,0.0,1.2,coefficient,,Rating contribution from service SLA attainment
+rating_pack_coef,M13,0.2,0.05,0.40,0.0,0.80,coefficient,,Rating contribution from packaging tier
+gross_margin_base,M14,0.38,0.28,0.50,0.20,0.65,ratio,,Below 0.20 unplayable; above 0.65 no trade-offs exist
+credit_ceiling,M15,15000000,5000000,30000000,0,50000000,PKR,,Above 50M cash never binds
+credit_rate_annual,M15,0.22,0.12,0.32,0.0,0.50,ratio,,Annual interest on drawn credit
+cod_remit_days,M15,16,8,28,1,45,days,,COD remittance lag; above one round length it crosses rounds
+gateway_settle_days,M15,3,1,10,0,20,days,,Prepaid gateway settlement lag
+mp_payout_days,M15,15,7,30,1,45,days,,Marketplace payout lag
+incumbent_aggression,M7,0.5,0.2,0.8,0.0,0.95,ratio,,Above 0.95 incumbents beat every team
+weight_profitability,M17,25,15,35,5,45,points,,Pillar P1 weight
+weight_growth,M17,20,10,30,5,40,points,,Pillar P2 weight
+weight_customer_value,M17,20,10,30,5,40,points,,Pillar P3 weight; must not be zero
+weight_operations,M17,15,8,25,5,35,points,,Pillar P4 weight
+weight_cash,M17,10,5,20,5,30,points,,Pillar P5 weight; must not be zero
+weight_decision_quality,M17,10,5,25,5,30,points,,Pillar P6 weight; must not be zero

@@ -70,6 +70,35 @@ Complete. Twelve documents covering world, decisions, mechanisms,
 configurability, start mode, build sequencing, engine, scoring, events, metrics
 and validation.
 
+## Code
+
+```
+params/          Every economic constant. Nothing is hardcoded in the engine.
+  parameters.csv   ~90 parameters with green and hard bands
+  channels.csv     CPM, CTR, creative sensitivity, and cohort churn by channel
+  segments.csv     Hidden segment weights (sold, noisily, as MR-06)
+  couriers.csv  suppliers.csv  studies.csv
+src/ecomsim/
+  params.py        Loader, band classification, joint-constraint checks
+  rng.py           Deterministic purpose-keyed randomness (invariant I8)
+  state.py         The state vector, including the per-cohort customer ledger
+  decisions.py     Decision registry and the default_when_disabled resolver
+  engine.py        Round orchestrator over the module pipeline
+  modules/         The 18 round modules in execution order
+tests/           T0 registry integrity, determinism, and the T2 baseline gate
+run.py           CLI runner
+```
+
+Implemented: M1 market, M5 perception, M6 traffic, M7 share, M8 conversion -
+the demand chain, where the architecture has to be right. The remaining
+thirteen modules are stubs carrying their contract and spec reference.
+
+```bash
+pip install -e ".[dev]"
+pytest -q
+python run.py --teams 8 --set saturation_exponent=0.55
+```
+
 ## First engineering task
 
 `docs/07-engine-chain.md` closes with a calibration test: at default decisions
