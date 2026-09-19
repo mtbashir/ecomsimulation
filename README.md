@@ -24,6 +24,7 @@ A sim where COD is a rounding error actively mis-teaches this market.
 | [`docs/05-start-mode.md`](docs/05-start-mode.md) | Round 0 founding round vs starting as a going concern, the 14 founding decisions, pro-forma preview and balance constraints |
 | [`docs/07-engine-chain.md`](docs/07-engine-chain.md) | **The round calculation.** 18 modules with formulas, ordering and dependencies; the calibration test that gates all other work |
 | [`docs/08-scoring.md`](docs/08-scoring.md) | Six pillars, criterion-referenced anchors, round weighting, anti-gaming design, insolvency and instructor reweighting bands |
+| [`docs/09-event-library.md`](docs/09-event-library.md) | 24 events in three types - scheduled, conditional (earned) and stochastic - plus bounds on the AI dynamic-event layer |
 | [`docs/06-build-sequencing.md`](docs/06-build-sequencing.md) | Why the engine is built once at Advanced depth while presets ship incrementally; Path A vs Path B cost comparison |
 | [`docs/04-configurability.md`](docs/04-configurability.md) | Team count 2–16, the 92-decision registry and presets, instructor unlock timing, round length and horizon, parameter safe ranges and validation invariants |
 
@@ -63,7 +64,6 @@ software is the delivery mechanism.
 
 ## Next specification documents
 
-- `09-event-library.md` — the ~18 scripted and dynamic market events
 - `10-kpi-dictionary.md` — every metric, its formula, and where it surfaces
 - `11-validation-harness.md` — the 200-strategy balance test suite
 
