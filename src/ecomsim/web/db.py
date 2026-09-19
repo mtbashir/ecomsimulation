@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS account (
   role          TEXT    NOT NULL CHECK (role IN ('admin', 'team')),
   team_id       TEXT,               -- NULL for admins
   display_name  TEXT    NOT NULL,
+  initial_password TEXT,             -- one-time handover; cleared once seen
   created_at    TEXT    NOT NULL
 );
 
@@ -123,9 +124,9 @@ def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
             passwords[tid] = pw
             con.execute(
                 "INSERT OR REPLACE INTO account "
-                "(username, password_hash, role, team_id, display_name, created_at) "
-                "VALUES (?, ?, 'team', ?, ?, ?)",
-                (tid, generate_password_hash(pw), tid, f"Team {i}", _now()))
+                "(username, password_hash, role, team_id, display_name, "
+                "initial_password, created_at) VALUES (?, ?, 'team', ?, ?, ?, ?)",
+                (tid, generate_password_hash(pw), tid, f"Team {i}", pw, _now()))
         log(con, "system", "game.init",
             f"{name}: {teams} teams, {rounds} rounds, preset {preset}")
     return passwords
@@ -172,9 +173,25 @@ def authenticate(con, username: str, password: str) -> sqlite3.Row | None:
 
 def set_password(con, username: str, password: str, actor: str = "admin") -> None:
     with con:
-        con.execute("UPDATE account SET password_hash = ? WHERE username = ?",
+        con.execute("UPDATE account SET password_hash = ?, initial_password = NULL "
+                    "WHERE username = ?",
                     (generate_password_hash(password), username))
         log(con, actor, "account.password", username)
+
+
+def clear_initial_passwords(con, actor: str = "admin") -> int:
+    """Wipe the one-time handover column once the instructor has the passwords.
+
+    On a hosted box there is no shell to read generated passwords from, so they
+    sit here until confirmed. The hashes are what authenticate; this is only a
+    handover, and it should not outlive the handover.
+    """
+    with con:
+        n = con.execute(
+            "UPDATE account SET initial_password = NULL "
+            "WHERE initial_password IS NOT NULL").rowcount
+        log(con, actor, "account.clear_initial", f"{n} cleared")
+    return n
 
 
 def accounts(con, role: str | None = None) -> list[sqlite3.Row]:

@@ -62,7 +62,17 @@ engine. A cohort can be run entirely in a browser.
 | Invariants | 11/12 — only I11 open, and narrow |
 | Suites | `pytest -q` · `python calibrate.py` · `python validate.py --games 160` |
 
-### Running it
+### Hosting it
+
+```
+Render → New → Blueprint → this repo     # reads render.yaml
+```
+
+Set `ECOMSIM_ADMIN_PASSWORD`, deploy, then collect the team passwords from the
+Teams page — they are shown once. Custom domain and HTTPS are a CNAME away. See
+`docs/14-deployment.md`, including why Supabase is not the right fit.
+
+### Running it locally
 
 ```
 py serve.py init --teams 8 --name "E-Commerce in Practice"   # prints passwords once

@@ -1,0 +1,35 @@
+# Render blueprint. Push this repo, point Render at it, and it builds.
+#
+# The disk is the part that matters: without it the game database lives on
+# ephemeral storage and disappears on every deploy and restart.
+services:
+  - type: web
+    name: ecomsim
+    runtime: python
+    plan: starter            # a disk requires a paid instance
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --workers 1 --threads 8 --timeout 120 --bind 0.0.0.0:$PORT
+    healthCheckPath: /healthz
+    disk:
+      name: ecomsim-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: ECOMSIM_DB
+        value: /var/data/game.db
+      - key: ECOMSIM_SECRET
+        generateValue: true          # stable across restarts; never in the repo
+      - key: ECOMSIM_BEHIND_PROXY
+        value: "1"
+      - key: ECOMSIM_NAME
+        value: E-Commerce in Practice
+      - key: ECOMSIM_TEAMS
+        value: "8"
+      - key: ECOMSIM_ROUNDS
+        value: "12"
+      - key: ECOMSIM_PRESET
+        value: advanced
+      - key: ECOMSIM_ADMIN_PASSWORD
+        sync: false                  # set this yourself in the dashboard
+      - key: PYTHON_VERSION
+        value: "3.12.7"

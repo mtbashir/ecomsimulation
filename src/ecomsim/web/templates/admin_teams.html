@@ -1,8 +1,32 @@
 {% extends "base.html" %}{% block title %}Teams{% endblock %}
 {% block body %}
 <h1>Accounts</h1>
+
+{% set pending = teams|selectattr('initial_password')|list %}
+{% if pending %}
+<section style="border-left:3px solid #fab219">
+<h2>Collect these now</h2>
+<p class="note">Generated when the game was created. They are shown here once so
+you can hand them out, then cleared — after that they cannot be recovered, only
+replaced.</p>
+<table>
+<thead><tr><th>Team</th><th>Name</th><th>Password</th></tr></thead>
+<tbody>
+{% for t in pending %}
+<tr><td>{{ t['username'] }}</td><td>{{ t['display_name'] }}</td>
+<td><code style="font-size:15px">{{ t['initial_password'] }}</code></td></tr>
+{% endfor %}
+</tbody></table>
+<form method="post" action="{{ url_for('admin_clear_initial') }}"
+      onsubmit="return confirm('Cleared for good. Have you written them down?')"
+      style="margin-top:12px">
+<button type="submit">I have written these down — clear them</button>
+</form>
+</section>
+{% endif %}
+
 <p class="sub">Passwords are stored hashed, so they cannot be read back — only
-replaced. Give each team its password on paper at the start.</p>
+replaced.</p>
 <section>
 <table>
 <thead><tr><th>Username</th><th>Name</th><th>Role</th>

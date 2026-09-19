@@ -3,3 +3,10 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 .venv/
+
+.env
+*.db
+*.db-wal
+*.db-shm
+.secret_key
+game/

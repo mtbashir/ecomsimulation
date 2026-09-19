@@ -121,3 +121,12 @@ range it runs but warns and marks the configuration unvalidated.
 | How teams are scored | `docs/08-scoring.md` |
 | What the instructor can change | `docs/04-configurability.md` |
 | Why each number is what it is | `docs/13-calibration-log.md` |
+
+## Hosting it
+
+For teams submitting between sessions rather than in one room, deploy it. See
+`docs/14-deployment.md` — Render reads `render.yaml` and needs one secret set by
+hand, or the `Dockerfile` runs the same thing anywhere.
+
+The only thing that really matters: **the database must sit on a persistent
+disk.** Without one the game is wiped on every restart.

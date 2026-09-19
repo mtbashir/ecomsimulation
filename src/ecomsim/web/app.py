@@ -30,11 +30,22 @@ GROUP_NAMES = {
 
 def create_app(database: str | Path | None = None) -> Flask:
     app = Flask(__name__)
-    app.config["DATABASE"] = str(
-        database or os.environ.get("ECOMSIM_DB", "game.db"))
-    # A stable secret keeps sessions alive across restarts; a generated one is
-    # fine for a single class but logs everyone out when the laptop sleeps.
-    app.secret_key = os.environ.get("ECOMSIM_SECRET") or secrets.token_hex(32)
+    path = Path(database or os.environ.get("ECOMSIM_DB", "game.db"))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    app.config["DATABASE"] = str(path)
+
+    # A stable secret keeps sessions alive across restarts. Without one set,
+    # every restart silently signs everyone out mid-class, so fall back to a
+    # key persisted beside the database rather than a fresh one each boot.
+    app.secret_key = os.environ.get("ECOMSIM_SECRET") or _persistent_secret(path)
+
+    if os.environ.get("ECOMSIM_BEHIND_PROXY"):
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+        app.config.update(SESSION_COOKIE_SECURE=True, SESSION_COOKIE_HTTPONLY=True,
+                          SESSION_COOKIE_SAMESITE="Lax")
+
+    _autoinit(path)
 
     @app.before_request
     def _open_db():
@@ -53,6 +64,40 @@ def create_app(database: str | Path | None = None) -> Flask:
 
     register_routes(app)
     return app
+
+
+def _persistent_secret(db_path: Path) -> str:
+    key_file = db_path.parent / ".secret_key"
+    if key_file.exists():
+        return key_file.read_text().strip()
+    key = secrets.token_hex(32)
+    key_file.write_text(key)
+    try:
+        key_file.chmod(0o600)
+    except OSError:
+        pass          # Windows and some mounts do not support it; not fatal
+    return key
+
+
+def _autoinit(path: Path) -> None:
+    """Create the game on first boot of a hosted deploy.
+
+    There is no shell on a managed host, so the first boot reads its setup from
+    the environment and stores the generated team passwords for one-time
+    collection in the Teams page.
+    """
+    if path.exists():
+        return
+    teams = int(os.environ.get("ECOMSIM_TEAMS", 8))
+    db.init(
+        path,
+        name=os.environ.get("ECOMSIM_NAME", "E-Commerce Simulation"),
+        teams=teams,
+        preset=os.environ.get("ECOMSIM_PRESET", "advanced"),
+        rounds=int(os.environ.get("ECOMSIM_ROUNDS", 12)),
+        admin_password=os.environ.get("ECOMSIM_ADMIN_PASSWORD")
+        or secrets.token_urlsafe(12),
+    )
 
 
 # --- Auth ---------------------------------------------------------------------
@@ -260,6 +305,22 @@ def register_routes(app: Flask) -> None:
         return render_template("admin_params.html", params=params,
                                overrides=db.overrides(g.db),
                                warnings=params.warnings)
+
+    @app.get("/healthz")
+    def healthz():
+        """Liveness probe for the host. Confirms the database answers."""
+        try:
+            db.game(g.db)
+        except Exception:
+            return Response("unhealthy", status=503, mimetype="text/plain")
+        return Response("ok", mimetype="text/plain")
+
+    @app.post("/admin/teams/clear-initial")
+    @login_required("admin")
+    def admin_clear_initial():
+        n = db.clear_initial_passwords(g.db, session["user"])
+        flash(f"Cleared {n} initial passwords. They cannot be shown again.", "ok")
+        return redirect(url_for("admin_teams"))
 
     @app.route("/admin/teams", methods=["GET", "POST"])
     @login_required("admin")
