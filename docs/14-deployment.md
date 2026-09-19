@@ -16,13 +16,35 @@ that, and the migration stays open — see **Moving to Postgres** below.
 
 ## Deploy
 
-1. **Push this repo to GitHub** (done: `mtbashir/ecomsimulation`).
-2. **Render → New → Blueprint**, point it at the repo. It reads `render.yaml`.
-3. **Set `ECOMSIM_ADMIN_PASSWORD`** in the dashboard before the first deploy.
-   Everything else is in the blueprint.
-4. **Deploy.** First boot creates the game from the environment variables.
-5. **Sign in as `admin`** and go to **Teams**. The generated team passwords are
-   shown there **once**. Write them down, then clear them.
+The production stack — gunicorn, the health probe, first-boot creation, proxy
+headers and secure cookies — is verified against the exact `startCommand` in
+`render.yaml`. What follows is about five minutes of clicking.
+
+1. **Click Deploy to Render** (the button in `README.md`), or go to
+   **Render → New → Blueprint** and point it at this repo. Either way it reads
+   `render.yaml`.
+2. **Sign in or create a Render account.** A card is needed: a persistent disk
+   requires the Starter plan, about **$7 a month**. The free plan has no disk,
+   and without one the game is wiped on every restart.
+3. **Set `ECOMSIM_ADMIN_PASSWORD`** when it prompts — it is the only value not
+   in the blueprint, deliberately. Adjust `ECOMSIM_TEAMS` and `ECOMSIM_NAME`
+   here too if the defaults (8 teams, "E-Commerce in Practice") are wrong;
+   they are read **once**, on first boot.
+4. **Apply.** The first build takes two or three minutes. Watch for the health
+   check to go green.
+5. **Open the URL** Render gives you (`<name>.onrender.com`) and sign in as
+   `admin`.
+6. **Go to Teams.** The generated team passwords are listed there **once**.
+   Write them down, then click to clear them.
+
+### If something goes wrong
+
+| Symptom | Cause |
+|---|---|
+| Build fails on `pip install` | `PYTHON_VERSION` in the blueprint is pinned to 3.12.7; Render occasionally lags. Set it to a version Render lists |
+| Health check never goes green | The disk is not mounted at `/var/data`, so `ECOMSIM_DB` points nowhere writable |
+| Signed out after every deploy | `ECOMSIM_SECRET` is not set or not marked `generateValue` |
+| Teams page shows no passwords | They were already collected and cleared. Set new ones on that same page |
 
 The `plan: starter` line is not optional — a persistent disk requires a paid
 instance, and without the disk the game database is wiped on every deploy.

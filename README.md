@@ -64,9 +64,11 @@ engine. A cohort can be run entirely in a browser.
 
 ### Hosting it
 
-```
-Render → New → Blueprint → this repo     # reads render.yaml
-```
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mtbashir/ecomsimulation)
+
+One click, then set `ECOMSIM_ADMIN_PASSWORD` when it asks. The blueprint does
+the rest: Python runtime, gunicorn, a 1 GB persistent disk, a generated session
+secret, and a health check.
 
 Set `ECOMSIM_ADMIN_PASSWORD`, deploy, then collect the team passwords from the
 Teams page — they are shown once. Custom domain and HTTPS are a CNAME away. See
