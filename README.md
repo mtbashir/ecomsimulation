@@ -64,15 +64,17 @@ A cohort can be run and read end to end.
 
 ### Running a cohort
 
-```bash
-python run.py new --teams 8 --out game/     # start a game
-python run.py template --game game/         # blank decisions file
+```
+py run.py new --teams 8 --out game     # start a game
+py run.py template --game game         # blank decisions file
 #   ... teams fill it in (a Google Form export works too) ...
-python run.py round --game game/            # reports + console + results.csv
-python run.py preview --game game/          # Round 0 pro-forma
+py run.py round --game game            # reports + console + results.csv
+py run.py preview --game game          # Round 0 pro-forma
 ```
 
-Files in, HTML out. No server, and students never touch the engine.
+`py` on Windows, `python3` on macOS/Linux. Files in, HTML out — no server, and
+students never touch the engine. See `QUICKSTART.md`, including how to open the
+shipped demo with no Python at all.
 
 ### Resolved — profitability is reachable
 
