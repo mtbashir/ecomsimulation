@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, "src")
 
-from ecomsim import bootstrap, params as P, report, scoring  # noqa: E402
+from ecomsim import bootstrap, console, params as P, report, scoring  # noqa: E402
 from ecomsim.engine import run_round  # noqa: E402
 from ecomsim.io_csv import (  # noqa: E402
     SubmissionError, read_decisions, write_results, write_template,
@@ -102,10 +102,12 @@ def cmd_round(args) -> int:
     for team in world.teams.values():
         card = scoring.final_score(team, params, world.teams) if world.round >= 2 else None
         report.render(team, world.round, out, card)
+    console_path = console.render(world, params, out)
     with _state(game).open("wb") as fh:
         pickle.dump(saved, fh)
 
     print(f"\nRound {world.round} processed. Reports in {out}/")
+    print(f"Instructor console: {console_path}")
     print(f"{'team':<10}{'orders':>8}{'revenue':>12}{'CM':>7}{'cash':>12}  binding")
     for team in world.teams.values():
         h = team.history[-1]

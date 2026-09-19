@@ -8,37 +8,50 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .charts import CSS_TOKENS, sparkline
+
+# (label, key, format, up_is_good). The last field is not decoration: a rising
+# CAC and a rising debt balance are both bad news, and colouring them green
+# tells a team the opposite of the truth.
 BLOCKS = [
     ("Growth", [
-        ("Net revenue", "revenue_net", "pkr"), ("Orders", "orders", "int"),
-        ("Sessions", "sessions", "int"), ("Conversion rate", "conversion_rate", "pct2"),
-        ("AOV", "aov_net", "pkr"), ("Market share", "market_share", "pct1*"),
+        ("Net revenue", "revenue_net", "pkr", True), ("Orders", "orders", "int", True),
+        ("Sessions", "sessions", "int", True),
+        ("Conversion rate", "conversion_rate", "pct2", True),
+        ("AOV", "aov_net", "pkr", True), ("Market share", "market_share", "pct1*", True),
     ]),
     ("Marketing", [
-        ("Blended CAC", "cac_blended", "pkr"), ("Reported ROAS", "roas_reported", "x!"),
-        ("Creative quality", "creative_quality", "score"),
-        ("New customers", "new_customers", "int"),
+        ("Blended CAC", "cac_blended", "pkr", False),
+        ("Reported ROAS", "roas_reported", "x!", True),
+        ("Creative quality", "creative_quality", "score", True),
+        ("New customers", "new_customers", "int", True),
     ]),
     ("Commercial", [
-        ("Gross margin", "gross_margin_pct", "pct1"),
-        ("Contribution margin", "contribution_margin_pct", "pct1"),
-        ("EBITDA", "ebitda", "pkr"), ("Discount rate", "discount_rate", "pct1"),
+        ("Gross margin", "gross_margin_pct", "pct1", True),
+        ("Contribution margin", "contribution_margin_pct", "pct1", True),
+        ("EBITDA", "ebitda", "pkr", True),
+        ("Discount rate", "discount_rate", "pct1", False),
     ]),
     ("Operations", [
-        ("Service level", "service_level", "pct1"), ("In-stock rate", "instock_rate", "pct1"),
-        ("Delivery success", "delivery_success", "pct1"), ("RTO rate", "rto_rate", "pct1"),
-        ("Return rate", "return_rate", "pct1"), ("Weeks of cover", "weeks_cover", "num1"),
+        ("Service level", "service_level", "pct1", True),
+        ("In-stock rate", "instock_rate", "pct1", True),
+        ("Delivery success", "delivery_success", "pct1", True),
+        ("RTO rate", "rto_rate", "pct1", False),
+        ("Return rate", "return_rate", "pct1", False),
+        ("Weeks of cover", "weeks_cover", "num1", True),
     ]),
     ("Customer", [
-        ("Active customers", "active_customers", "int"),
-        ("Repeat order share", "repeat_order_share", "pct1"),
-        ("LTV : CAC", "ltv_cac_ratio", "num2"), ("Rating", "rating", "num2"),
-        ("NPS", "nps", "int"), ("Service backlog", "cs_backlog", "int"),
+        ("Active customers", "active_customers", "int", True),
+        ("Repeat order share", "repeat_order_share", "pct1", True),
+        ("LTV : CAC", "ltv_cac_ratio", "num2", True), ("Rating", "rating", "num2", True),
+        ("NPS", "nps", "int", True), ("Service backlog", "cs_backlog", "int", False),
     ]),
     ("Finance", [
-        ("Cash", "cash_balance", "pkr"), ("Runway (rounds)", "runway_rounds", "num1"),
-        ("COD in transit", "cod_receivable", "pkr"),
-        ("Credit drawn", "credit_drawn", "pkr"), ("Net profit", "net_profit", "pkr"),
+        ("Cash", "cash_balance", "pkr", True),
+        ("Runway (rounds)", "runway_rounds", "num1", True),
+        ("COD in transit", "cod_receivable", "pkr", True),
+        ("Credit drawn", "credit_drawn", "pkr", False),
+        ("Net profit", "net_profit", "pkr", True),
     ]),
 ]
 
@@ -87,30 +100,44 @@ def _value(record: dict, key: str):
     return record.get("pnl", {}).get(key)
 
 
+TREND_KEYS = {"revenue_net", "orders", "conversion_rate", "cac_blended",
+              "contribution_margin_pct", "service_level", "rating",
+              "repeat_order_share", "cash_balance", "active_customers"}
+
+
 def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None) -> Path:
     record = team.history[round_ - 1]
     prior = team.history[round_ - 2] if round_ > 1 else None
+    series = team.history[:round_]
     name = getattr(team.founding, "brand_name", None) or team.team_id
 
     cards = []
     for title, metrics in BLOCKS:
         rows = []
-        for label, key, kind in metrics:
+        for label, key, kind, up_is_good in metrics:
             now = _value(record, key)
             was = _value(prior, key) if prior else None
             delta = ""
             if isinstance(now, (int, float)) and isinstance(was, (int, float)) and was:
                 change = (now - was) / abs(was)
                 if abs(change) >= 0.005:
-                    cls = "up" if change > 0 else "down"
+                    cls = "up" if (change > 0) == up_is_good else "down"
                     delta = f'<span class="d {cls}">{change:+.0%}</span>'
             mark = ""
             if kind.endswith("!"):
                 mark = '<abbr title="Platform-reported and over-attributed">*</abbr>'
             elif kind.endswith("*"):
                 mark = '<abbr title="Requires a purchased study">&deg;</abbr>'
+            trend = ""
+            if key in TREND_KEYS and round_ >= 3:
+                points = [_value(h, key) for h in series]
+                trend = ('<tr class="tr"><td colspan="2">'
+                         + sparkline(points, label=label,
+                                     fmt=lambda v, k=kind: _fmt(v, k))
+                         + "</td></tr>")
             rows.append(
-                f"<tr><th>{label}{mark}</th><td>{_fmt(now, kind)}{delta}</td></tr>")
+                f"<tr><th>{label}{mark}</th><td>{_fmt(now, kind)}{delta}</td></tr>"
+                + trend)
         cards.append(f'<section><h2>{title}</h2><table>{"".join(rows)}</table></section>')
 
     verdict, explanation = BINDING.get(
@@ -147,17 +174,19 @@ td{{text-align:right;font-variant-numeric:tabular-nums;padding:5px 0;font-weight
 .d{{font-size:11px;margin-left:7px;font-weight:600}}
 .up{{color:#047857}} .down{{color:#b91c1c}}
 abbr{{color:#9ca3af;text-decoration:none;cursor:help}}
+.tr td{{padding:0 0 6px}} .spark{{display:block;overflow:visible}}
 .verdict{{background:#fff;border:1px solid #e3e6ea;border-left:3px solid #1a1d21;
 border-radius:10px;padding:14px 16px;margin:0 0 14px}}
 .verdict h3{{margin:0 0 4px;font-size:15px}} .verdict p{{margin:0;color:#4b5563}}
 .ev{{margin:12px 0 0;color:#4b5563;font-size:14px}}
+{CSS_TOKENS}
 footer{{color:#9ca3af;font-size:12px;margin-top:20px}}
 @media(prefers-color-scheme:dark){{
 body{{background:#101215;color:#e8eaed}}
 section,.verdict{{background:#191c20;border-color:#2b3036}}
 .verdict{{border-left-color:#e8eaed}}
 th,.verdict p,.ev{{color:#9aa3ad}} h2{{color:#7d8794}}}}
-</style></head><body><div class="wrap">
+</style></head><body class="viz"><div class="wrap">
 <h1>{name}</h1>
 <p class="sub">Round {round_} results &middot; {team.team_id}</p>
 <div class="verdict"><h3>{verdict}</h3><p>{explanation}</p>{events_html}{score_html}</div>
