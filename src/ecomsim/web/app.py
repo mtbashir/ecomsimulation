@@ -419,6 +419,9 @@ def register_routes(app: Flask) -> None:
             sourcing=SOURCING_CHOICES, stacks=STACK_CHOICES,
             fulfilment=FULFILMENT_CHOICES, gateways=GATEWAY_CHOICES,
             segments=params.segments, skus=params.skus,
+            catalogue=service.product_catalogue(params, current),
+            blended=service.blended_margin(
+                service.product_catalogue(params, current)),
             seg_driver=_segment_driver, seg_loyalty=_segment_loyalty,
             studies=[st for st in params.studies
                      if st["code"] in founding.FOUNDING_RESEARCH],

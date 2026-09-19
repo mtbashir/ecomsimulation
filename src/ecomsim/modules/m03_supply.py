@@ -23,7 +23,13 @@ def run(world, params, resolved, ctx) -> None:
         _land_arrivals(team, world.round)
         _return_rto_units(team)
 
-        supplier = params.__class__ and _supplier(params, d)
+        supplier = dict(_supplier(params, d))
+        # The team's founding sourcing strategy and positioning tier scale what
+        # a unit lands at, on top of which supplier it buys from. Folding it in
+        # here means every downstream cost - the purchase order in M3 and the
+        # COGS in M9 - sees the same landed cost.
+        supplier["cost_index"] = (float(supplier["cost_index"])
+                                  * team.cost_multiplier)
         ctx.setdefault("supplier_quality", {})[tid] = float(supplier["quality_index"])
         ctx.setdefault("supplier", {})[tid] = supplier
 

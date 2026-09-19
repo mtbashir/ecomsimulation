@@ -106,18 +106,52 @@ works against you.</p>
 </div>
 
 <div class="field">
-<label>Opening assortment <span class="note">(12 to 18 products)</span></label>
-<p class="help">Your opening range. Every line you carry needs stock behind it,
-so a wide range spreads the same capital thinner.</p>
-<div class="checks">
-{% for s in skus %}
-<label class="check"><input type="checkbox" name="assortment" value="{{ s['code'] }}"
-  {% if s['code'] in f.assortment %}checked{% endif %}>
-  <span>{{ s['name'] }}<br><span class="note">PKR
-  {{ '{:,.0f}'.format(s['list_price']|float) }} &middot; {{ s['category'] }}
-  &middot; {{ s['tier'] }}</span></span></label>
+<label>Opening range and prices <span class="note">(choose 12 to 18
+  products)</span></label>
+<p class="help">Tick what you will sell and set what you will charge for it.
+Cost is what one unit lands at, given how you have chosen to source and
+position &mdash; change either and every cost here moves. Gross margin is
+simply what is left. The market reference is what the category charges today;
+you are free to ignore it, and the consequence shows up in how many people
+buy.</p>
+
+<table class="catalogue">
+<thead><tr>
+  <th>Sell</th><th>Product</th><th class="num">Cost</th>
+  <th class="num">Market</th><th class="num">Your price</th>
+  <th class="num">Margin</th>
+</tr></thead>
+<tbody>
+{% for row in catalogue %}
+<tr class="cat-row{% if row.chosen %} on{% endif %}">
+  <td><input type="checkbox" name="assortment" value="{{ row.code }}"
+       {% if row.chosen %}checked{% endif %}></td>
+  <td><strong>{{ row.name }}</strong><br><span class="note">{{ row.category }}
+    &middot; {{ row.tier }} &middot; {{ row.demand }}
+    ({{ '{:.0%}'.format(row.demand_share) }} of category)
+    &middot; {{ row.returns }}</span></td>
+  <td class="num">{{ '{:,.0f}'.format(row.cost) }}</td>
+  <td class="num note">{{ '{:,.0f}'.format(row.reference) }}</td>
+  <td class="num"><input type="text" inputmode="decimal" class="price-input"
+      name="price_{{ row.code }}" data-cost="{{ '%.2f'|format(row.cost) }}"
+      value="{{ '{:,.0f}'.format(row.price) }}"></td>
+  <td class="num margin-cell">{{ '{:.0%}'.format(row.margin) }}</td>
+</tr>
 {% endfor %}
-</div>
+</tbody>
+</table>
+
+<div class="hint">Across what you have selected:
+  <strong>{{ blended.lines }} lines</strong>,
+  average price PKR {{ '{:,.0f}'.format(blended.avg_price) }},
+  average cost PKR {{ '{:,.0f}'.format(blended.avg_cost) }},
+  gross margin <strong>{{ '{:.1%}'.format(blended.gross_margin) }}</strong>.
+  Saving the page recalculates it.</div>
+<div class="hint">That is the margin on the shelf. The projection at the bottom
+of this page will show a point or two less, because the discount for paying
+online comes off the price and stock you write off still cost you. Neither is
+a mistake &mdash; the gap between shelf margin and realised margin is where a
+lot of e-commerce businesses get lost.</div>
 </div>
 </section>
 
@@ -322,6 +356,34 @@ month 1 is the first lesson of the run.</p>
 <p class="stage-intro">Save a draft to see the projection.</p>
 {% endif %}
 </section>
+
+<script>
+// Margin as you type. The server recomputes it on save either way, so the page
+// is correct with this script blocked - it is just slower to answer.
+(function () {
+  var rows = document.querySelectorAll(".cat-row");
+  function paint(row) {
+    var box = row.querySelector(".price-input");
+    var cell = row.querySelector(".margin-cell");
+    var price = parseFloat(box.value.replace(/,/g, ""));
+    var cost = parseFloat(box.dataset.cost);
+    if (!(price > 0)) { cell.textContent = "\u2014"; return; }
+    var m = (price - cost) / price;
+    cell.textContent = Math.round(m * 100) + "%";
+    cell.classList.toggle("thin", m < 0.25);
+    cell.classList.toggle("loss", m < 0);
+  }
+  rows.forEach(function (row) {
+    var box = row.querySelector(".price-input");
+    var tick = row.querySelector("input[type=checkbox]");
+    box.addEventListener("input", function () { paint(row); });
+    tick.addEventListener("change", function () {
+      row.classList.toggle("on", tick.checked);
+    });
+    paint(row);
+  });
+})();
+</script>
 
 <button type="submit" name="action" value="save" class="ghost">Save draft</button>
 <button type="submit" name="action" value="submit" style="margin-left:8px">

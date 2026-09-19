@@ -84,6 +84,13 @@ class TeamState:
     founding: object | None = None
     brand_name: str = ""
     price_multiplier: float = 1.0
+    # How the team's Round 0 sourcing and positioning move its landed cost.
+    # 1.0 for a going-concern game, which has no founding round.
+    cost_multiplier: float = 1.0
+    # What the team charges for each product, set in Round 0. Empty means the
+    # team never priced anything itself, so the catalogue's reference price
+    # scaled by the positioning tier stands in.
+    sku_prices: dict[str, float] = field(default_factory=dict)
     traffic_multiplier: float = 1.0
     last_discretionary: dict[str, float] = field(default_factory=dict)
 

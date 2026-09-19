@@ -101,16 +101,25 @@ def run(world, params, resolved, ctx) -> None:
 
 
 def _basket_list_price(team, params) -> float:
-    """Revenue-weighted average unit list price across the team's active SKUs.
+    """Revenue-weighted average unit price across the team's active SKUs.
 
-    Scaled by the founding positioning tier: premium charges more for the same
-    catalogue, value charges less.
+    A team that priced its own catalogue in Round 0 is charged what it set -
+    the tier multiplier is not applied on top, because the team has already
+    taken the pricing decision. Positioning still costs and still shows up in
+    perception; it just no longer prices the shelf for you.
+
+    Anything the team never priced falls back to the catalogue reference at its
+    positioning tier, which is what a going-concern game uses throughout.
     """
     skus = [params.sku(c) for c in team.active_skus] or params.skus
     total_w = sum(float(s["revenue_weight"]) for s in skus) or 1.0
-    base = sum(float(s["list_price"]) * float(s["revenue_weight"])
-               for s in skus) / total_w
-    return base * team.price_multiplier
+    own = team.sku_prices or {}
+    base = sum(
+        own.get(s["code"], float(s["list_price"]) * team.price_multiplier)
+        * float(s["revenue_weight"])
+        for s in skus
+    ) / total_w
+    return base
 
 
 def _quality_tier(team, params, d) -> float:

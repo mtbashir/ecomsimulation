@@ -46,6 +46,34 @@ FOUNDING_RESEARCH = ["MR-01", "MR-06", "MR-11", "MR-15"]
 FOUNDING_RESEARCH_DISCOUNT = 0.50
 
 
+def reference_price(sku: dict, tier: str) -> float:
+    """What the catalogue suggests for this product at this positioning.
+
+    The starting point in the form, and the fallback for a product a team
+    never priced. Teams are free to ignore it - that is the decision.
+    """
+    return round(float(sku["list_price"]) * TIERS.get(tier, TIERS["mainstream"])[0])
+
+
+def cost_multiplier(sourcing: str, tier: str) -> float:
+    """How a team's sourcing strategy and positioning scale its landed cost."""
+    return (SOURCING.get(sourcing, SOURCING["mixed"])[0]
+            * TIERS.get(tier, TIERS["mainstream"])[1])
+
+
+def unit_cost(sku: dict, sourcing: str, tier: str, params=None,
+              supplier_index: float = 1.0) -> float:
+    """What one unit will actually cost, as the P&L will charge it.
+
+    Must agree with M9: catalogue cost times the global cogs scale, the
+    supplier's index, and the team's founding cost multiplier. A page that
+    quotes a cost the P&L then contradicts is worse than quoting none.
+    """
+    scale = float(params["cogs_scale"]) if params is not None else 1.0
+    return (float(sku["unit_cost"]) * scale * supplier_index
+            * cost_multiplier(sourcing, tier))
+
+
 class FoundingError(ValueError):
     """A founding configuration that cannot be submitted."""
 
@@ -60,6 +88,7 @@ class Founding:
     tier: str = "mainstream"                          # D0.4
     model: str = "d2c"                                # D0.5
     assortment: list[str] = field(default_factory=list)                              # D0.6
+    prices: dict[str, float] = field(default_factory=dict)                           # D0.6
     sourcing: str = "mixed"                           # D0.7
     capital_inventory: float = 0.0                    # D0.8
     capital_marketing: float = 0.0
@@ -87,6 +116,9 @@ class Founding:
         f.capital_reserve = capital * 0.18
         f.assortment = [s["code"] for s in sorted(
             params.skus, key=lambda s: -float(s["revenue_weight"]))[:14]]
+        # Deliberately no prices. A team that never opened the form should be
+        # priced by its positioning tier, the way a going-concern game is;
+        # prices belong to teams that actually set them.
         f.segment_priority = [s["code"] for s in params.segments[:2]]
         return f
 
@@ -110,6 +142,16 @@ def validate(f: Founding, params) -> list[str]:
         errors.append(f"D0.5: model must be one of {', '.join(MODELS)}")
     if not 12 <= len(f.assortment) <= 18:
         errors.append(f"D0.6: opening assortment must be 12-18 SKUs (got {len(f.assortment)})")
+    for code, price in (f.prices or {}).items():
+        if code not in f.assortment:
+            continue
+        ref = float(params.sku(code)["list_price"])
+        if price <= 0:
+            errors.append(f"D0.6: {params.sku(code)['name']} needs a price")
+        elif price > ref * 4:
+            errors.append(
+                f"D0.6: {params.sku(code)['name']} at {price:,.0f} is more than "
+                f"four times the market reference of {ref:,.0f}")
     if f.sourcing not in SOURCING:
         errors.append(f"D0.7: sourcing must be one of {', '.join(SOURCING)}")
     if f.tech_stack not in TECH_STACKS:
@@ -164,8 +206,13 @@ def apply(f: Founding, team, params) -> None:
     fulfil_capex, _fulfil_mult = FULFILMENT[f.fulfilment]
 
     team.active_skus = list(f.assortment)
+    team.sku_prices = {c: float(p) for c, p in (f.prices or {}).items()
+                       if c in f.assortment and float(p) > 0}
     team.founding = f
     team.price_multiplier = price_mult
+    # Sourcing and positioning were described as cost decisions and only ever
+    # touched the opening stock purchase. They follow the team now.
+    team.cost_multiplier = _cost_index * cost_mult
     team.traffic_multiplier = _traffic
     team.rating = max(1.0, min(5.0, team.rating + rating_bonus))
     team.ux_score = min(ux_ceiling, 0.62 if launch_rounds == 0 else 0.42)
@@ -177,7 +224,7 @@ def apply(f: Founding, team, params) -> None:
         team.warehouse_capacity = 6_000.0
 
     # Opening stock is bought with the inventory allocation, not handed over.
-    unit_cost = _basket_cost(f, params) * cost_mult
+    unit_cost = _basket_cost(f, params) * team.cost_multiplier
     units = f.capital_inventory / max(unit_cost, 1.0)
     weights = {c: float(params.sku(c)["revenue_weight"]) for c in f.assortment}
     total_w = sum(weights.values()) or 1.0

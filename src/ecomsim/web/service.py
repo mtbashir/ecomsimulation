@@ -211,6 +211,17 @@ def founding_from_form(form, params) -> founding_mod.Founding:
     f.fulfilment = text("fulfilment", f.fulfilment)
     f.cod_enabled = text("cod_enabled", "on") != "off"
     f.gateway = text("gateway", f.gateway)
+    f.prices = {}
+    for key in form:
+        if not key.startswith("price_"):
+            continue
+        code = key[len("price_"):]
+        try:
+            value = float(str(form.get(key) or "").replace(",", "").strip())
+        except ValueError:
+            continue
+        if value > 0:
+            f.prices[code] = value
     f.research = form.getlist("research")
     f.business_plan = text("business_plan")
 
@@ -241,6 +252,60 @@ def founding_from_dict(d: dict, params) -> founding_mod.Founding:
         if hasattr(f, key):
             setattr(f, key, value)
     return f
+
+
+def product_catalogue(params, f: founding_mod.Founding) -> list[dict]:
+    """The shelf a team is choosing from, priced and described.
+
+    Cost moves with how the team sources and positions, so the catalogue is
+    built against this team's current choices rather than being a static list.
+    Demand share is the product's weight within the category - which is what a
+    category manager would actually be handed.
+    """
+    total_weight = sum(float(s["revenue_weight"]) for s in params.skus) or 1.0
+    # Round 0 has no supplier decision yet, so quote the default one - the same
+    # supplier the team will be buying from in month 1 unless it changes 7.2.
+    baseline_supplier = float(next(
+        sp for sp in params.suppliers if sp["code"] == "B")["cost_index"])
+    rows = []
+    for sku in params.skus:
+        code = sku["code"]
+        cost = founding_mod.unit_cost(sku, f.sourcing, f.tier, params,
+                                      baseline_supplier)
+        reference = founding_mod.reference_price(sku, f.tier)
+        price = float((f.prices or {}).get(code) or reference)
+        share = float(sku["revenue_weight"]) / total_weight
+        returns = float(sku["return_propensity"])
+        rows.append({
+            "code": code, "name": sku["name"], "category": sku["category"],
+            "tier": sku["tier"], "cost": cost, "reference": reference,
+            "price": price, "chosen": code in f.assortment,
+            "demand_share": share,
+            "demand": ("a large share of the category" if share >= 0.075
+                       else "a mid-sized line" if share >= 0.045
+                       else "a small line"),
+            # Worded so it cannot be misread as customer loyalty. This is the
+            # parcel coming back, not the customer.
+            "returns": ("sent back more often than average" if returns >= 1.1
+                        else "average rate of returns" if returns >= 0.9
+                        else "seldom sent back"),
+            "margin": (price - cost) / price if price > 0 else 0.0,
+        })
+    return rows
+
+
+def blended_margin(rows: list[dict]) -> dict:
+    """Gross margin across what the team has actually selected."""
+    chosen = [r for r in rows if r["chosen"]]
+    weight = sum(r["demand_share"] for r in chosen) or 1.0
+    revenue = sum(r["price"] * r["demand_share"] for r in chosen)
+    cost = sum(r["cost"] * r["demand_share"] for r in chosen)
+    return {
+        "lines": len(chosen),
+        "avg_price": revenue / weight,
+        "avg_cost": cost / weight,
+        "gross_margin": (revenue - cost) / revenue if revenue > 0 else 0.0,
+    }
 
 
 def founding_preview(con, f: founding_mod.Founding) -> dict | None:
@@ -375,6 +440,8 @@ def company_position(con, team_id: str) -> dict | None:
         "tier": f.tier,
         "model": f.model,
         "skus": [params.sku(c)["name"] for c in f.assortment],
+        "shelf": [r for r in product_catalogue(params, f) if r["chosen"]],
+        "margin": blended_margin(product_catalogue(params, f)),
         "allocation": {"Inventory": f.capital_inventory,
                        "Marketing": f.capital_marketing,
                        "Technology": f.capital_technology,
