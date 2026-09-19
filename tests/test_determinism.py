@@ -36,3 +36,36 @@ def test_research_reports_do_not_reroll():
 def test_normal_is_centred():
     vals = [rng.normal("run1", 1, f"t{i}", "noise", 0.0, 1.0) for i in range(4000)]
     assert abs(sum(vals) / len(vals)) < 0.06
+
+
+def test_full_game_is_reproducible():
+    """I8 at the game level, not just the draw level."""
+    from ecomsim import bootstrap, params as P
+    from ecomsim.engine import run_game
+
+    def play():
+        p = P.load()
+        w = bootstrap.new_world(p, run_id="determinism")
+        run_game(w, p, strategy=lambda wo, r, t: {}, rounds=12)
+        return [h["revenue_net"] for h in w.teams["team_01"].history]
+
+    assert play() == play()
+
+
+def test_engine_is_fast_enough():
+    """Performance is a correctness requirement, not an optimisation.
+
+    The T3 suite runs 4,000 games. At 200ms that is ~13 minutes and gets run;
+    at 2s it is over two hours and stops being run, which means it stops working.
+    """
+    import time
+
+    from ecomsim import bootstrap, params as P
+    from ecomsim.engine import run_game
+
+    p = P.load()
+    w = bootstrap.new_world(p, run_id="perf")
+    start = time.perf_counter()
+    run_game(w, p, strategy=lambda wo, r, t: {}, rounds=12)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    assert elapsed_ms < 200, f"{elapsed_ms:.0f}ms for a 12-round 8-team game"

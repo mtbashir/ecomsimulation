@@ -1,0 +1,21 @@
+code,name,category,list_price,unit_cost,tier,revenue_weight,return_propensity
+SKU-01,Facewash 100ml,skincare,890,534,standard,0.09,0.85
+SKU-02,Moisturiser 200ml,skincare,1450,899,standard,0.08,0.90
+SKU-03,Serum 30ml,skincare,2890,1647,premium,0.06,1.25
+SKU-04,Sunscreen SPF50,skincare,1690,1030,standard,0.07,0.95
+SKU-05,Face Mask Pack,skincare,690,455,economy,0.04,1.10
+SKU-06,Shampoo 400ml,haircare,1190,762,standard,0.09,0.80
+SKU-07,Conditioner 400ml,haircare,1250,800,standard,0.06,0.80
+SKU-08,Hair Oil 200ml,haircare,840,529,economy,0.05,0.75
+SKU-09,Hair Serum 100ml,haircare,1890,1153,premium,0.04,1.15
+SKU-10,Body Wash 500ml,hygiene,980,637,standard,0.07,0.75
+SKU-11,Soap Bar Pack,hygiene,450,306,economy,0.05,0.70
+SKU-12,Hand Sanitiser,hygiene,390,269,economy,0.03,0.70
+SKU-13,Deodorant 150ml,hygiene,760,494,standard,0.05,0.85
+SKU-14,Toothpaste Twin,hygiene,520,354,economy,0.04,0.70
+SKU-15,Dish Liquid 1L,homecare,680,449,economy,0.04,0.65
+SKU-16,Surface Cleaner,homecare,590,395,economy,0.03,0.65
+SKU-17,Laundry Liquid 2L,homecare,1490,984,standard,0.05,0.70
+SKU-18,Air Freshener,homecare,440,299,economy,0.02,0.75
+SKU-19,Baby Lotion 200ml,baby,1340,830,standard,0.02,0.95
+SKU-20,Baby Wipes 3pk,baby,890,578,standard,0.02,0.80

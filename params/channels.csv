@@ -1,10 +1,10 @@
 code,name,k_base,cpm_base,creative_sensitivity,churn_base,freq_per_round,is_paid,note
-meta,Meta (FB/IG),420,185,0.35,0.19,0.34,1,Workhorse channel; mid intent mid cost
-google_search,Google Search,150,410,0.10,0.14,0.42,1,Highest intent lowest volume ceiling
-google_shopping,Google Shopping/PMax,260,240,0.20,0.16,0.39,1,Requires feed quality from content spend
-tiktok,TikTok,610,95,0.55,0.26,0.24,1,Cheapest CPM worst intent highest creative dependency
-influencer,Influencer,330,210,0.45,0.21,0.31,1,Tier selection scales reach and variance
-affiliate,Affiliate,180,0,0.15,0.20,0.33,1,Pay on performance; cannibalises organic
-marketplace_ads,Marketplace Ads,290,160,0.20,0.31,0.19,1,Only active when marketplace participation is on
-organic,Organic & Direct,0,0,0.0,0.11,0.48,0,Driven by brand equity customer base and UX
-deal_driven,Deal-driven,0,0,0.0,0.44,0.11,0,Cohort tag applied when discount depth exceeds 25 percent
+meta,Meta (FB/IG),420,185,0.35,0.063,0.113,1,Workhorse channel; mid intent mid cost
+google_search,Google Search,150,410,0.10,0.14,0.140,1,Highest intent lowest volume ceiling
+google_shopping,Google Shopping/PMax,260,240,0.20,0.16,0.130,1,Requires feed quality from content spend
+tiktok,TikTok,610,95,0.55,0.26,0.080,1,Cheapest CPM worst intent highest creative dependency
+influencer,Influencer,330,210,0.45,0.21,0.103,1,Tier selection scales reach and variance
+affiliate,Affiliate,180,0,0.15,0.20,0.110,1,Pay on performance; cannibalises organic
+marketplace_ads,Marketplace Ads,290,160,0.20,0.103,0.063,1,Only active when marketplace participation is on
+organic,Organic & Direct,0,0,0.0,0.037,0.160,0,Driven by brand equity customer base and UX
+deal_driven,Deal-driven,0,0,0.0,0.44,0.037,0,Cohort tag applied when discount depth exceeds 25 percent

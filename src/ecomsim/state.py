@@ -51,6 +51,7 @@ class TeamState:
 
     # Operations
     inventory: dict[str, float] = field(default_factory=dict)
+    active_skus: list[str] = field(default_factory=list)
     open_pos: list[dict] = field(default_factory=list)
     warehouse_capacity: float = 6_000.0
     cs_agents: int = 4

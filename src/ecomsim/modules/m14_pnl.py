@@ -1,12 +1,105 @@
 """M14 - Costs & P&L.
 
-RTO cost is its own line, never folded into fulfilment - teams must see it.
-Contribution margin boundary per docs/10-kpi-dictionary.md.
+RTO cost is its own line, never folded into fulfilment. Teams must see it to
+reason about COD, and it is the number most Pakistani operators have never had
+to look at directly.
 
-See docs/07-engine-chain.md.
+Contribution margin boundary per docs/10: marketing and commission sit ABOVE
+the line; payroll, warehouse, technology and research sit below.
 """
 from __future__ import annotations
 
+MARKETING_DECISIONS = ["3.1", "3.2", "3.3", "3.4", "3.5", "3.7", "3.8", "3.9"]
+
 
 def run(world, params, resolved, ctx) -> None:
-    raise NotImplementedError("m14_pnl: see docs/07-engine-chain.md")
+    for team in world.teams.values():
+        tid = team.team_id
+        d = ctx["resolved"][tid]
+
+        gross_revenue = ctx["gross_revenue"][tid]
+        aov = ctx["aov"][tid]
+
+        returns_value = ctx["returned_orders"][tid] * aov
+        rto_value = ctx["rto_orders"][tid] * aov
+        failed_value = ctx["failed_orders"][tid] * aov
+        net_revenue = gross_revenue - returns_value - rto_value - failed_value
+
+        cogs = ctx["cogs"][tid]
+        unrecovered = (
+            ctx["returned_orders"][tid] - ctx["returns_recovered"][tid]
+        ) * aov * (1 - params["gross_margin_base"])
+        gross_profit = net_revenue - cogs * (net_revenue / max(gross_revenue, 1.0)) - unrecovered
+
+        orders = ctx["orders"][tid]
+        pick_pack = orders * params["fulfil_pick_pack_cost"]
+        courier_forward = ctx["courier_cost"][tid]
+        # Forward AND reverse on every RTO, plus reverse on every return.
+        rto_shipping = (ctx["rto_orders"][tid] + ctx["failed_orders"][tid]) * 2 * (
+            courier_forward / max(orders, 1.0)
+        )
+        return_shipping = ctx["returned_orders"][tid] * (
+            courier_forward / max(orders, 1.0)
+        )
+
+        gateway_cost = (
+            net_revenue * ctx["prepaid_share"][tid] * params["gateway_fee"]
+        )
+        cod_cost = net_revenue * ctx["cod_share"][tid] * params["cod_handling_fee"]
+
+        marketing = sum(float(d.get(k, 0) or 0) for k in MARKETING_DECISIONS)
+        affiliate = net_revenue * float(d.get("3.6", 0) or 0)
+        commission = 0.0
+        if d.get("4.1") and str(d.get("4.1")) != "off":
+            commission = net_revenue * 0.35 * params["marketplace_commission"]
+
+        contribution = (
+            gross_profit - pick_pack - courier_forward - rto_shipping
+            - return_shipping - gateway_cost - cod_cost
+            - marketing - affiliate - commission
+        )
+
+        research = float(ctx.get("research_cost", {}).get(tid, 0.0))
+        below_line = (
+            params["payroll_base"] + ctx["cs_cost"][tid]
+            + params["warehouse_fixed_cost"]
+            + params["tech_fixed_cost"] + ctx.get("ongoing_tech_cost", {}).get(tid, 0.0)
+            + research
+            + float(d.get("5.1", 0) or 0) + float(d.get("6.1", 0) or 0)
+        )
+        ebitda = contribution - below_line
+        interest = team.credit_drawn * params["credit_rate_annual"] * (
+            params["round_months"] / 12
+        )
+        net_profit = ebitda - interest
+
+        ctx.setdefault("pnl", {})[tid] = {
+            "gross_revenue": gross_revenue,
+            "returns_value": returns_value,
+            "rto_value": rto_value,
+            "net_revenue": net_revenue,
+            "cogs": cogs,
+            "gross_profit": gross_profit,
+            "fulfilment": pick_pack + courier_forward,
+            "rto_cost": rto_shipping,          # its own line, deliberately
+            "return_cost": return_shipping + unrecovered,
+            "payment_costs": gateway_cost + cod_cost,
+            "marketing": marketing + affiliate,
+            "commission": commission,
+            "contribution": contribution,
+            "below_line": below_line,
+            "ebitda": ebitda,
+            "interest": interest,
+            "net_profit": net_profit,
+        }
+        ctx.setdefault("gross_margin_pct", {})[tid] = (
+            gross_profit / net_revenue if net_revenue > 0 else 0.0
+        )
+        ctx.setdefault("contribution_margin_pct", {})[tid] = (
+            contribution / net_revenue if net_revenue > 0 else 0.0
+        )
+        ctx.setdefault("net_revenue", {})[tid] = net_revenue
+        ctx.setdefault("cac_blended", {})[tid] = (
+            marketing / ctx["new_customers"][tid]
+            if ctx["new_customers"][tid] > 0 else 0.0
+        )

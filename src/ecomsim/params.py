@@ -52,6 +52,7 @@ class Params:
     couriers: list[dict]
     suppliers: list[dict]
     studies: list[dict]
+    skus: list[dict]
     warnings: list[str] = field(default_factory=list)
 
     # Every parameter read during a run, for the coverage test (T0).
@@ -72,6 +73,9 @@ class Params:
 
     def channel(self, code: str) -> dict:
         return next(c for c in self.channels if c["code"] == code)
+
+    def sku(self, code: str) -> dict:
+        return next(s for s in self.skus if s["code"] == code)
 
     def study(self, code: str) -> dict:
         return next(s for s in self.studies if s["code"] == code)
@@ -154,6 +158,7 @@ def load(overrides: dict[str, float] | None = None,
         couriers=_read_csv(params_dir / "couriers.csv"),
         suppliers=_read_csv(params_dir / "suppliers.csv"),
         studies=_read_csv(params_dir / "studies.csv"),
+        skus=_read_csv(params_dir / "skus.csv"),
         warnings=warnings,
     )
     _check_joint_constraints(params)

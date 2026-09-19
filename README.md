@@ -52,15 +52,39 @@ A sim where COD is a rounding error actively mis-teaches this market.
 
 ## Current status
 
-**Burst 0 complete.** Specification and scaffold done; engine pipeline
-incomplete.
+**Burst 1 complete.** All 18 modules implemented; a full 12-round, 8-team game
+runs end to end. **Not calibrated** — that is burst 2.
 
 | | |
 |---|---|
-| **Next** | **Burst 1 — implement the 13 remaining modules in `src/ecomsim/modules/`** |
-| Tests | 18 passing, 5 xfailed (the xfails are the Phase 2 gate) |
-| Gate | `tests/test_baseline.py` — baseline holds within 2% for 12 rounds at N = 2…16 |
-| Known incomplete | M0, M2, M3, M4, M9–M17 raise `NotImplementedError` |
+| **Next** | **Burst 2 — calibrate to the Round 0 baseline (`tests/test_baseline.py`)** |
+| Tests | 30 passing, 5 xfailed (the xfails are the burst 2 gate) |
+| Engine speed | ~30ms per 12-round 8-team game (requirement: <200ms) |
+| Determinism | I8 holds at both draw and game level |
+
+### Where the defaults currently land, vs baseline
+
+| Metric | Engine | Target | |
+|---|---|---|---|
+| Revenue | ~3.3M | 12.0M | channel `k_base` roughly 2.5x low |
+| Sessions | ~62k | 190k | same root cause |
+| Conversion rate | 2.50% | 2.10% | close |
+| Gross margin | ~57% | 38% | COGS allocation needs review |
+| Contribution margin | negative | +9% | follows from revenue being 3.5x low |
+| Repeat order share | ~65% | 22% | cohort frequency still high |
+| Rating | 4.08 | 4.10 | holds |
+
+Every gap above is a **level**, not a mechanism. Burst 2 closes them and records
+each judgement in `docs/13-calibration-log.md`.
+
+### Fixed during burst 1
+
+- **Reorder oscillation** — M3 forecast from realised orders, so a stock-out
+  suppressed the next order and perpetuated itself. Now forecasts from potential
+  demand. Guarded by `test_no_reorder_oscillation`.
+- **Cohort seed inconsistency** — 31,000 active customers generated more repeat
+  demand than total orders, silently producing 100% repeat share and zero CAC.
+  Base and frequencies corrected; the engine now warns rather than hiding it.
 
 **Opening a session with Claude:** *"Read the repo, check README status, we are
 on burst N."* Claude has no memory between conversations — this repo is the

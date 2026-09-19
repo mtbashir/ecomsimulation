@@ -1,12 +1,76 @@
 """M9 - Basket & gross revenue.
 
-AOV net of discount, with bundle and free-shipping-threshold effects.
-Writes value_actual back to each team for the next round's perception gap.
-
-See docs/07-engine-chain.md.
+Also writes value_actual back to each team, which the NEXT round's M5 compares
+against value_perceived. A team discounting heavily builds a perceived-value
+score that its actual price/quality position cannot support.
 """
 from __future__ import annotations
 
 
 def run(world, params, resolved, ctx) -> None:
-    raise NotImplementedError("m09_basket: see docs/07-engine-chain.md")
+    aovs: dict[str, float] = {}
+
+    for team in world.teams.values():
+        tid = team.team_id
+        d = ctx["resolved"][tid]
+        discount = ctx["discount"][tid]
+
+        aov = params["aov_base"] * (1 - discount)
+
+        bundles = d.get("1.2") or []
+        penetration = min(1.0, len(bundles) / 3.0) if bundles else 0.0
+        aov *= 1 + params["bundle_aov_coef"] * penetration
+
+        aov *= _freeship_effect(float(d.get("2.4", 0) or 0), params)
+
+        recsys = ctx.get("capability_benefit", {}).get(tid, {}).get("recsys")
+        if recsys is None and "recsys" in team.capabilities:
+            recsys = 0.07
+        aov *= 1 + (recsys or 0.0)
+
+        aovs[tid] = aov
+        orders = ctx["orders"][tid]
+        ctx.setdefault("aov", {})[tid] = aov
+        ctx.setdefault("gross_revenue", {})[tid] = orders * aov
+
+        _consume_stock(team, params, orders, ctx)
+        _write_value_actual(team, params, ctx, aov)
+
+    if aovs:
+        world.market_avg_aov = sum(aovs.values()) / len(aovs)
+
+
+def _freeship_effect(threshold: float, params) -> float:
+    """A threshold slightly above natural basket lifts AOV.
+
+    Far above it kills conversion instead, which M8 already handles through the
+    price multiplier - so this only ever lifts.
+    """
+    if threshold <= 0:
+        return 1.0
+    gap = (threshold - params["aov_base"]) / params["aov_base"]
+    return 1 + params["freeship_coef"] * max(0.0, min(0.5, gap))
+
+
+def _consume_stock(team, params, orders: float, ctx) -> None:
+    units = orders * params["units_per_order"]
+    skus = team.active_skus or [s["code"] for s in params.skus]
+    total_w = sum(float(params.sku(c)["revenue_weight"]) for c in skus) or 1.0
+    cogs = 0.0
+    supplier = ctx.get("supplier", {}).get(team.team_id, {"cost_index": 1.0})
+    for code in skus:
+        want = units * float(params.sku(code)["revenue_weight"]) / total_w
+        taken = min(team.inventory.get(code, 0.0), want)
+        team.inventory[code] = team.inventory.get(code, 0.0) - taken
+        cogs += taken * float(params.sku(code)["unit_cost"]) * float(
+            supplier.get("cost_index", 1.0)
+        )
+    ctx.setdefault("cogs", {})[team.team_id] = cogs
+    ctx.setdefault("units_sold", {})[team.team_id] = units
+
+
+def _write_value_actual(team, params, ctx, aov: float) -> None:
+    """Actual value is what the customer gets for the price, versus the market."""
+    price_index = ctx["price_index"][team.team_id]
+    quality = ctx["quality_tier"][team.team_id]
+    team.value_actual = max(0.0, min(1.0, 0.5 + 0.6 * (quality - price_index * 0.62)))
