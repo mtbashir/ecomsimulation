@@ -1,0 +1,326 @@
+{% extends "base.html" %}{% block title %}Set up your business{% endblock %}
+{% block body %}
+<div class="welcome">
+<p class="eyebrow">Setup round &middot; nothing trades this month</p>
+<h1>Build your business</h1>
+<p class="lede">Every team has PKR {{ '{:,.0f}'.format(capital) }} and the same
+constraints. What differs is the kind of business you choose to build. Save as
+often as you like &mdash; the projection at the bottom updates each time
+&mdash; and submit when you are ready.</p>
+</div>
+
+{% if submitted %}
+<div class="msg ok">Your setup is submitted. You can still change it until the
+instructor closes the setup round.</div>
+{% endif %}
+
+<form method="post">
+
+{# 1 --- Identity ------------------------------------------------------------ #}
+<section>
+<h2>{{ stages[0][1] }}</h2>
+<p class="stage-intro">{{ stages[0][2] }}</p>
+<div class="field">
+<label for="brand_name">Brand name</label>
+<p class="help">What the business is called. Your instructor and the leaderboard
+will use it all semester.</p>
+<input id="brand_name" name="brand_name" type="text" value="{{ f.brand_name }}">
+</div>
+<div class="field">
+<label for="positioning_statement">Positioning statement</label>
+<p class="help">One sentence: who you are for, and why they should buy from you
+rather than the shop next door.</p>
+<input id="positioning_statement" name="positioning_statement" type="text"
+       value="{{ f.positioning_statement }}"
+       placeholder="Affordable everyday skincare for working women in secondary cities.">
+</div>
+</section>
+
+{# 2 --- Market -------------------------------------------------------------- #}
+<section>
+<h2>{{ stages[1][1] }}</h2>
+<p class="stage-intro">{{ stages[1][2] }}</p>
+
+<div class="field">
+<label>Category focus <span class="note">(choose exactly two)</span></label>
+<p class="help">This filters the catalogue you can sell from, and sets your
+margin profile, return rate and how often customers come back.</p>
+<div class="checks">
+{% for c in categories %}
+<label class="check"><input type="checkbox" name="categories" value="{{ c }}"
+  {% if c in f.categories %}checked{% endif %}><span>{{ c|title }}</span></label>
+{% endfor %}
+</div>
+</div>
+
+<div class="field">
+<label>Positioning tier</label>
+<p class="help">Where you sit on price and quality. This is the stickiest choice
+you will make today &mdash; moving one tier later takes three months and costs
+you most of your brand equity.</p>
+{% for value, label, note in tiers %}
+<label class="check" style="margin-bottom:7px">
+  <input type="radio" name="tier" value="{{ value }}"
+         {% if f.tier == value %}checked{% endif %}>
+  <span><strong>{{ label }}</strong><br><span class="note">{{ note }}</span></span>
+</label>
+{% endfor %}
+</div>
+
+<div class="field">
+<label>Segment priority</label>
+<p class="help">Tick the segments you are going after first. This tilts how your
+brand is perceived and which customers you acquire most cheaply.</p>
+<div class="checks">
+{% for seg in segments %}
+<label class="check"><input type="checkbox" name="segment_priority"
+  value="{{ seg['code'] }}"
+  {% if seg['code'] in f.segment_priority %}checked{% endif %}>
+  <span>{{ seg['name'] }}</span></label>
+{% endfor %}
+</div>
+</div>
+</section>
+
+{# 3 --- Offer --------------------------------------------------------------- #}
+<section>
+<h2>{{ stages[2][1] }}</h2>
+<p class="stage-intro">{{ stages[2][2] }}</p>
+
+<div class="field">
+<label>Business model</label>
+<p class="help">Where your orders come from on day one.</p>
+{% for value, label, note in models %}
+<label class="check" style="margin-bottom:7px">
+  <input type="radio" name="model" value="{{ value }}"
+         {% if f.model == value %}checked{% endif %}>
+  <span><strong>{{ label }}</strong><br><span class="note">{{ note }}</span></span>
+</label>
+{% endfor %}
+</div>
+
+<div class="field">
+<label>Opening assortment <span class="note">(12 to 18 products)</span></label>
+<p class="help">Your opening range. Every line you carry needs stock behind it,
+so a wide range spreads the same capital thinner.</p>
+<div class="checks">
+{% for s in skus %}
+<label class="check"><input type="checkbox" name="assortment" value="{{ s['code'] }}"
+  {% if s['code'] in f.assortment %}checked{% endif %}>
+  <span>{{ s['name'] }}<br><span class="note">PKR
+  {{ '{:,.0f}'.format(s['list_price']|float) }} &middot; {{ s['category'] }}
+  &middot; {{ s['tier'] }}</span></span></label>
+{% endfor %}
+</div>
+</div>
+</section>
+
+{# 4 --- Supply -------------------------------------------------------------- #}
+<section>
+<h2>{{ stages[3][1] }}</h2>
+<p class="stage-intro">{{ stages[3][2] }}</p>
+<div class="field">
+<label>Sourcing strategy</label>
+{% for value, label, note in sourcing %}
+<label class="check" style="margin-bottom:7px">
+  <input type="radio" name="sourcing" value="{{ value }}"
+         {% if f.sourcing == value %}checked{% endif %}>
+  <span><strong>{{ label }}</strong><br><span class="note">{{ note }}</span></span>
+</label>
+{% endfor %}
+</div>
+</section>
+
+{# 5 --- Build --------------------------------------------------------------- #}
+<section>
+<h2>{{ stages[4][1] }}</h2>
+<p class="stage-intro">{{ stages[4][2] }}</p>
+
+<div class="field">
+<label>Technology stack</label>
+{% for value, label, note in stacks %}
+<label class="check" style="margin-bottom:7px">
+  <input type="radio" name="tech_stack" value="{{ value }}"
+         {% if f.tech_stack == value %}checked{% endif %}>
+  <span><strong>{{ label }}</strong><br><span class="note">{{ note }}</span></span>
+</label>
+{% endfor %}
+</div>
+
+<div class="field">
+<label>Fulfilment</label>
+{% for value, label, note in fulfilment %}
+<label class="check" style="margin-bottom:7px">
+  <input type="radio" name="fulfilment" value="{{ value }}"
+         {% if f.fulfilment == value %}checked{% endif %}>
+  <span><strong>{{ label }}</strong><br><span class="note">{{ note }}</span></span>
+</label>
+{% endfor %}
+</div>
+
+<div class="field">
+<label for="cod_enabled">Cash on delivery</label>
+<p class="help">Most shoppers in this market expect it. Refusing it collapses
+your return-to-origin rate and your working capital cycle &mdash; and costs you
+a large share of your orders.</p>
+<select id="cod_enabled" name="cod_enabled">
+  <option value="on" {% if f.cod_enabled %}selected{% endif %}>
+    Accept cash on delivery</option>
+  <option value="off" {% if not f.cod_enabled %}selected{% endif %}>
+    Prepaid only</option>
+</select>
+</div>
+
+<div class="field">
+<label for="gateway">Payment gateway</label>
+<select id="gateway" name="gateway">
+{% for value, label, note in gateways %}
+  <option value="{{ value }}" {% if f.gateway == value %}selected{% endif %}>
+    {{ label }} &mdash; {{ note }}</option>
+{% endfor %}
+</select>
+</div>
+</section>
+
+{# 6 --- Money and people ---------------------------------------------------- #}
+<section>
+<h2>{{ stages[5][1] }}</h2>
+<p class="stage-intro">{{ stages[5][2] }}</p>
+
+<div class="field">
+<label>Capital allocation <span class="note">(must total PKR
+  {{ '{:,.0f}'.format(capital) }})</span></label>
+<p class="help">Inventory buys your opening stock. Marketing and technology are
+spent over the months ahead. Reserve is what keeps you solvent when a month goes
+against you. Inventory must be 25&ndash;60% of capital, technology at most 55%,
+and reserve at least 10%.</p>
+{% for slot, label in [('inventory', 'Inventory'), ('marketing', 'Marketing'),
+                       ('technology', 'Technology'), ('reserve', 'Reserve')] %}
+<div style="margin:0 0 8px">
+  <div class="with-prefix">
+    <span class="prefix">PKR</span>
+    <input name="capital_{{ slot }}" type="text" inputmode="decimal"
+      value="{{ '{:,.0f}'.format(f['capital_' ~ slot]) }}">
+  </div>
+  <div class="hint">{{ label }}</div>
+</div>
+{% endfor %}
+</div>
+
+<div class="field">
+<label>Headcount <span class="note">(PKR {{ '{:,.0f}'.format(payroll) }} base
+  payroll a month)</span></label>
+<p class="help">Who you hire on day one. Customer service headcount is the one
+that shows up fastest in your ratings.</p>
+<div class="row">
+{% for role in ['marketing', 'ops', 'cs', 'analytics'] %}
+<div>
+  <input name="head_{{ role }}" type="text" inputmode="numeric"
+         value="{{ f.headcount.get(role, 0) }}">
+  <div class="hint">{{ 'Customer service' if role == 'cs' else role|title }}</div>
+</div>
+{% endfor %}
+</div>
+</div>
+</section>
+
+{# 7 --- The plan ------------------------------------------------------------ #}
+<section>
+<h2>{{ stages[6][1] }}</h2>
+<p class="stage-intro">{{ stages[6][2] }}</p>
+
+<div class="field">
+<label>Founding research <span class="note">(half price this month
+  only)</span></label>
+<p class="help">Evidence before you commit, at
+{{ '{:.0%}'.format(research_discount) }} off. It comes out of your capital like
+anything else.</p>
+<div class="checks">
+{% for st in studies %}
+<label class="check"><input type="checkbox" name="research" value="{{ st['code'] }}"
+  {% if st['code'] in f.research %}checked{% endif %}>
+  <span>{{ st['name'] }}<br><span class="note">PKR
+  {{ '{:,.0f}'.format(st['price']|float * research_discount) }}
+  &middot; {{ st['note'] }}</span></span></label>
+{% endfor %}
+</div>
+</div>
+
+<div class="field">
+<label for="business_plan">Business plan</label>
+<p class="help">What you are building and how you expect it to work. Your
+instructor marks this, and at the end of the run you will be asked to explain
+the variance against the targets below.</p>
+<textarea id="business_plan" name="business_plan" rows="7"
+  placeholder="Strategy, target customer, how you win, what you expect month 6 and month 12 to look like.">{{ f.business_plan }}</textarea>
+</div>
+
+<div class="row">
+<div class="field">
+<label for="target_repeat_share">Target repeat order share by month 12 (%)</label>
+<div class="with-suffix">
+  <input id="target_repeat_share" name="target_repeat_share" type="text"
+         inputmode="decimal"
+         value="{{ '%0.4g'|format(f.target_repeat_share * 100) if f.target_repeat_share else '' }}">
+  <span class="suffix">%</span>
+</div>
+</div>
+<div class="field">
+<label for="target_cac">Target cost per new customer by month 12</label>
+<div class="with-prefix">
+  <span class="prefix">PKR</span>
+  <input id="target_cac" name="target_cac" type="text" inputmode="decimal"
+         value="{{ '{:,.0f}'.format(f.target_cac) if f.target_cac else '' }}">
+</div>
+</div>
+</div>
+</section>
+
+{# --- The projection -------------------------------------------------------- #}
+<section>
+<h2>Your first trading month, projected</h2>
+{% if problems %}
+<p class="stage-intro">There is nothing to project yet &mdash; the setup does
+not balance:</p>
+<ul>{% for p in problems %}<li class="note">{{ p }}</li>{% endfor %}</ul>
+{% elif preview %}
+<p class="stage-intro">What this setup would produce in month 1. It assumes an
+average market and <strong>ignores what your rivals are about to do</strong>, so
+treat it as a projection and not a promise. The gap between this and your real
+month 1 is the first lesson of the run.</p>
+<div class="stat-row">
+  <div class="stat"><span class="stat-label">Orders</span>
+    <span class="stat-value">{{ '{:,.0f}'.format(preview.orders) }}</span></div>
+  <div class="stat"><span class="stat-label">Average order value</span>
+    <span class="stat-value">{{ '{:,.0f}'.format(preview.aov) }}</span>
+    <span class="stat-note">PKR</span></div>
+  <div class="stat"><span class="stat-label">Revenue</span>
+    <span class="stat-value">{{ '{:,.0f}'.format(preview.revenue) }}</span>
+    <span class="stat-note">PKR net</span></div>
+  <div class="stat"><span class="stat-label">Conversion</span>
+    <span class="stat-value">{{ '{:.2%}'.format(preview.conversion_rate) }}</span></div>
+  <div class="stat"><span class="stat-label">Gross margin</span>
+    <span class="stat-value">{{ '{:.1%}'.format(preview.gross_margin_pct) }}</span></div>
+  <div class="stat"><span class="stat-label">Contribution margin</span>
+    <span class="stat-value">{{ '{:.1%}'.format(preview.contribution_margin_pct) }}</span></div>
+  <div class="stat"><span class="stat-label">EBITDA</span>
+    <span class="stat-value">{{ '{:,.0f}'.format(preview.ebitda) }}</span>
+    <span class="stat-note">PKR</span></div>
+  <div class="stat"><span class="stat-label">Runway</span>
+    <span class="stat-value">
+      {%- if preview.runway %}{{ '%.0f'|format(preview.runway) }}{% else %}&mdash;{% endif %}</span>
+    <span class="stat-note">{% if preview.runway %}months at this burn
+      {%- else %}profitable at this rate{% endif %}</span></div>
+</div>
+{% else %}
+<p class="stage-intro">Save a draft to see the projection.</p>
+{% endif %}
+</section>
+
+<button type="submit" name="action" value="save" class="ghost">Save draft</button>
+<button type="submit" name="action" value="submit" style="margin-left:8px">
+  {{ 'Update my setup' if submitted else 'Submit my setup' }}</button>
+<a class="btn ghost" href="{{ url_for('home') }}"
+   style="margin-left:8px">Back</a>
+</form>
+{% endblock %}

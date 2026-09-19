@@ -17,7 +17,7 @@ text-transform:uppercase;color:#52514e;margin:0 0 12px;font-weight:600}
 section{background:#fcfcfb;border:1px solid rgba(11,11,11,.10);border-radius:10px;
 padding:16px 18px;margin:0 0 14px}
 label{display:block;font-size:13px;color:#52514e;margin:0 0 3px}
-input[type=text],input[type=password],input[type=number],select{
+input[type=text],input[type=password],input[type=number],select,textarea{
 width:100%;padding:7px 9px;border:1px solid #c3c2b7;border-radius:6px;
 background:#fff;color:#0b0b0b;font:inherit}
 button,.btn{background:#0b0b0b;color:#fff;border:0;border-radius:7px;
@@ -38,6 +38,37 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 font-weight:600;background:#e1e0d9;color:#52514e}
 .pill.on{background:rgba(12,163,12,.16);color:#006300}
 .pill.off{background:rgba(208,59,59,.13);color:#b91c1c}
+.welcome{margin:0 0 22px}
+.eyebrow{font-size:12px;letter-spacing:.07em;text-transform:uppercase;
+color:#898781;margin:0 0 5px;font-weight:600}
+.welcome h1{font-size:27px;margin:0 0 6px;letter-spacing:-.01em}
+.lede{color:#52514e;font-size:15px;margin:0;max-width:64ch}
+section.act{border-left:3px solid #0b0b0b}
+.act-state{font-size:16px;font-weight:650;margin:0 0 4px}
+section.act .note{margin:0 0 13px;max-width:62ch}
+.tile-head{margin:22px 0 9px}
+.tiles{display:grid;gap:11px;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));
+margin:0 0 4px}
+.tile{display:flex;flex-direction:column;gap:5px;padding:15px 16px;
+background:#fcfcfb;border:1px solid rgba(11,11,11,.10);border-radius:10px;
+text-decoration:none;color:inherit}
+a.tile:hover{border-color:#0b0b0b}
+.tile-name{font-weight:650;font-size:15px}
+.tile-note{color:#52514e;font-size:13px;line-height:1.45}
+.tile-act{border-color:#0b0b0b;border-width:1.5px}
+.tile-off{opacity:.5}
+.tile-list{margin:2px 0 4px;padding-left:17px;font-size:13px}
+.tile-list li{margin:0 0 2px}
+.stat-row{display:grid;gap:11px;
+grid-template-columns:repeat(auto-fit,minmax(155px,1fr));margin:0 0 6px}
+.stat{padding:13px 14px;border:1px solid rgba(11,11,11,.10);border-radius:9px;
+background:#fcfcfb}
+.stat-label{display:block;font-size:12px;color:#52514e;margin:0 0 3px}
+.stat-value{display:block;font-size:20px;font-weight:650;
+font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stat-note{display:block;font-size:12px;color:#898781;margin-top:2px}
+.stage{counter-reset:none}
+.stage-intro{color:#52514e;font-size:14px;margin:0 0 16px;max-width:64ch}
 .field{margin:0 0 20px;padding:0 0 16px;border-bottom:1px solid #eeede7}
 .field:last-child{border-bottom:0;padding-bottom:0;margin-bottom:0}
 .field .hint{font-size:12px;color:#898781;margin-top:4px}
@@ -70,6 +101,11 @@ select{max-width:520px} .field input[type=text]{max-width:520px}
 body{background:#0d0d0d;color:#fff}
 header,section{background:#1a1a19;border-color:rgba(255,255,255,.10)}
 h2,.sub,th,.note,header a,.field .hint{color:#c3c2b7}
+.tile,.stat{background:#1a1a19;border-color:rgba(255,255,255,.10)}
+a.tile:hover{border-color:#fff} .tile-act{border-color:#fff}
+.tile-note,.lede,.stat-label,.stage-intro{color:#c3c2b7}
+.eyebrow,.stat-note{color:#898781}
+section.act{border-left-color:#fff}
 label,.field label{color:#fff} .field .help{color:#c3c2b7}
 .field{border-bottom-color:#2c2c2a} .code-ref{color:#6b6a65}
 .check{background:#111;border-color:#2c2c2a;color:#fff}
@@ -84,15 +120,20 @@ th,td{border-color:#2c2c2a} .pill{background:#2c2c2a;color:#c3c2b7}}
 </style></head><body>
 {% if user %}<header>
 <span class="brand">{{ game['name'] }}</span>
-<span class="pill">Round {{ game['round'] }}{% if game['open_round'] %} &middot;
-r{{ game['open_round'] }} open{% endif %}</span>
+<span class="pill">{% if game['start_mode'] == 'founding' and game['round'] == 0
+%}Setup round{% else %}Month {{ game['round'] }}{% endif %}
+{%- if game['open_round'] %} &middot; month {{ game['open_round'] }} open{% endif %}</span>
 <nav>
 {% if role == 'admin' %}
 <a href="{{ url_for('admin') }}">Overview</a>
 <a href="{{ url_for('admin_decisions') }}">Decisions</a>
 <a href="{{ url_for('admin_params') }}">Economics</a>
 <a href="{{ url_for('admin_teams') }}">Teams</a>
-{% else %}<a href="{{ url_for('home') }}">Home</a>{% endif %}
+{% else %}
+<a href="{{ url_for('home') }}">Dashboard</a>
+<a href="{{ url_for('company') }}">My company</a>
+<a href="{{ url_for('brief') }}">How it works</a>
+{% endif %}
 <a href="{{ url_for('logout') }}">Sign out ({{ user }})</a>
 </nav></header>{% endif %}
 <div class="wrap">

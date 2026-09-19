@@ -16,9 +16,88 @@ from flask import (
     request, session, url_for,
 )
 
+from .. import founding
 from ..decisions import REGISTRY
 from ..params import BandViolation
-from . import db, service
+from . import briefing, db, service
+
+# Round 0, in the order a founder actually decides things: who you are, who
+# you sell to, what you sell, where it comes from, what you build it on, then
+# what it costs and what you are promising. The engine does not care about the
+# order; a student does.
+FOUNDING_STAGES = [
+    ("identity", "1. Who you are",
+     "Start with the thing everything else has to be consistent with. A brand "
+     "that says one thing and prices another converts badly."),
+    ("market", "2. Who you sell to",
+     "Two categories out of five, and where you sit on quality. These set your "
+     "margin profile, your return rate and how expensive your customers are "
+     "to acquire. Positioning is the hardest of all of them to change later."),
+    ("offer", "3. What you sell and where",
+     "Your opening range and the channel you sell it through. A wide range "
+     "spreads your stock thin; a narrow one leaves demand on the table."),
+    ("supply", "4. Where the stock comes from",
+     "Cheap, slow and far, or expensive, quick and near. This decides how much "
+     "cash sits in a container and how fast you can react to a good month."),
+    ("build", "5. What you build it on",
+     "Your storefront, your warehouse and your payments. The capex is paid now "
+     "and is not refundable, so what you choose here constrains what you can "
+     "spend on customers for months."),
+    ("money", "6. Where the money and the people go",
+     "Twelve million rupees, split four ways, and a payroll to allocate. The "
+     "floors and ceilings exist because an all-in bet on stock puts most teams "
+     "out of cash by month three."),
+    ("plan", "7. What you are promising",
+     "Buy the founding research at half price if you want evidence first. Then "
+     "write down the targets you expect to hit - you will be asked to explain "
+     "the variance against them at the end."),
+]
+
+TIER_CHOICES = [
+    ("value", "Value", "Lower price, thinner margin, cheaper customers, "
+                       "higher volume"),
+    ("mainstream", "Mainstream", "The middle of the market on every dimension"),
+    ("premium", "Premium", "Higher price and margin, better ratings, dearer "
+                           "customers, slower growth"),
+]
+MODEL_CHOICES = [
+    ("d2c", "Own site only (D2C)",
+     "All traffic is yours to earn and yours to keep. No commission, no "
+     "shortcut to reach."),
+    ("hybrid", "Hybrid",
+     "Own site plus the marketplace. Reach now, commission on about a third "
+     "of your orders."),
+    ("marketplace_first", "Marketplace first",
+     "Volume from day one, the thinnest margin, and a customer who belongs to "
+     "the marketplace."),
+]
+SOURCING_CHOICES = [
+    ("local", "Local", "Costs about 6% more, arrives in 9 days, no currency risk"),
+    ("mixed", "Mixed", "Baseline cost, 14 days, some currency exposure"),
+    ("import", "Import", "About 9% cheaper, 22 days, fully exposed to the rupee"),
+]
+STACK_CHOICES = [
+    ("basic", "Basic platform",
+     "PKR 400,000 up front. Live immediately. Your site experience cannot get "
+     "better than mediocre."),
+    ("standard", "Standard platform",
+     "PKR 1,200,000 up front. Live immediately. Room to improve the experience "
+     "for two years."),
+    ("custom", "Custom build",
+     "PKR 2,800,000 up front and two months before it is live. The highest "
+     "ceiling, paid for with your first two trading months."),
+]
+FULFILMENT_CHOICES = [
+    ("3pl", "Third-party logistics",
+     "No capex. Someone else's warehouse, at a price per order."),
+    ("own", "Own warehouse",
+     "PKR 2,400,000 up front, lower cost per order, and capacity you control."),
+]
+GATEWAY_CHOICES = [
+    ("A", "Gateway A - balanced", "91% of online payments succeed"),
+    ("B", "Gateway B - cheapest", "84% of online payments succeed"),
+    ("C", "Gateway C - most reliable", "96% succeed, at the highest fee"),
+]
 
 GROUP_NAMES = {
     "G1": "Assortment & product", "G2": "Pricing", "G3": "Marketing",
@@ -87,6 +166,10 @@ def _autoinit(path: Path) -> None:
     collection in the Teams page.
     """
     if path.exists():
+        con = db.connect(path)
+        with con:
+            db.migrate(con)
+        con.close()
         return
     teams = int(os.environ.get("ECOMSIM_TEAMS", 8))
     db.init(
@@ -95,6 +178,7 @@ def _autoinit(path: Path) -> None:
         teams=teams,
         preset=os.environ.get("ECOMSIM_PRESET", "advanced"),
         rounds=int(os.environ.get("ECOMSIM_ROUNDS", 12)),
+        start_mode=os.environ.get("ECOMSIM_START_MODE", "founding"),
         admin_password=os.environ.get("ECOMSIM_ADMIN_PASSWORD")
         or secrets.token_urlsafe(12),
     )
@@ -188,15 +272,136 @@ def register_routes(app: Flask) -> None:
         # send them on to their own console rather than refusing the page.
         if session.get("role") != "team":
             return redirect(url_for("admin"))
+
+        # Nobody should meet a decision form before they have been told what
+        # the game is. First sign-in goes to the brief, once.
+        me = db.account(g.db, session["user"])
+        if me is not None and me["briefing_seen_at"] is None:
+            return redirect(url_for("brief"))
+
         game = db.game(g.db)
         tid = session["team_id"]
         open_round = game["open_round"]
+        founding = db.founding(g.db, tid)
+        setting_up = (game["start_mode"] == "founding" and game["round"] == 0)
+        heading, note = briefing.round_note(
+            0 if setting_up else (open_round or game["round"] or 1),
+            game["total_rounds"])
+
         return render_template(
             "team_home.html",
             open_round=open_round,
-            submitted=db.submission(g.db, open_round, tid) is not None if open_round else False,
+            setting_up=setting_up,
+            founding_done=bool(founding and founding["submitted_at"]),
+            founding_started=founding is not None,
+            heading=heading, note=note,
+            submitted=db.submission(g.db, open_round, tid) is not None
+                      if open_round else False,
             rounds=list(range(1, game["round"] + 1)),
+            position=service.company_position(g.db, tid),
+            research=_research_bought(g.db, tid, game["round"]),
         )
+
+    def _research_bought(con, team_id, upto_round):
+        """Every study this team has paid for, newest first."""
+        params = service.load_params(con)
+        by_code = {s["code"]: s for s in params.studies}
+        out = []
+        for rnd in range(upto_round, 0, -1):
+            for code in (db.submission(con, rnd, team_id) or {}).get("12.1", []):
+                row = by_code.get(code)
+                if row:
+                    out.append({"round": rnd, "name": row["name"],
+                                "price": float(row["price"]), "code": code})
+        return out
+
+    @app.route("/brief", methods=["GET", "POST"])
+    @login_required("team")
+    def brief():
+        """The rules, the market and the marking scheme, on one page."""
+        game = db.game(g.db)
+        if request.method == "POST":
+            db.mark_briefing_seen(g.db, session["user"])
+            return redirect(url_for("home"))
+        me = db.account(g.db, session["user"])
+        return render_template(
+            "brief.html", rules=briefing.RULES, market=briefing.MARKET,
+            pillars=briefing.PILLARS, endowment=service.endowment(g.db),
+            setting_up=(game["start_mode"] == "founding" and game["round"] == 0),
+            first_time=(me is not None and me["briefing_seen_at"] is None))
+
+    @app.route("/company")
+    @login_required("team")
+    def company():
+        """What you have: stock, cash, catalogue, people, capabilities."""
+        return render_template(
+            "company.html", position=service.company_position(g.db, session["team_id"]),
+            endowment=service.endowment(g.db), game=db.game(g.db))
+
+    @app.route("/found", methods=["GET", "POST"])
+    @login_required("team")
+    def found():
+        """Round 0. Set the business up, in the order you would really do it.
+
+        Save as often as you like and watch the projection move. Submitting is
+        the commitment, and it stays open until the instructor closes setup.
+        """
+        game = db.game(g.db)
+        if game["start_mode"] != "founding":
+            flash("This game starts from a running business - there is no "
+                  "setup round.", "error")
+            return redirect(url_for("home"))
+        if game["round"] > 0:
+            flash("Setup is closed. Trading has started.", "error")
+            return redirect(url_for("home"))
+
+        tid = session["team_id"]
+        params = service.load_params(g.db)
+        record = db.founding(g.db, tid)
+
+        if request.method == "POST":
+            f = service.founding_from_form(request.form, params)
+            problems = founding.validate(f, params)
+            committing = request.form.get("action") == "submit"
+            if problems and committing:
+                for problem in problems:
+                    flash(problem, "error")
+            else:
+                db.save_founding(g.db, tid, service.founding_to_dict(f),
+                                 session["user"], submitted=committing)
+                with g.db:
+                    db.log(g.db, session["user"],
+                           "founding.submit" if committing else "founding.save",
+                           f.brand_name)
+                if committing:
+                    flash("Your business is set up. You can still change it "
+                          "until the instructor closes setup.", "ok")
+                    return redirect(url_for("home"))
+                flash("Draft saved. The projection below is from what you have "
+                      "chosen so far.", "ok")
+            record = db.founding(g.db, tid) or {"config": service.founding_to_dict(f),
+                                                "submitted_at": None}
+            current = f
+        else:
+            current = (service.founding_from_dict(record["config"], params)
+                       if record else founding.Founding.default(params))
+
+        return render_template(
+            "found.html", f=current, params=params,
+            stages=FOUNDING_STAGES,
+            categories=founding.CATEGORIES,
+            tiers=TIER_CHOICES, models=MODEL_CHOICES,
+            sourcing=SOURCING_CHOICES, stacks=STACK_CHOICES,
+            fulfilment=FULFILMENT_CHOICES, gateways=GATEWAY_CHOICES,
+            segments=params.segments, skus=params.skus,
+            studies=[st for st in params.studies
+                     if st["code"] in founding.FOUNDING_RESEARCH],
+            research_discount=founding.FOUNDING_RESEARCH_DISCOUNT,
+            capital=params["starting_cash"],
+            payroll=params["payroll_base"],
+            preview=service.founding_preview(g.db, current),
+            problems=founding.validate(current, params),
+            submitted=bool(record and record["submitted_at"]))
 
     @app.route("/submit", methods=["GET", "POST"])
     @login_required("team")
@@ -283,11 +488,14 @@ def register_routes(app: Flask) -> None:
         game = db.game(g.db)
         nxt = game["round"] + 1
         teams = db.accounts(g.db, "team")
+        foundings = db.foundings(g.db) if game["start_mode"] == "founding" else {}
         return render_template(
             "admin.html", next_round=nxt,
             status=db.submission_status(g.db, game["open_round"] or nxt),
             teams=teams, audit=db.audit(g.db, 12),
-            overrides=db.overrides(g.db))
+            overrides=db.overrides(g.db),
+            setting_up=(game["start_mode"] == "founding" and game["round"] == 0),
+            foundings=foundings)
 
     @app.post("/admin/open")
     @login_required("admin")

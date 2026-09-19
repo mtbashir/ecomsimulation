@@ -9,7 +9,10 @@ from __future__ import annotations
 import csv
 import io
 
-from .. import bootstrap, console, params as P, report, scoring
+from dataclasses import asdict
+
+from .. import (bootstrap, console, founding as founding_mod, params as P,
+                report, scoring)
 from ..decisions import REGISTRY, Resolver
 from ..engine import run_round
 from ..io_csv import LIST_DECISIONS
@@ -176,6 +179,122 @@ def validate(code: str, value) -> str | None:
     return None
 
 
+# --- The founding round ------------------------------------------------------------
+
+def founding_from_form(form, params) -> founding_mod.Founding:
+    """Build a Round 0 configuration from submitted form fields.
+
+    Anything the team has not filled in keeps the default configuration's
+    value, so a half-finished draft is still a valid object to price.
+    """
+    f = founding_mod.Founding.default(params)
+
+    def text(name, fallback=""):
+        return (form.get(name) or fallback).strip()
+
+    def money(name, fallback=0.0):
+        raw = str(form.get(name) or "").replace(",", "").strip()
+        try:
+            return float(raw)
+        except ValueError:
+            return fallback
+
+    f.brand_name = text("brand_name", f.brand_name)
+    f.positioning_statement = text("positioning_statement")
+    f.categories = form.getlist("categories") or f.categories
+    f.segment_priority = form.getlist("segment_priority") or f.segment_priority
+    f.tier = text("tier", f.tier)
+    f.model = text("model", f.model)
+    f.assortment = form.getlist("assortment") or f.assortment
+    f.sourcing = text("sourcing", f.sourcing)
+    f.tech_stack = text("tech_stack", f.tech_stack)
+    f.fulfilment = text("fulfilment", f.fulfilment)
+    f.cod_enabled = text("cod_enabled", "on") != "off"
+    f.gateway = text("gateway", f.gateway)
+    f.research = form.getlist("research")
+    f.business_plan = text("business_plan")
+
+    capital = params["starting_cash"]
+    for slot in ("inventory", "marketing", "technology", "reserve"):
+        if f"capital_{slot}" in form:
+            setattr(f, f"capital_{slot}",
+                    money(f"capital_{slot}", getattr(f, f"capital_{slot}")))
+    for role in ("marketing", "ops", "cs", "analytics"):
+        if f"head_{role}" in form:
+            try:
+                f.headcount[role] = int(float(form.get(f"head_{role}") or 0))
+            except ValueError:
+                pass
+    f.target_repeat_share = money("target_repeat_share") / 100
+    f.target_cac = money("target_cac")
+    del capital
+    return f
+
+
+def founding_to_dict(f: founding_mod.Founding) -> dict:
+    return {k: v for k, v in asdict(f).items()}
+
+
+def founding_from_dict(d: dict, params) -> founding_mod.Founding:
+    f = founding_mod.Founding.default(params)
+    for key, value in (d or {}).items():
+        if hasattr(f, key):
+            setattr(f, key, value)
+    return f
+
+
+def founding_preview(con, f: founding_mod.Founding) -> dict | None:
+    """What this setup would produce in its first trading month.
+
+    Run through the real engine rather than a parallel formula, so the preview
+    cannot drift away from the game. Rivals are left at their defaults, which
+    is exactly the caveat to put on it: this assumes an average market and
+    ignores what everyone else is about to do.
+    """
+    if founding_mod.validate(f, load_params(con)):
+        return None
+    params = load_params(con)
+    g = db.game(con)
+    world = bootstrap.new_world(
+        params, run_id=f"preview-{g['name']}",
+        ai_competitors=g["ai_competitors"], ai_aggression=g["ai_aggression"])
+    subject = next(iter(world.teams))
+    founding_mod.apply(f, world.teams[subject], params)
+    run_round(world, params, {}, preset=g["preset"])
+    h = world.teams[subject].history[-1]
+    burn = -min(0.0, h["ebitda"])
+    return {
+        "orders": h["orders"], "aov": h["aov_net"],
+        "revenue": h["pnl"]["net_revenue"],
+        "gross_margin_pct": h["gross_margin_pct"],
+        "contribution_margin_pct": h["contribution_margin_pct"],
+        "ebitda": h["ebitda"], "cash": h["cash_balance"],
+        "conversion_rate": h["conversion_rate"],
+        "runway": (h["cash_balance"] / burn) if burn > 0 else None,
+    }
+
+
+def apply_foundings(con, world, params) -> None:
+    """Give every team the business it set up in Round 0.
+
+    A team that never submitted keeps the default configuration. That is a
+    deliberate choice: a team that misses setup should start at a plausible
+    middle, not be eliminated before the first month.
+    """
+    saved = db.foundings(con)
+    for row in db.accounts(con, "team"):
+        team = world.teams.get(row["team_id"])
+        if team is None:
+            continue
+        record = saved.get(row["team_id"])
+        f = (founding_from_dict(record["config"], params) if record
+             else founding_mod.Founding.default(params))
+        if not founding_mod.validate(f, params):
+            founding_mod.apply(f, team, params)
+        team.brand_name = (f.brand_name if record and f.brand_name != "Unnamed"
+                           else row["display_name"])
+
+
 def process_round(con, actor: str = "admin", out_dir=None) -> dict:
     """Run the next round and persist everything needed to replay or roll back."""
     g = db.game(con)
@@ -187,10 +306,13 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
         world = bootstrap.new_world(
             params, run_id=g["name"],
             ai_competitors=g["ai_competitors"], ai_aggression=g["ai_aggression"])
-        for row in db.accounts(con, "team"):
-            team = world.teams.get(row["team_id"])
-            if team is not None:
-                team.brand_name = row["display_name"]
+        if g["start_mode"] == "founding":
+            apply_foundings(con, world, params)
+        else:
+            for row in db.accounts(con, "team"):
+                team = world.teams.get(row["team_id"])
+                if team is not None:
+                    team.brand_name = row["display_name"]
 
     submitted = db.submissions(con, nxt)
     run_round(world, params, submitted, preset=g["preset"])
@@ -208,6 +330,71 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
         console.render(world, params, out_dir / f"round_{nxt}")
 
     return {"round": nxt, "submitted": len(submitted), "teams": len(world.teams)}
+
+
+def company_position(con, team_id: str) -> dict | None:
+    """What this team owns right now, in the terms a founder would use.
+
+    Before the first round is processed there is no world yet, so the answer
+    comes from the founding setup instead. Either way the team gets a straight
+    answer to "what have I actually got".
+    """
+    params = load_params(con)
+    world = db.load_world(con)
+    if world is not None and team_id in world.teams:
+        team = world.teams[team_id]
+        h = team.history[-1] if team.history else {}
+        return {
+            "source": "trading",
+            "brand": team.brand_name,
+            "cash": team.cash,
+            "credit_drawn": team.credit_drawn,
+            "inventory_units": sum(team.inventory.values()),
+            "inventory_value": sum(
+                units * float(params.sku(code)["unit_cost"])
+                for code, units in team.inventory.items() if units),
+            "skus": [params.sku(c)["name"] for c in team.active_skus],
+            "rating": getattr(team, "rating", None),
+            "nps": h.get("nps"),
+            "active_customers": h.get("active_customers"),
+            "cs_agents": team.cs_agents,
+            "capabilities": sorted(team.capabilities),
+            "cod_receivable": team.cod_receivable,
+            "in_administration": team.in_administration,
+        }
+
+    record = db.founding(con, team_id)
+    if record is None:
+        return None
+    f = founding_from_dict(record["config"], params)
+    return {
+        "source": "founding",
+        "brand": f.brand_name,
+        "cash": params["starting_cash"],
+        "categories": f.categories,
+        "tier": f.tier,
+        "model": f.model,
+        "skus": [params.sku(c)["name"] for c in f.assortment],
+        "allocation": {"Inventory": f.capital_inventory,
+                       "Marketing": f.capital_marketing,
+                       "Technology": f.capital_technology,
+                       "Reserve": f.capital_reserve},
+        "headcount": dict(f.headcount),
+        "submitted_at": record["submitted_at"],
+    }
+
+
+def endowment(con) -> dict:
+    """The identical starting hand every team is dealt (docs/05)."""
+    params = load_params(con)
+    return {
+        "capital": params["starting_cash"],
+        "catalogue": len(params.skus),
+        "rounds": db.game(con)["total_rounds"],
+        "credit_facility": params["credit_ceiling"],
+        "credit_rate": params["credit_rate_annual"],
+        "payroll": params["payroll_base"],
+    }
 
 
 def team_report(con, team_id: str, round_: int) -> str | None:

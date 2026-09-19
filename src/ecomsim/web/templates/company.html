@@ -1,0 +1,114 @@
+{% extends "base.html" %}{% block title %}Your company{% endblock %}
+{% block body %}
+{% if not position %}
+<div class="welcome">
+<h1>Your company</h1>
+<p class="lede">You have not set anything up yet. Start with the setup round
+and this page will show you what you built.</p>
+</div>
+<a class="btn" href="{{ url_for('found') }}">Set up your business</a>
+
+{% elif position.source == 'founding' %}
+<div class="welcome">
+<p class="eyebrow">As set up &middot; not yet trading</p>
+<h1>{{ position.brand }}</h1>
+<p class="lede">This is the business you have configured. Nothing has traded
+yet, so there are no results &mdash; only the shape of what you built.</p>
+</div>
+
+<section>
+<h2>Shape of the business</h2>
+<div class="stat-row">
+  <div class="stat"><span class="stat-label">Positioning</span>
+    <span class="stat-value" style="font-size:17px">{{ position.tier|title }}</span></div>
+  <div class="stat"><span class="stat-label">Channel</span>
+    <span class="stat-value" style="font-size:17px">{{ position.model|replace('_',' ')|title }}</span></div>
+  <div class="stat"><span class="stat-label">Categories</span>
+    <span class="stat-value" style="font-size:17px">{{ position.categories|join(', ')|title }}</span></div>
+  <div class="stat"><span class="stat-label">Opening range</span>
+    <span class="stat-value">{{ position.skus|length }}</span>
+    <span class="stat-note">products</span></div>
+</div>
+</section>
+
+<section>
+<h2>Where the capital went</h2>
+<table>
+<tr><th>Allocation</th><th class="num">PKR</th><th class="num">Share</th></tr>
+{% for label, amount in position.allocation.items() %}
+<tr><td>{{ label }}</td>
+  <td class="num">{{ '{:,.0f}'.format(amount) }}</td>
+  <td class="num">{{ '{:.0%}'.format(amount / position.cash) }}</td></tr>
+{% endfor %}
+</table>
+</section>
+
+<section>
+<h2>Your people</h2>
+<table>
+{% for role, n in position.headcount.items() %}
+<tr><td>{{ role|title }}</td><td class="num">{{ n }}</td></tr>
+{% endfor %}
+</table>
+</section>
+
+{% else %}
+<div class="welcome">
+<p class="eyebrow">As it stands today</p>
+<h1>{{ position.brand }}</h1>
+<p class="lede">What you own, what you are owed and what you sell, at the close
+of the last trading month.</p>
+</div>
+
+<section>
+<h2>Money</h2>
+<div class="stat-row">
+  <div class="stat"><span class="stat-label">Cash</span>
+    <span class="stat-value">{{ '{:,.0f}'.format(position.cash) }}</span>
+    <span class="stat-note">PKR in the bank</span></div>
+  <div class="stat"><span class="stat-label">Owed by couriers</span>
+    <span class="stat-value">{{ '{:,.0f}'.format(position.cod_receivable) }}</span>
+    <span class="stat-note">PKR of cash-on-delivery not yet remitted</span></div>
+  <div class="stat"><span class="stat-label">Drawn on credit</span>
+    <span class="stat-value">{{ '{:,.0f}'.format(position.credit_drawn) }}</span>
+    <span class="stat-note">PKR you are paying interest on</span></div>
+  <div class="stat"><span class="stat-label">Stock at cost</span>
+    <span class="stat-value">{{ '{:,.0f}'.format(position.inventory_value) }}</span>
+    <span class="stat-note">PKR, {{ '{:,.0f}'.format(position.inventory_units) }} units</span></div>
+</div>
+</section>
+
+<section>
+<h2>Customers</h2>
+<div class="stat-row">
+  <div class="stat"><span class="stat-label">Active customers</span>
+    <span class="stat-value">{{ '{:,.0f}'.format(position.active_customers or 0) }}</span></div>
+  <div class="stat"><span class="stat-label">Rating</span>
+    <span class="stat-value">{{ '%.2f'|format(position.rating or 0) }}</span>
+    <span class="stat-note">out of 5</span></div>
+  <div class="stat"><span class="stat-label">NPS</span>
+    <span class="stat-value">{{ '%.0f'|format(position.nps or 0) }}</span></div>
+  <div class="stat"><span class="stat-label">Customer service</span>
+    <span class="stat-value">{{ position.cs_agents }}</span>
+    <span class="stat-note">agents</span></div>
+</div>
+</section>
+
+<section>
+<h2>What you sell</h2>
+<p class="note">{{ position.skus|length }} active lines.</p>
+<p>{% for name in position.skus %}<span class="pill"
+   style="margin:0 5px 5px 0">{{ name }}</span>{% endfor %}</p>
+</section>
+
+{% if position.capabilities %}
+<section>
+<h2>Capabilities you have built</h2>
+<p>{% for c in position.capabilities %}<span class="pill on"
+   style="margin:0 5px 5px 0">{{ c|replace('_',' ')|title }}</span>{% endfor %}</p>
+</section>
+{% endif %}
+{% endif %}
+
+<a class="btn ghost" href="{{ url_for('home') }}">Back to your dashboard</a>
+{% endblock %}

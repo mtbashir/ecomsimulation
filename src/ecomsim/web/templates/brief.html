@@ -1,0 +1,88 @@
+{% extends "base.html" %}{% block title %}How the game works{% endblock %}
+{% block body %}
+<div class="welcome">
+<p class="eyebrow">{{ session['name'] }}</p>
+<h1>How the game works</h1>
+<p class="lede">You are taking over an e-commerce business in Pakistan and
+running it for {{ endowment.rounds }} trading months against everyone else in
+this room. Read this once; it is here whenever you need it again.</p>
+</div>
+
+<section>
+<h2>What every team starts with</h2>
+<p class="note">Identical for all teams. You are differentiated by what you do,
+not by what you are given.</p>
+<div class="stat-row">
+  <div class="stat"><span class="stat-label">Founding capital</span>
+    <span class="stat-value">{{ '{:,.0f}'.format(endowment.capital) }}</span>
+    <span class="stat-note">PKR</span></div>
+  <div class="stat"><span class="stat-label">Credit facility</span>
+    <span class="stat-value">{{ '{:,.0f}'.format(endowment.credit_facility) }}</span>
+    <span class="stat-note">PKR at {{ '{:.0%}'.format(endowment.credit_rate) }} a year</span></div>
+  <div class="stat"><span class="stat-label">Monthly fixed payroll</span>
+    <span class="stat-value">{{ '{:,.0f}'.format(endowment.payroll) }}</span>
+    <span class="stat-note">PKR, before anything you add</span></div>
+  <div class="stat"><span class="stat-label">Catalogue available</span>
+    <span class="stat-value">{{ endowment.catalogue }}</span>
+    <span class="stat-note">products to choose from</span></div>
+</div>
+</section>
+
+<section>
+<h2>The rules</h2>
+{% for title, body in rules %}
+<div class="field">
+<label>{{ title }}</label>
+<p class="help">{{ body }}</p>
+</div>
+{% endfor %}
+</section>
+
+<section>
+<h2>This market</h2>
+<p class="note">The simulation is calibrated to Pakistani e-commerce. Four
+things about it will drive most of your results.</p>
+{% for title, body in market %}
+<div class="field">
+<label>{{ title }}</label>
+<p class="help">{{ body }}</p>
+</div>
+{% endfor %}
+</section>
+
+<section>
+<h2>How you are scored</h2>
+<p class="note">100 points across six pillars. The anchors below are fixed and
+published &mdash; you are marked against them, not against each other. Every
+team in the room can score well, and a weak field will not make a weak run look
+good.</p>
+{% for name, weight, summary, metrics in pillars %}
+<div class="field">
+<label>{{ name }} <span class="note">&middot; {{ weight }} points</span></label>
+<p class="help">{{ summary }}</p>
+{% if metrics %}
+<table>
+<tr><th>Measure</th><th>Where the marks are</th></tr>
+{% for metric, anchor in metrics %}
+<tr><td>{{ metric }}</td><td class="note">{{ anchor }}</td></tr>
+{% endfor %}
+</table>
+{% endif %}
+</div>
+{% endfor %}
+<p class="note">Performance during the run &mdash; margins, growth, service
+&mdash; is averaged across the months, with later months weighted more heavily.
+Accumulated position &mdash; cash, customers, brand, capability &mdash; is taken
+as it stands at the end.</p>
+</section>
+
+{% if first_time %}
+<form method="post">
+<button type="submit">
+  {{ 'I have read this - start setting up' if setting_up
+     else 'I have read this - take me to my dashboard' }}</button>
+</form>
+{% else %}
+<a class="btn ghost" href="{{ url_for('home') }}">Back to your dashboard</a>
+{% endif %}
+{% endblock %}

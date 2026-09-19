@@ -32,6 +32,30 @@
 </div>
 </section>
 
+{% if setting_up %}
+<section>
+<h2>Setup round</h2>
+<p class="note">Nothing trades until you run round 1. A team that has not
+submitted a setup starts from the default configuration rather than being
+left out.</p>
+<table><thead><tr><th>Team</th><th>Brand</th><th>Setup</th>
+<th>Positioning</th></tr></thead>
+<tbody>
+{% for t in teams %}
+{% set fnd = foundings.get(t['team_id']) %}
+<tr><td>{{ t['team_id'] }}</td>
+<td>{{ fnd.config.brand_name if fnd else '—' }}</td>
+<td>{% if fnd and fnd.submitted_at %}<span class="pill on">submitted</span>
+{% elif fnd %}<span class="pill">draft</span>
+{% else %}<span class="pill off">not started</span>{% endif %}</td>
+<td class="note">{% if fnd %}{{ fnd.config.tier|title }},
+  {{ fnd.config.model|replace('_', ' ') }},
+  {{ fnd.config.assortment|length }} lines{% endif %}</td></tr>
+{% endfor %}
+</tbody></table>
+</section>
+{% endif %}
+
 <section>
 <h2>Submissions {% if game['open_round'] %}for round {{ game['open_round'] }}
 {% else %}for round {{ next_round }}{% endif %}</h2>

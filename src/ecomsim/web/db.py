@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS game (
   open_round     INTEGER,            -- round teams may submit for; NULL = closed
   ai_competitors INTEGER NOT NULL DEFAULT 2,
   ai_aggression  REAL    NOT NULL DEFAULT 0.5,
+  -- 'founding': teams set up their business in Round 0 before trading.
+  -- 'going_concern': everyone starts from the same running business (docs/05).
+  start_mode     TEXT    NOT NULL DEFAULT 'founding',
   overrides      TEXT    NOT NULL DEFAULT '{}',   -- parameter overrides, JSON
   created_at     TEXT    NOT NULL
 );
@@ -44,6 +47,7 @@ CREATE TABLE IF NOT EXISTS account (
   team_id       TEXT,               -- NULL for admins
   display_name  TEXT    NOT NULL,
   initial_password TEXT,             -- one-time handover; cleared once seen
+  briefing_seen_at TEXT,             -- NULL until the team has read the brief
   created_at    TEXT    NOT NULL
 );
 
@@ -63,6 +67,14 @@ CREATE TABLE IF NOT EXISTS decision_window (
   round      INTEGER NOT NULL,
   is_open    INTEGER NOT NULL,
   PRIMARY KEY (code, round)
+);
+
+-- Round 0. One row per team, holding the fourteen founding choices.
+CREATE TABLE IF NOT EXISTS founding (
+  team_id      TEXT PRIMARY KEY,
+  config       TEXT NOT NULL,        -- JSON, the Founding dataclass fields
+  submitted_at TEXT,                 -- NULL while still a draft
+  submitted_by TEXT
 );
 
 CREATE TABLE IF NOT EXISTS round_log (
@@ -97,19 +109,36 @@ def connect(path: str | Path) -> sqlite3.Connection:
     return con
 
 
+def migrate(con) -> None:
+    """Bring an older database up to the current schema, in place.
+
+    A game may be mid-semester when the app is updated, so a new column has to
+    arrive without anybody exporting and re-importing a cohort.
+    """
+    con.executescript(SCHEMA)
+    for table, column, ddl in [
+        ("game", "start_mode", "TEXT NOT NULL DEFAULT 'founding'"),
+        ("account", "briefing_seen_at", "TEXT"),
+    ]:
+        have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
+        if column not in have:
+            con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+
+
 def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
-         rounds: int = 12, admin_password: str = "changeme") -> dict:
+         rounds: int = 12, admin_password: str = "changeme",
+         start_mode: str = "founding") -> dict:
     """Create a game and its accounts. Returns the generated team passwords."""
     import secrets
 
     con = connect(path)
     with con:
-        con.executescript(SCHEMA)
+        migrate(con)
         con.execute(
             "INSERT OR REPLACE INTO game "
-            "(id, name, preset, round, total_rounds, open_round, created_at) "
-            "VALUES (1, ?, ?, 0, ?, NULL, ?)",
-            (name, preset, rounds, _now()))
+            "(id, name, preset, round, total_rounds, open_round, start_mode, "
+            "created_at) VALUES (1, ?, ?, 0, ?, NULL, ?, ?)",
+            (name, preset, rounds, start_mode, _now()))
         con.execute(
             "INSERT OR REPLACE INTO account "
             "(username, password_hash, role, team_id, display_name, created_at) "
@@ -128,8 +157,52 @@ def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
                 "initial_password, created_at) VALUES (?, ?, 'team', ?, ?, ?, ?)",
                 (tid, generate_password_hash(pw), tid, f"Team {i}", pw, _now()))
         log(con, "system", "game.init",
-            f"{name}: {teams} teams, {rounds} rounds, preset {preset}")
+            f"{name}: {teams} teams, {rounds} rounds, preset {preset}, "
+            f"{start_mode.replace('_', ' ')} start")
     return passwords
+
+
+# --- The founding round ----------------------------------------------------------
+
+def save_founding(con, team_id: str, config: dict, by: str,
+                  submitted: bool = False) -> None:
+    """Store a team's Round 0 setup. A draft keeps submitted_at NULL."""
+    with con:
+        con.execute(
+            "INSERT INTO founding (team_id, config, submitted_at, submitted_by) "
+            "VALUES (?, ?, ?, ?) ON CONFLICT (team_id) DO UPDATE SET "
+            "config = excluded.config, submitted_at = excluded.submitted_at, "
+            "submitted_by = excluded.submitted_by",
+            (team_id, json.dumps(config, sort_keys=True),
+             _now() if submitted else None, by))
+
+
+def founding(con, team_id: str) -> dict | None:
+    row = con.execute("SELECT config, submitted_at FROM founding WHERE team_id = ?",
+                      (team_id,)).fetchone()
+    if row is None:
+        return None
+    return {"config": json.loads(row["config"]),
+            "submitted_at": row["submitted_at"]}
+
+
+def foundings(con) -> dict[str, dict]:
+    """Every team's setup, submitted or draft, keyed by team."""
+    return {r["team_id"]: {"config": json.loads(r["config"]),
+                           "submitted_at": r["submitted_at"]}
+            for r in con.execute("SELECT * FROM founding").fetchall()}
+
+
+def mark_briefing_seen(con, username: str) -> None:
+    with con:
+        con.execute("UPDATE account SET briefing_seen_at = ? "
+                    "WHERE username = ? AND briefing_seen_at IS NULL",
+                    (_now(), username))
+
+
+def account(con, username: str) -> sqlite3.Row | None:
+    return con.execute("SELECT * FROM account WHERE username = ?",
+                       (username,)).fetchone()
 
 
 WORDS = ["indus", "ravi", "chenab", "jhelum", "sutlej", "hunza", "swat", "bolan",
