@@ -6,6 +6,9 @@ services:
   - type: web
     name: ecomsim
     runtime: python
+    # Pinned explicitly. GitHub made this the default branch only because main
+    # was never committed to; do not leave that to chance.
+    branch: claude/beautiful-hypatia-d7shuu
     plan: starter            # a disk requires a paid instance
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn wsgi:app --workers 1 --threads 8 --timeout 120 --bind 0.0.0.0:$PORT
