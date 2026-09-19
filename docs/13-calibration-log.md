@@ -357,3 +357,72 @@ burst 3 exists to make them balanced.
 | `cr_base` | 0.021 | Varies hugely by category and traffic mix |
 | `aov_base` | 3000 | Entirely category-dependent |
 | channel `churn_base` | see `channels.csv` | The deal-driven 0.44 is the most consequential single number in the engine and the least evidenced |
+
+---
+
+## I7 — why "research pays" cannot pass as written
+
+Chased to the bottom. Research is not the problem.
+
+**The binding constraint is `under_marketing` in 99% of team-rounds.** M8
+documents a three-way constraint as the spine of the simulation —
+`orders = min(potential, traffic_capacity, stock_capacity)` — and in practice
+only one side of it ever binds. Measured over a balanced cohort:
+
+| Constraint | Share of team-rounds |
+|---|---|
+| under_marketing | 99% |
+| stock_out | 1% |
+| wasted_spend | 0% |
+| balanced | 0% |
+
+Demand potential runs 1.24×–2.11× realised orders. A team never sells what it
+could sell, because traffic caps it first, every round.
+
+Three consequences:
+
+1. **Seasonality cannot reach orders.** The index swings 0.88 to 1.45 and
+   realised orders move by 15%. A demand peak you cannot serve is not a peak.
+2. **Stock never binds.** In-stock is 100.0% in all twelve rounds, including
+   the 1.45 peak, with nothing lost to stock-out. Safety stock is therefore
+   pure holding cost with no upside, which is why every scripted action that
+   raises it scores worse.
+3. **The debrief diagnosis is degenerate.** Every team is told
+   "under-marketing" in every round.
+
+**The ceiling on research value.** Give a team perfect, exact, free foresight
+of the seasonal index and let it time all three paid channels against it:
+
+| | Score |
+|---|---|
+| Blind | 71.84 |
+| Perfect free foresight | 72.06 |
+
+**0.22 points.** No price makes MR-01 pay, because the information is worth
+almost nothing while traffic binds. Acting on the perception gap (MR-07) is
+worth about 0.4; acting on the lead-time shock (MR-17) is negative, because
+switching supplier costs more than the shock does.
+
+### What would fix it
+
+Raising channel `k_base` so traffic capacity is comparable to demand
+potential. Measured:
+
+| `k_base` | under_marketing | wasted_spend | stock_out | balanced | I11 spread |
+|---|---|---|---|---|---|
+| ×1.00 (today) | 99% | 0% | 1% | 0% | 31 |
+| ×1.35 | 93% | 6% | 1% | 0% | 40 |
+| ×1.80 | 59% | 33% | 6% | 2% | 45 |
+
+At ×1.8 the three-way constraint the design calls for actually appears, and
+seasonally-timed marketing becomes worth about 0.65 points instead of 0.22.
+I11's spread also moves from 31 toward and past its 35 target, which says the
+traffic ceiling was suppressing scorecard discrimination too.
+
+**Not done here.** It moves every calibrated number — baseline contribution
+margin goes 7.9% → 13.4% at ×1.8 — and needs a full recalibration pass against
+I1–I5 rather than a parameter nudge. It is a decision about the model, not a
+bug fix.
+
+Until then I7 is correctly reported as failing. The invariant is right; the
+engine does not yet earn it.
