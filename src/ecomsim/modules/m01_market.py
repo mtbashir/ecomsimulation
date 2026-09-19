@@ -17,5 +17,5 @@ def run(world, params, resolved, ctx) -> None:
         raw = SEASON[(world.round - 1) % len(SEASON)]
         season = 1.0 + (raw - 1.0) * params["seasonality_amplitude"]
 
-    world.category_size = base * growth * season
+    world.category_size = base * growth * season * world.category_scale
     ctx["season"] = season

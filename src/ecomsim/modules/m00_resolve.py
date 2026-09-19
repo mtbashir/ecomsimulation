@@ -30,6 +30,7 @@ def run(world, params, resolved, ctx) -> None:
         ctx.setdefault("discount", {})[tid] = discount
 
         list_price = _basket_list_price(team, params)
+        ctx.setdefault("basket_list_price", {})[tid] = list_price
         net_prices[tid] = list_price * (1 - discount)
 
         ctx.setdefault("quality_tier", {})[tid] = _quality_tier(team, params, d)

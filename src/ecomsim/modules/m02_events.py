@@ -30,6 +30,14 @@ STOCHASTIC = [
 
 
 def run(world, params, resolved, ctx) -> None:
+    if not params["events_enabled"]:
+        # Calibration and the T2 gate run without events - including EV-23
+        # noise - so that levels can be held to tight tolerances.
+        world.active_events = []
+        ctx["events"] = {}
+        ctx["event_codes"] = []
+        return
+
     severity = params["event_severity"]
     active: list[dict] = [e for e in world.active_events if e["expires"] > world.round]
 

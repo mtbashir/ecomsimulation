@@ -55,6 +55,7 @@ def run(world, params, resolved, ctx) -> None:
             "round": world.round,
             "orders": ctx["orders"][tid],
             "potential": ctx["potential"][tid],
+            "sellable": ctx["sellable"][tid],
             "sessions": ctx["sessions"][tid],
             "conversion_rate": ctx["conversion_rate"][tid],
             "aov_net": ctx["aov"][tid],

@@ -48,7 +48,8 @@ def run(world, params, resolved, ctx) -> None:
             creative_lift = 1 + float(ch["creative_sensitivity"]) * (
                 team.creative_quality - 0.5
             )
-            k = float(ch["k_base"]) / inflation * creative_lift
+            k = (float(ch["k_base"]) * params["channel_k_scale"]
+                 / inflation * creative_lift)
             paid += k * (team.adstock[code] / 1_000) ** sigma
 
         organic = (

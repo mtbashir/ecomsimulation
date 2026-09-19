@@ -15,7 +15,11 @@ def run(world, params, resolved, ctx) -> None:
         d = ctx["resolved"][tid]
         discount = ctx["discount"][tid]
 
-        aov = params["aov_base"] * (1 - discount)
+        # AOV follows from the basket, not from a free parameter. If price and
+        # COGS come from different places they disagree, and gross margin is
+        # whatever the disagreement happens to be.
+        basket = ctx["basket_list_price"][tid] * params["units_per_order"]
+        aov = basket * (1 - discount)
 
         bundles = d.get("1.2") or []
         penetration = min(1.0, len(bundles) / 3.0) if bundles else 0.0
@@ -62,9 +66,9 @@ def _consume_stock(team, params, orders: float, ctx) -> None:
         want = units * float(params.sku(code)["revenue_weight"]) / total_w
         taken = min(team.inventory.get(code, 0.0), want)
         team.inventory[code] = team.inventory.get(code, 0.0) - taken
-        cogs += taken * float(params.sku(code)["unit_cost"]) * float(
-            supplier.get("cost_index", 1.0)
-        )
+        cogs += (taken * float(params.sku(code)["unit_cost"])
+                 * float(supplier.get("cost_index", 1.0))
+                 * params["cogs_scale"])
     ctx.setdefault("cogs", {})[team.team_id] = cogs
     ctx.setdefault("units_sold", {})[team.team_id] = units
 

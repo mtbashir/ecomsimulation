@@ -74,9 +74,17 @@ def _place_orders(team, world, params, ctx, d, supplier, events, round_days) -> 
     Cancelling compounds a cash problem into a stock-out and accelerates the
     death spiral the scoring design works to avoid.
     """
-    target_weeks = float(d.get("7.5", params["starting_inventory_weeks"]) or 3)
+    # Order up to cycle + pipeline + safety. The decision sets SAFETY stock;
+    # cycle and lead-time cover are arithmetic, not a choice. Targeting safety
+    # alone leaves every team structurally short by a round of consumption.
+    safety_weeks = float(d.get("7.5", 2.0) or 2.0)
+    round_weeks = 4.33 * params["round_months"]
+    lead_weeks = float(supplier["lead_time_days"]) * events.get("lead_time_mult", 1.0) / 7
+    target_weeks = round_weeks + lead_weeks + safety_weeks
+
     expected_orders = _expected_orders(team, params)
-    units_needed_per_week = expected_orders * params["units_per_order"] / 4.33
+    units_needed_per_week = expected_orders * params["units_per_order"] / round_weeks * (
+        round_weeks / 4.33) / params["round_months"]
 
     on_hand = sum(team.inventory.values())
     on_order = sum(sum(po["units"].values()) for po in team.open_pos)
@@ -121,7 +129,7 @@ def _expected_orders(team, params) -> float:
     stock policy, not unavoidable in the default case.
     """
     if team.history:
-        recent = [max(h["orders"], h.get("potential", h["orders"]))
+        recent = [max(h["orders"], h.get("sellable", h["orders"]))
                   for h in team.history[-3:]]
         return sum(recent) / len(recent)
     return params["baseline_team_revenue"] / params["aov_base"]

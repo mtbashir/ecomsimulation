@@ -25,13 +25,18 @@ def run(world, params, resolved, ctx) -> None:
         failed_value = ctx["failed_orders"][tid] * aov
         net_revenue = gross_revenue - returns_value - rto_value - failed_value
 
-        cogs = ctx["cogs"][tid]
-        unrecovered = (
-            ctx["returned_orders"][tid] - ctx["returns_recovered"][tid]
-        ) * aov * (1 - params["gross_margin_base"])
-        gross_profit = net_revenue - cogs * (net_revenue / max(gross_revenue, 1.0)) - unrecovered
+        # COGS is charged on units that stayed sold. Units that came back and
+        # were resellable return to stock and carry no cost; units that came
+        # back and were not are written off.
+        cogs_per_order = ctx["cogs"][tid] / max(orders_placed := ctx["orders"][tid], 1.0)
+        sold = orders_placed - ctx["returned_orders"][tid] - ctx["rto_orders"][tid] \
+            - ctx["failed_orders"][tid]
+        scrapped = ctx["returned_orders"][tid] - ctx["returns_recovered"][tid]
+        cogs = max(0.0, sold) * cogs_per_order
+        write_off = scrapped * cogs_per_order
+        gross_profit = net_revenue - cogs - write_off
 
-        orders = ctx["orders"][tid]
+        orders = orders_placed
         pick_pack = orders * params["fulfil_pick_pack_cost"]
         courier_forward = ctx["courier_cost"][tid]
         # Forward AND reverse on every RTO, plus reverse on every return.
@@ -82,7 +87,7 @@ def run(world, params, resolved, ctx) -> None:
             "gross_profit": gross_profit,
             "fulfilment": pick_pack + courier_forward,
             "rto_cost": rto_shipping,          # its own line, deliberately
-            "return_cost": return_shipping + unrecovered,
+            "return_cost": return_shipping + write_off,
             "payment_costs": gateway_cost + cod_cost,
             "marketing": marketing + affiliate,
             "commission": commission,

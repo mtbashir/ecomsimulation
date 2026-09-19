@@ -1,4 +1,4 @@
 code,name,cost_per_order,success_rate,avg_days,rural_reach,cod_remit_days
-speed,Speed Express,210,0.92,2.1,0.62,12
-value,Value Logistics,145,0.84,4.3,0.55,21
-wide,Wide Network,175,0.88,3.2,0.88,16
+speed,Speed Express,210,0.975,2.1,0.62,12
+value,Value Logistics,145,0.940,4.3,0.55,21
+wide,Wide Network,175,0.958,3.2,0.88,16

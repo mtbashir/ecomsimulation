@@ -29,16 +29,22 @@ def run(world, params, resolved, ctx) -> None:
 
         realised = min(potential, traffic_capacity, stock_capacity)
         orders[tid] = realised
+        # What this team could have sold had stock not bound - the honest
+        # forecasting basis for M3. Potential alone carries the headroom that
+        # traffic never converts, so forecasting on it over-orders by design.
+        ctx.setdefault("sellable", {})[tid] = min(potential, traffic_capacity)
         spare[tid] = max(0.0, min(traffic_capacity, stock_capacity) - realised)
 
-        # The diagnosis a debrief actually needs.
-        if traffic_capacity < potential:
-            binding = "under_marketing"
-        elif stock_capacity < min(potential, traffic_capacity):
-            binding = "stock_out"
-        elif potential < traffic_capacity:
-            binding = "wasted_spend"
-        else:
+        # The diagnosis a debrief actually needs: which of the three actually
+        # bound, not which was checked first.
+        limits = {
+            "under_marketing": traffic_capacity,
+            "stock_out": stock_capacity,
+            "wasted_spend": potential,
+        }
+        binding = min(limits, key=limits.get)
+        spread = (max(limits.values()) - min(limits.values())) / max(limits.values(), default=1)
+        if spread < 0.05:
             binding = "balanced"
         ctx.setdefault("binding_constraint", {})[tid] = binding
 

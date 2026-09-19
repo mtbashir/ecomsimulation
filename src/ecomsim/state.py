@@ -86,3 +86,4 @@ class WorldState:
     market_spend: dict[str, float] = field(default_factory=dict)
     market_avg_price: float = 3_000.0
     market_avg_aov: float = 3_000.0
+    category_scale: float = 1.0

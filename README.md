@@ -52,30 +52,52 @@ A sim where COD is a rounding error actively mis-teaches this market.
 
 ## Current status
 
-**Burst 1 complete.** All 18 modules implemented; a full 12-round, 8-team game
-runs end to end. **Not calibrated** — that is burst 2.
+**Burst 2 complete.** Baseline holds within tolerance for 12 rounds at
+N = 2, 4, 8, 12, 16 with events off. **Not balanced** — that is burst 3.
 
 | | |
 |---|---|
-| **Next** | **Burst 2 — calibrate to the Round 0 baseline (`tests/test_baseline.py`)** |
-| Tests | 30 passing, 5 xfailed (the xfails are the burst 2 gate) |
-| Engine speed | ~30ms per 12-round 8-team game (requirement: <200ms) |
-| Determinism | I8 holds at both draw and game level |
+| **Next** | **Burst 3 — validation harness: 20 archetypes, 12 invariants (`docs/11`)** |
+| Tests | 38 passing, 0 xfailed |
+| Gate | `tests/test_baseline.py` green; `calibrate.py` re-solves in ~2 min |
+| Engine speed | ~30ms per 12-round 8-team game |
 
-### Where the defaults currently land, vs baseline
+### Where the defaults land (events off, settled rounds 7–12)
 
-| Metric | Engine | Target | |
-|---|---|---|---|
-| Revenue | ~3.3M | 12.0M | channel `k_base` roughly 2.5x low |
-| Sessions | ~62k | 190k | same root cause |
-| Conversion rate | 2.50% | 2.10% | close |
-| Gross margin | ~57% | 38% | COGS allocation needs review |
-| Contribution margin | negative | +9% | follows from revenue being 3.5x low |
-| Repeat order share | ~65% | 22% | cohort frequency still high |
-| Rating | 4.08 | 4.10 | holds |
+| Metric | Engine | Target |
+|---|---|---|
+| Gross revenue | 11.99M | 12.0M |
+| Orders | 3,997 | 4,000 |
+| Sessions | 190k | 190k |
+| Conversion | 2.10% | 2.10% |
+| Gross margin | 38.0% | 38% |
+| Contribution margin | 9.1% | 9% |
+| Repeat share | 22.0% | 22% |
+| Rating | 4.14 | 4.10 |
+| Net revenue (derived) | 9.55M | — |
+| CAC (derived) | PKR 477 | — |
 
-Every gap above is a **level**, not a mechanism. Burst 2 closes them and records
-each judgement in `docs/13-calibration-log.md`.
+### Open judgement — read before burst 3
+
+**The baseline business burns ~2.1M/round.** A do-nothing team ends Round 12
+with ~1.6M of 25M; with events on, at zero. That is deliberate pressure, but it
+was not in the original brief. `docs/13-calibration-log.md` entry 3 has the
+one-line alternative (`payroll_base` 1.4M → 0.9M). Decide before balancing,
+because invariant I2 (no death spiral) depends on it.
+
+### Fixed during burst 2
+
+- **AOV now derives from the SKU basket**, so gross margin follows from what is
+  in the cart rather than from two parameters that disagreed
+- **Courier failure and RTO were double-counted**; courier success now means
+  logistics only, RTO carries refusal
+- **Reorder policy** targets cycle + pipeline + safety stock and forecasts from
+  sellable demand, not raw potential; Round 0 seeds a PO in flight
+- **Per-team economics are N-invariant by construction** — the category is
+  sized from the actual logit at seeded state
+- **Binding-constraint diagnosis** reports the actual minimum, not the first
+  branch that matched
+- **`events_enabled` switch** — calibration and T2 run without events
 
 ### Fixed during burst 1
 

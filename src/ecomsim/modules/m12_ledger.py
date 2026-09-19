@@ -65,7 +65,8 @@ def _age_cohorts(team, params, ctx, pending) -> float:
             * (1 - params["churn_retention_coef"] * retention_effect)
         )
         cohort.active *= max(0.0, 1 - max(0.0, min(0.95, churn)))
-        repeat_orders += cohort.active * cohort.freq * repeat_mult
+        repeat_orders += (cohort.active * cohort.freq * repeat_mult
+                          * params["cohort_freq_scale"])
 
     team.cohorts = [c for c in team.cohorts if c.active > 1.0]
     return repeat_orders
@@ -114,7 +115,7 @@ def _ltv(team, params, ctx) -> float:
         weight = cohort.active / active_total
         survival, orders = 1.0, 0.0
         for _ in range(int(horizon)):
-            orders += survival * cohort.freq
+            orders += survival * cohort.freq * params["cohort_freq_scale"]
             survival *= 1 - cohort.churn_base
         ltv += weight * orders * aov * max(margin, 0.01)
     return ltv
