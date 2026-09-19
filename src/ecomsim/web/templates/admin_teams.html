@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% block title %}Teams{% endblock %}
+{% block body %}
+<h1>Accounts</h1>
+<p class="sub">Passwords are stored hashed, so they cannot be read back — only
+replaced. Give each team its password on paper at the start.</p>
+<section>
+<table>
+<thead><tr><th>Username</th><th>Name</th><th>Role</th>
+<th style="width:320px">Set a new password</th></tr></thead>
+<tbody>
+{% for t in teams %}
+<tr><td>{{ t['username'] }}</td><td>{{ t['display_name'] }}</td>
+<td><span class="pill">{{ t['role'] }}</span></td>
+<td><form method="post" style="display:flex;gap:8px">
+<input type="hidden" name="username" value="{{ t['username'] }}">
+<input name="password" type="text" placeholder="new password" minlength="6">
+<button type="submit" class="ghost">Set</button>
+</form></td></tr>
+{% endfor %}
+</tbody></table>
+</section>
+{% endblock %}

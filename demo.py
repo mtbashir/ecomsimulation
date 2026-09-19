@@ -56,7 +56,7 @@ def main() -> int:
     world = bootstrap.new_world(params, run_id="demo")
 
     for tid, (brand, _pitch, _fn) in TEAMS.items():
-        world.teams[tid].founding = type("F", (), {"brand_name": brand})()
+        world.teams[tid].brand_name = brand
 
     print(f"Six teams, {args.rounds} rounds, events on. "
           f"Config {params.config_hash()}.\n")

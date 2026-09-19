@@ -1,0 +1,63 @@
+{% extends "base.html" %}{% block title %}Economics{% endblock %}
+{% block body %}
+<h1>Economics</h1>
+<p class="sub">Every economic constant, with the band it must stay inside. Leave a
+field blank to use the default. Changes affect future rounds only — rounds
+already processed are not recomputed.</p>
+
+{% for w in warnings %}<div class="msg error">{{ w }}</div>{% endfor %}
+
+<form method="post">
+<section>
+<h2>The market</h2>
+<div class="row">
+<div class="field">
+<label for="ai">AI competitors</label>
+<input id="ai" name="ai_competitors" type="number" min="1" max="6"
+       value="{{ game['ai_competitors'] }}">
+<div class="hint">How crowded the market is. More competitors means less demand
+reaches each team, which bites hardest on teams pushing for share.</div>
+</div>
+<div class="field">
+<label for="ag">AI aggression</label>
+<input id="ag" name="ai_aggression" type="text" value="{{ game['ai_aggression'] }}">
+<div class="hint">0 to 1. Above 0.95 the incumbents beat every team and agency
+disappears.</div>
+</div>
+</div>
+</section>
+
+{% set groups = {} %}
+{% for name, spec in params.specs.items() %}
+{% set _ = groups.setdefault(spec.module, []).append(spec) %}
+{% endfor %}
+
+{% for module, specs in groups|dictsort %}
+<section>
+<h2>{{ module }}</h2>
+<table>
+<thead><tr><th>Parameter</th><th class="num">Default</th><th class="num">Green band</th>
+<th class="num">Hard limits</th><th style="width:140px">Override</th></tr></thead>
+<tbody>
+{% for s in specs %}
+<tr>
+<td>{{ s.name }}{% if s.danger == 'HIGH' %}
+<span class="pill off" style="margin-left:6px">high risk</span>{% endif %}
+<div class="hint">{{ s.note }}</div></td>
+<td class="num">{{ '%g'|format(s.default) }}</td>
+<td class="num note">{{ '%g'|format(s.green_min) }} – {{ '%g'|format(s.green_max) }}</td>
+<td class="num note">{{ '%g'|format(s.hard_min) }} – {{ '%g'|format(s.hard_max) }}</td>
+<td><input name="{{ s.name }}" type="text"
+     value="{{ overrides.get(s.name, '') }}" placeholder="default"></td>
+</tr>
+{% endfor %}
+</tbody></table>
+</section>
+{% endfor %}
+<button type="submit">Save</button>
+<p class="note" style="margin-top:10px">A value outside its hard limits is
+refused. Inside the amber range it is accepted but the configuration is no
+longer validated — run <code>py validate.py --games 160</code> before putting it
+in front of students.</p>
+</form>
+{% endblock %}

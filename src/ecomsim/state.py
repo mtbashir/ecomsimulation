@@ -78,6 +78,7 @@ class TeamState:
     reports: dict[int, dict] = field(default_factory=dict)
     in_administration: bool = False
     founding: object | None = None
+    brand_name: str = ""
     price_multiplier: float = 1.0
     traffic_multiplier: float = 1.0
     last_discretionary: dict[str, float] = field(default_factory=dict)

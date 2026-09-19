@@ -46,7 +46,37 @@ py demo.py --out demo
 Six teams, twelve rounds, about ten seconds. Then open
 `demo/round_12/console_r12.html` as above.
 
-### Run a real cohort
+### Run a real cohort — the web app
+
+Teams sign in and submit in a browser; you run the rounds from an instructor
+console.
+
+```
+py -m pip install flask
+py serve.py init --teams 8 --name "E-Commerce in Practice"
+```
+
+That prints every account's password **once** — write them down, they are
+hashed and cannot be recovered. Then:
+
+```
+py serve.py
+```
+
+It prints two addresses. Teams on the same wifi use the first; you use either.
+
+| Who | Does what |
+|---|---|
+| **You** (`admin`) | Open a round · choose which decisions are open · set AI competitors and economics · run the round · read the console |
+| **Teams** | Sign in, submit decisions for the open round, read their own report |
+
+Everything lives in `game.db`. Back it up by copying that file.
+
+**If the app fails mid-class:** download the decisions CSV from the console and
+run `py run.py round --decisions <file>` offline. That path is kept working on
+purpose.
+
+### Run a real cohort — files only
 
 ```
 py run.py new --teams 8 --out game        # create the game

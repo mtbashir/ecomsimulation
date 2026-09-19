@@ -1,0 +1,204 @@
+"""Team portal and instructor console.
+
+The things that must not break: a team cannot see another team's anything, a
+round can always be rolled back and re-run, and the file-based escape hatch
+stays available when the app is the problem.
+"""
+from __future__ import annotations
+
+import pytest
+
+from ecomsim.web import db, service
+from ecomsim.web.app import create_app
+
+
+@pytest.fixture
+def game(tmp_path):
+    path = tmp_path / "g.db"
+    passwords = db.init(path, "Test", 3, rounds=12, admin_password="admin-pw")
+    app = create_app(path)
+    app.config["TESTING"] = True
+    return app, passwords, path
+
+
+def _client(app, username, password):
+    c = app.test_client()
+    r = c.post("/login", data={"username": username, "password": password})
+    assert r.status_code in (302, 200)
+    return c
+
+
+# --- Authentication --------------------------------------------------------------
+
+def test_everything_requires_a_login(game):
+    app, _pw, _p = game
+    anon = app.test_client()
+    for path in ("/", "/submit", "/admin", "/admin/params", "/results/1"):
+        assert anon.get(path).status_code == 302, path
+
+
+def test_wrong_password_is_refused(game):
+    app, _pw, _p = game
+    r = app.test_client().post("/login", data={"username": "admin",
+                                               "password": "nope"},
+                               follow_redirects=True)
+    assert b"Wrong username or password" in r.data
+
+
+def test_a_team_cannot_reach_the_instructor_pages(game):
+    app, pw, _p = game
+    team = _client(app, "team_01", pw["team_01"])
+    for path in ("/admin", "/admin/params", "/admin/decisions", "/admin/teams",
+                 "/admin/console/1", "/admin/report/team_02/1",
+                 "/admin/export/1.csv"):
+        assert team.get(path).status_code == 403, path
+    assert team.post("/admin/run").status_code == 403
+
+
+def test_a_team_only_ever_sees_its_own_results(game):
+    """There is no route that takes a team id - identity comes from the session."""
+    app, pw, path = game
+    con = db.connect(path)
+    db.set_game(con, open_round=1)
+    service.process_round(con)
+
+    one = _client(app, "team_01", pw["team_01"])
+    two = _client(app, "team_02", pw["team_02"])
+    first = one.get("/results/1").data
+    second = two.get("/results/1").data
+    assert b"team_01" in first and b"team_02" not in first
+    assert b"team_02" in second and b"team_01" not in second
+
+
+def test_passwords_are_stored_hashed(game):
+    _app, pw, path = game
+    con = db.connect(path)
+    stored = con.execute(
+        "SELECT password_hash FROM account WHERE username = 'team_01'").fetchone()[0]
+    assert pw["team_01"] not in stored
+    assert stored.startswith(("pbkdf2:", "scrypt:"))
+
+
+# --- Submission ------------------------------------------------------------------
+
+def test_submission_needs_an_open_round(game):
+    app, pw, _p = game
+    team = _client(app, "team_01", pw["team_01"])
+    r = team.get("/submit", follow_redirects=True)
+    assert b"Submissions are closed" in r.data
+
+
+def test_submit_revise_and_blank_means_default(game):
+    app, pw, path = game
+    con = db.connect(path)
+    db.set_game(con, open_round=1)
+    team = _client(app, "team_01", pw["team_01"])
+
+    team.post("/submit", data={"3.1": "900000", "2.2": ""}, follow_redirects=True)
+    saved = db.submission(con, 1, "team_01")
+    assert saved["3.1"] == 900_000
+    assert "2.2" not in saved, "a blank field must fall through to the default"
+
+    team.post("/submit", data={"3.1": "500000"}, follow_redirects=True)
+    assert db.submission(con, 1, "team_01")["3.1"] == 500_000, "revision must replace"
+
+
+def test_implausible_values_are_refused(game):
+    app, pw, path = game
+    db.set_game(db.connect(path), open_round=1)
+    team = _client(app, "team_01", pw["team_01"])
+    for field, value, message in [
+        ("2.2", "150%", b"between 0"),
+        ("3.1", "-50000", b"cannot be negative"),
+        ("3.1", "900000000", b"looks like a typo"),
+        ("3.1", "lots", b"not a number"),
+    ]:
+        r = team.post("/submit", data={field: value}, follow_redirects=True)
+        assert message in r.data, (field, value)
+
+
+# --- Instructor control ------------------------------------------------------------
+
+def test_instructor_can_open_a_decision_early(game):
+    app, _pw, path = game
+    con = db.connect(path)
+    admin = _client(app, "admin", "admin-pw")
+    assert "11.1" not in {s.code for s in service.open_decisions(con, 1)}
+
+    admin.post("/admin/decisions", data={"round": 1, "open": ["11.1", "3.1"]},
+               follow_redirects=True)
+    codes = {s.code for s in service.open_decisions(con, 1)}
+    assert "11.1" in codes, "an override must be able to unlock early"
+    assert "2.2" not in codes, "and to hold something back"
+
+
+def test_parameter_override_outside_its_band_is_refused(game):
+    app, _pw, path = game
+    admin = _client(app, "admin", "admin-pw")
+    r = admin.post("/admin/params", data={"saturation_exponent": "0.99"},
+                   follow_redirects=True)
+    assert b"Refused" in r.data
+    assert db.overrides(db.connect(path)) == {}
+
+
+def test_ai_competitor_count_is_instructor_controlled(game):
+    app, _pw, path = game
+    admin = _client(app, "admin", "admin-pw")
+    admin.post("/admin/params", data={"ai_competitors": "5", "ai_aggression": "0.7"},
+               follow_redirects=True)
+    row = db.game(db.connect(path))
+    assert row["ai_competitors"] == 5 and row["ai_aggression"] == 0.7
+
+
+def test_rollback_keeps_submissions_so_a_round_can_be_rerun(game):
+    app, pw, path = game
+    con = db.connect(path)
+    admin = _client(app, "admin", "admin-pw")
+
+    for rnd in (1, 2):
+        admin.post("/admin/open", data={"round": rnd})
+        _client(app, "team_01", pw["team_01"]).post(
+            "/submit", data={"3.1": "700000"}, follow_redirects=True)
+        admin.post("/admin/run", follow_redirects=True)
+    assert db.game(con)["round"] == 2
+
+    admin.post("/admin/rollback", data={"to_round": 1}, follow_redirects=True)
+    assert db.game(con)["round"] == 1
+    assert db.submission(con, 2, "team_01") is not None, "submissions must survive"
+    admin.post("/admin/run", follow_redirects=True)
+    assert db.game(con)["round"] == 2
+
+
+def test_teams_that_do_not_submit_keep_their_previous_decisions(game):
+    app, pw, path = game
+    con = db.connect(path)
+    admin = _client(app, "admin", "admin-pw")
+    admin.post("/admin/open", data={"round": 1})
+    _client(app, "team_01", pw["team_01"]).post(
+        "/submit", data={"3.1": "700000"}, follow_redirects=True)
+    admin.post("/admin/run", follow_redirects=True)
+
+    world = db.load_world(con)
+    assert all(len(t.history) == 1 for t in world.teams.values()), \
+        "a silent team is still played, not skipped"
+
+
+# --- The escape hatch ---------------------------------------------------------------
+
+def test_decisions_export_matches_the_file_runner_format(game):
+    """If the app fails mid-class, this CSV runs the round offline."""
+    app, pw, path = game
+    db.set_game(db.connect(path), open_round=1)
+    _client(app, "team_01", pw["team_01"]).post(
+        "/submit", data={"3.1": "900000", "12.1": "MR-01;MR-17"},
+        follow_redirects=True)
+
+    csv_text = _client(app, "admin", "admin-pw").get("/admin/export/1.csv").data.decode()
+    assert csv_text.splitlines()[0] == "team_id,decision,value"
+
+    from ecomsim.io_csv import read_decisions
+    out = path.parent / "d.csv"
+    out.write_text(csv_text, encoding="utf-8")
+    parsed = read_decisions(out)
+    assert parsed["team_01"]["3.1"] == 900_000
+    assert parsed["team_01"]["12.1"] == ["MR-01", "MR-17"]

@@ -52,15 +52,27 @@ A sim where COD is a rounding error actively mis-teaches this market.
 
 ## Current status
 
-**Burst 5 complete.** Instructor console, leaderboard and trend charts are in.
-A cohort can be run and read end to end.
+**Web app built.** Team portal and instructor console, on top of the finished
+engine. A cohort can be run entirely in a browser.
 
 | | |
 |---|---|
-| **Next** | **Burst 6 — course materials (handbook, forms, debrief pack, rubric)** |
-| Tests | 96 passing, 0 xfail |
+| **Next** | **Harden for a live class, then burst 6 (course materials)** |
+| Tests | 110 passing, 0 xfail |
 | Invariants | 11/12 — only I11 open, and narrow |
 | Suites | `pytest -q` · `python calibrate.py` · `python validate.py --games 160` |
+
+### Running it
+
+```
+py serve.py init --teams 8 --name "E-Commerce in Practice"   # prints passwords once
+py serve.py                                                   # start it
+```
+
+Teams sign in and submit; you open rounds, choose which decisions are visible,
+set the number of AI competitors, adjust economics within validated bands, run
+the round and read the console. Everything is one SQLite file.
+
 
 ### Running a cohort
 

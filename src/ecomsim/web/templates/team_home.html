@@ -1,0 +1,37 @@
+{% extends "base.html" %}{% block title %}{{ session['name'] }}{% endblock %}
+{% block body %}
+<h1>{{ session['name'] }}</h1>
+<p class="sub">{{ session['team_id'] }}</p>
+
+<section>
+<h2>This round</h2>
+{% if open_round %}
+  {% if submitted %}
+  <p>Your decisions for <strong>round {{ open_round }}</strong> are in. You can
+  revise them until the instructor closes the round.</p>
+  <a class="btn ghost" href="{{ url_for('submit') }}">Review or revise</a>
+  {% else %}
+  <p><strong>Round {{ open_round }} is open.</strong> Nothing submitted yet — if
+  you submit nothing, last round's decisions stand.</p>
+  <a class="btn" href="{{ url_for('submit') }}">Enter decisions</a>
+  {% endif %}
+{% else %}
+<p class="note">Submissions are closed. The instructor will open the next round
+once this one has been processed.</p>
+{% endif %}
+</section>
+
+<section>
+<h2>Your results</h2>
+{% if rounds %}
+<p class="note">Each report shows where the round was won or lost, and how the
+numbers moved.</p>
+<p>{% for r in rounds|reverse %}
+<a class="btn ghost" style="margin:0 6px 6px 0"
+   href="{{ url_for('results', round_=r) }}" target="_blank">Round {{ r }}</a>
+{% endfor %}</p>
+{% else %}
+<p class="note">No rounds processed yet.</p>
+{% endif %}
+</section>
+{% endblock %}

@@ -128,7 +128,7 @@ it, and in four months neither will you.
 
 | Dropped | Why | Reversible? |
 |---|---|---|
-| Web application | Needs a developer to own deploy, auth, hosting and live-class triage | Yes — engine ports cleanly, it is P4 in `06` |
+| ~~Web application~~ | **BUILT 2026-09-19.** Team portal and instructor console on Flask and SQLite. The constraint that nobody is on call is met by design rather than by avoidance: every destructive action is reversible, rounds replay from stored submissions, and the file-based path stays as a one-click escape hatch | — |
 | Expert tier, 92 decisions | Genuine new engine work | Yes, additively |
 | Instructor console UI | CLI and CSV do the same job for one instructor | Yes |
 | Concurrent sections | Manual round processing does not scale past one | Only with the platform |

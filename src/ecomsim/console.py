@@ -66,7 +66,8 @@ def render(world, params, out_dir: str | Path) -> Path:
     ranked = sorted(teams, key=lambda t: -cards[t.team_id]["total"])
 
     def name_of(t):
-        return getattr(t.founding, "brand_name", None) or t.team_id
+        return (t.brand_name
+                or getattr(t.founding, "brand_name", None) or t.team_id)
 
     # Leaderboard
     if round_ >= LEADERBOARD_FROM_ROUND:

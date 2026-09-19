@@ -1,0 +1,35 @@
+{% extends "base.html" %}{% block title %}Decisions{% endblock %}
+{% block body %}
+<h1>Which decisions are open</h1>
+<p class="sub">Ticked boxes are what teams see in round {{ round }}. The preset and
+unlock schedule set the defaults; anything you change here overrides them, so a
+decision can be opened early or held back.</p>
+
+<form method="get" style="margin:0 0 16px">
+<label for="r">Round</label>
+<input id="r" name="round" type="number" value="{{ round }}" min="1"
+       style="width:100px;display:inline-block;margin-right:8px">
+<button type="submit" class="ghost">Show</button>
+</form>
+
+<form method="post">
+<input type="hidden" name="round" value="{{ round }}">
+{% for group, specs in by_group.items() %}
+<section>
+<h2>{{ group_names.get(group, group) }}</h2>
+{% for s in specs %}
+<div style="padding:4px 0">
+<label style="display:flex;gap:9px;align-items:baseline;color:inherit;cursor:pointer">
+<input type="checkbox" name="open" value="{{ s.code }}" style="width:auto"
+  {% if s.code in open_now %}checked{% endif %}>
+<span>{{ s.name }}
+<span class="note" style="font-size:12px">&middot; {{ s.code }}
+{% if s.unlock_round > 1 %}&middot; unlocks r{{ s.unlock_round }}{% endif %}</span>
+</span></label>
+</div>
+{% endfor %}
+</section>
+{% endfor %}
+<button type="submit">Save round {{ round }}</button>
+</form>
+{% endblock %}

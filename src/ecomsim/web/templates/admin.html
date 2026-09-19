@@ -1,0 +1,77 @@
+{% extends "base.html" %}{% block title %}Instructor{% endblock %}
+{% block body %}
+<h1>{{ game['name'] }}</h1>
+<p class="sub">Round {{ game['round'] }} of {{ game['total_rounds'] }} processed
+&middot; {{ teams|length }} teams &middot; {{ game['ai_competitors'] }} AI competitors</p>
+
+<section>
+<h2>Run the round</h2>
+<div class="row">
+<form method="post" action="{{ url_for('admin_open') }}">
+  <label for="r">Open a round for submissions</label>
+  <input id="r" name="round" type="number" min="1" max="{{ game['total_rounds'] }}"
+         value="{{ game['open_round'] or next_round }}" style="margin-bottom:8px">
+  <button type="submit">Open</button>
+  {% if game['open_round'] %}
+  <button type="submit" name="round" value="0" class="ghost">Close</button>
+  {% endif %}
+</form>
+<form method="post" action="{{ url_for('admin_run') }}">
+  <label>Process round {{ next_round }}</label>
+  <p class="note" style="margin:0 0 8px">Teams without a submission keep their
+  previous decisions.</p>
+  <button type="submit">Run round {{ next_round }}</button>
+</form>
+<form method="post" action="{{ url_for('admin_rollback') }}"
+      onsubmit="return confirm('Roll back? Submissions are kept, results after that round are discarded.')">
+  <label for="rb">Roll back to end of round</label>
+  <input id="rb" name="to_round" type="number" min="0" max="{{ game['round'] }}"
+         value="{{ [game['round'] - 1, 0]|max }}" style="margin-bottom:8px">
+  <button type="submit" class="ghost">Roll back</button>
+</form>
+</div>
+</section>
+
+<section>
+<h2>Submissions {% if game['open_round'] %}for round {{ game['open_round'] }}
+{% else %}for round {{ next_round }}{% endif %}</h2>
+<table><thead><tr><th>Team</th><th>Name</th><th>Status</th><th></th></tr></thead>
+<tbody>
+{% for t in teams %}
+<tr><td>{{ t['team_id'] }}</td><td>{{ t['display_name'] }}</td>
+<td>{% if t['team_id'] in status %}
+<span class="pill on">submitted</span>
+<span class="note">{{ status[t['team_id']][11:16] }}</span>
+{% else %}<span class="pill off">waiting</span>{% endif %}</td>
+<td class="num">{% if game['round'] %}
+<a href="{{ url_for('results_admin', team=t['team_id'], round_=game['round']) }}"
+   target="_blank" class="note">report</a>{% endif %}</td></tr>
+{% endfor %}
+</tbody></table>
+</section>
+
+<section>
+<h2>Read the round</h2>
+{% if game['round'] %}
+<a class="btn" href="{{ url_for('admin_console', round_=game['round']) }}"
+   target="_blank">Console for round {{ game['round'] }}</a>
+{% else %}<p class="note">Nothing processed yet.</p>{% endif %}
+<a class="btn ghost" style="margin-left:8px"
+   href="{{ url_for('admin_export', round_=game['open_round'] or next_round) }}">
+   Download decisions CSV</a>
+<p class="note" style="margin-top:10px"><strong>If this app fails mid-class:</strong>
+download the CSV above and run <code>py run.py round --decisions &lt;file&gt;</code>
+offline. The file path always works.</p>
+</section>
+
+<section>
+<h2>Recent activity</h2>
+<table><tbody>
+{% for a in audit %}
+<tr><td class="note">{{ a['at'][5:16].replace('T',' ') }}</td>
+<td>{{ a['actor'] }}</td><td>{{ a['action'] }}</td>
+<td class="note">{{ a['detail'] }}</td></tr>
+{% endfor %}
+</tbody></table>
+</section>
+{% endblock %}

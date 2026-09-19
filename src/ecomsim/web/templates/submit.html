@@ -1,0 +1,50 @@
+{% extends "base.html" %}{% block title %}Round {{ round }} decisions{% endblock %}
+{% block body %}
+<h1>Round {{ round }} decisions</h1>
+<p class="sub">Leave anything blank to keep the default. Your previous round's
+value is shown beneath each field where there is one.</p>
+<form method="post">
+{% for group, specs in by_group.items() %}
+<section>
+<h2>{{ group_names.get(group, group) }}</h2>
+{% for s in specs %}
+<div class="field">
+<label for="{{ s.code }}">{{ s.name }}
+  <span class="note" style="font-size:12px">&middot; {{ s.code }}</span></label>
+{% set val = current.get(s.code, '') %}
+{% if s.kind == 'select' and s.default_when_disabled is sameas true or
+      s.kind == 'select' and s.default_when_disabled is sameas false %}
+  <select id="{{ s.code }}" name="{{ s.code }}">
+    <option value="">— default —</option>
+    <option value="yes" {% if val is sameas true %}selected{% endif %}>Yes</option>
+    <option value="no" {% if val is sameas false %}selected{% endif %}>No</option>
+  </select>
+{% elif s.kind == 'multi' %}
+  <input id="{{ s.code }}" name="{{ s.code }}" type="text"
+         value="{{ val|join(';') if val else '' }}"
+         placeholder="semicolon separated, e.g. MR-01;MR-17">
+{% elif s.kind == 'pct' %}
+  <input id="{{ s.code }}" name="{{ s.code }}" type="text"
+         value="{{ val if val != '' else '' }}" placeholder="e.g. 0.15 or 15%">
+{% elif s.kind == 'text' %}
+  <input id="{{ s.code }}" name="{{ s.code }}" type="text" value="{{ val }}">
+{% elif s.kind == 'select' %}
+  <input id="{{ s.code }}" name="{{ s.code }}" type="text" value="{{ val }}"
+         placeholder="default: {{ s.default_when_disabled }}">
+{% else %}
+  <input id="{{ s.code }}" name="{{ s.code }}" type="text" value="{{ val }}"
+         inputmode="decimal"
+         placeholder="default: {{ s.default_when_disabled if s.default_when_disabled is not none else 'engine decides' }}">
+{% endif %}
+{% if s.code in previous %}
+<div class="hint">Last round: {{ previous[s.code]|join(';') if previous[s.code] is iterable
+  and previous[s.code] is not string else previous[s.code] }}</div>
+{% endif %}
+</div>
+{% endfor %}
+</section>
+{% endfor %}
+<button type="submit">Submit round {{ round }}</button>
+<a class="btn ghost" href="{{ url_for('home') }}" style="margin-left:8px">Cancel</a>
+</form>
+{% endblock %}

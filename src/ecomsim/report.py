@@ -109,7 +109,8 @@ def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None
     record = team.history[round_ - 1]
     prior = team.history[round_ - 2] if round_ > 1 else None
     series = team.history[:round_]
-    name = getattr(team.founding, "brand_name", None) or team.team_id
+    name = (team.brand_name
+            or getattr(team.founding, "brand_name", None) or team.team_id)
 
     cards = []
     for title, metrics in BLOCKS:

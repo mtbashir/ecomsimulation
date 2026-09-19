@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}{{ game['name'] }}{% endblock %}</title><style>
+*{box-sizing:border-box}
+body{font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;
+padding:0;background:#f9f9f7;color:#0b0b0b}
+header{background:#fcfcfb;border-bottom:1px solid rgba(11,11,11,.10);padding:12px 18px;
+display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header .brand{font-weight:650}
+header nav{display:flex;gap:14px;margin-left:auto;flex-wrap:wrap}
+header a{color:#52514e;text-decoration:none} header a:hover{color:#0b0b0b}
+.wrap{max-width:1000px;margin:0 auto;padding:22px 16px 60px}
+h1{font-size:23px;margin:0 0 4px} h2{font-size:13px;letter-spacing:.06em;
+text-transform:uppercase;color:#52514e;margin:0 0 12px;font-weight:600}
+.sub{color:#52514e;margin:0 0 20px;font-size:14px}
+section{background:#fcfcfb;border:1px solid rgba(11,11,11,.10);border-radius:10px;
+padding:16px 18px;margin:0 0 14px}
+label{display:block;font-size:13px;color:#52514e;margin:0 0 3px}
+input[type=text],input[type=password],input[type=number],select{
+width:100%;padding:7px 9px;border:1px solid #c3c2b7;border-radius:6px;
+background:#fff;color:#0b0b0b;font:inherit}
+button,.btn{background:#0b0b0b;color:#fff;border:0;border-radius:7px;
+padding:9px 15px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;
+display:inline-block}
+button.ghost,.btn.ghost{background:transparent;color:#0b0b0b;border:1px solid #c3c2b7}
+button.danger{background:#d03b3b}
+.row{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.msg{padding:10px 13px;border-radius:8px;margin:0 0 12px;font-size:14px}
+.msg.ok{background:rgba(12,163,12,.11);border-left:3px solid #0ca30c}
+.msg.error{background:rgba(208,59,59,.11);border-left:3px solid #d03b3b}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid #e1e0d9}
+th{color:#52514e;font-weight:600;font-size:13px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.note{color:#52514e;font-size:13px}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;
+font-weight:600;background:#e1e0d9;color:#52514e}
+.pill.on{background:rgba(12,163,12,.16);color:#006300}
+.pill.off{background:rgba(208,59,59,.13);color:#b91c1c}
+.field{margin:0 0 13px} .field .hint{font-size:12px;color:#898781;margin-top:3px}
+@media(prefers-color-scheme:dark){
+body{background:#0d0d0d;color:#fff}
+header,section{background:#1a1a19;border-color:rgba(255,255,255,.10)}
+h2,.sub,label,th,.note,header a,.field .hint{color:#c3c2b7}
+input,select{background:#111;border-color:#383835;color:#fff}
+button,.btn{background:#fff;color:#0b0b0b}
+button.ghost,.btn.ghost{background:transparent;color:#fff;border-color:#383835}
+button.danger{background:#d03b3b;color:#fff}
+th,td{border-color:#2c2c2a} .pill{background:#2c2c2a;color:#c3c2b7}}
+</style></head><body>
+{% if user %}<header>
+<span class="brand">{{ game['name'] }}</span>
+<span class="pill">Round {{ game['round'] }}{% if game['open_round'] %} &middot;
+r{{ game['open_round'] }} open{% endif %}</span>
+<nav>
+{% if role == 'admin' %}
+<a href="{{ url_for('admin') }}">Overview</a>
+<a href="{{ url_for('admin_decisions') }}">Decisions</a>
+<a href="{{ url_for('admin_params') }}">Economics</a>
+<a href="{{ url_for('admin_teams') }}">Teams</a>
+{% else %}<a href="{{ url_for('home') }}">Home</a>{% endif %}
+<a href="{{ url_for('logout') }}">Sign out ({{ user }})</a>
+</nav></header>{% endif %}
+<div class="wrap">
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for category, message in messages %}
+<div class="msg {{ category }}">{{ message }}</div>{% endfor %}{% endwith %}
+{% block body %}{% endblock %}
+</div></body></html>

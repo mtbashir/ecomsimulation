@@ -9,24 +9,42 @@ from __future__ import annotations
 from .state import Cohort, TeamState, WorldState
 
 
-def new_world(params, n_teams: int | None = None, run_id: str = "run") -> WorldState:
+AI_ROSTER = [
+    ("inc_a", "Price leader", "incumbent_a_utility"),
+    ("inc_b", "Premium/service", "incumbent_b_utility"),
+    ("inc_c", "Value challenger", 0.44),
+    ("inc_d", "Niche premium", 0.41),
+    ("inc_e", "Regional generalist", 0.47),
+    ("inc_f", "Marketplace native", 0.43),
+]
+
+
+def new_world(params, n_teams: int | None = None, run_id: str = "run",
+              ai_competitors: int | None = None,
+              ai_aggression: float | None = None) -> WorldState:
     n_teams = int(n_teams or params["n_teams"])
     world = WorldState(run_id=run_id)
     world.teams = {
         f"team_{i + 1:02d}": new_team(params, f"team_{i + 1:02d}")
         for i in range(n_teams)
     }
-    world.incumbents = [
-        {"id": "inc_a", "name": "Price leader", "utility": params["incumbent_a_utility"]},
-        {"id": "inc_b", "name": "Premium/service", "utility": params["incumbent_b_utility"]},
-    ]
-    # A duopoly under a plain logit is a tug-of-war; teams need a field to
-    # compete against rather than only each other (docs/04).
+
+    # How crowded the market is, is the instructor's call. A duopoly under a
+    # plain logit is a tug-of-war, so at small N the floor rises: teams need a
+    # field to compete against rather than only each other (docs/04).
+    count = int(ai_competitors if ai_competitors is not None else 2)
     if n_teams <= 3:
-        world.incumbents += [
-            {"id": "inc_c", "name": "Value challenger", "utility": 0.44},
-            {"id": "inc_d", "name": "Niche premium", "utility": 0.41},
-        ]
+        count = max(count, 4)
+    count = max(1, min(len(AI_ROSTER), count))
+
+    aggression = params["incumbent_aggression"] if ai_aggression is None else ai_aggression
+    tilt = (aggression - 0.5) * 0.30   # aggressive incumbents are harder to beat
+
+    world.incumbents = []
+    for ident, label, utility in AI_ROSTER[:count]:
+        base = params[utility] if isinstance(utility, str) else utility
+        world.incumbents.append(
+            {"id": ident, "name": label, "utility": max(0.05, base + tilt)})
     world.market_avg_aov = params["aov_base"]
     world.market_avg_price = params["aov_base"] / params["units_per_order"]
     world.category_scale = _category_scale(world, params)
@@ -53,6 +71,16 @@ def _category_scale(world, params) -> float:
         beta = max(beta, 2.6)
 
     team = next(iter(world.teams.values()))
+    # Scale against a FIXED reference field - two incumbents at base utility -
+    # not against the actual one. Scaling against the actual field made the
+    # incumbents cancel themselves out exactly: more of them shrank each team's
+    # share, and the scale grew the category to compensate. They did nothing.
+    # Holding the reference fixed keeps per-team economics N-invariant (T2
+    # needs that) while letting a crowded market actually cost a team share.
+    reference = [
+        {"utility": params["incumbent_a_utility"]},
+        {"utility": params["incumbent_b_utility"]},
+    ]
     seeded_ctx = {
         "price_index": {team.team_id: 1.0},
         "instock_ratio": {team.team_id: 1.0},
@@ -62,7 +90,7 @@ def _category_scale(world, params) -> float:
     for seg in params.segments:
         u_team = m07_share._utility(team, seg, params, seeded_ctx)
         e_team = math.exp(beta * u_team)
-        e_inc = sum(math.exp(beta * i["utility"]) for i in world.incumbents)
+        e_inc = sum(math.exp(beta * i["utility"]) for i in reference)
         team_share += float(seg["share"]) * e_team / (n * e_team + e_inc)
 
     # Category sizing targets the acquisition pool: repeat demand is added on
