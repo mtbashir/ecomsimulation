@@ -27,6 +27,8 @@ A sim where COD is a rounding error actively mis-teaches this market.
 | [`docs/09-event-library.md`](docs/09-event-library.md) | 24 events in three types - scheduled, conditional (earned) and stochastic - plus bounds on the AI dynamic-event layer |
 | [`docs/10-kpi-dictionary.md`](docs/10-kpi-dictionary.md) | Every metric with formula, module, visibility and scoring; the definitional decisions that settle disputes; dashboard layout |
 | [`docs/11-validation-harness.md`](docs/11-validation-harness.md) | Five test tiers, 20 strategy archetypes, twelve balance invariants, failure diagnosis and CI gating |
+| [`docs/12-solo-delivery-plan.md`](docs/12-solo-delivery-plan.md) | **The active plan.** Burst-based delivery for a single person; what is in and out of scope; how to open and close a Claude session |
+| [`docs/13-calibration-log.md`](docs/13-calibration-log.md) | Domain judgements about parameter values. Cannot be reconstructed - record them as they are made |
 | [`docs/06-build-sequencing.md`](docs/06-build-sequencing.md) | Why the engine is built once at Advanced depth while presets ship incrementally; Path A vs Path B cost comparison |
 | [`docs/04-configurability.md`](docs/04-configurability.md) | Team count 2–16, the 92-decision registry and presets, instructor unlock timing, round length and horizon, parameter safe ranges and validation invariants |
 
@@ -48,7 +50,26 @@ A sim where COD is a rounding error actively mis-teaches this market.
    but parameters carry green/amber/red bands and any change outside default
    triggers a 200-strategy validation run against seven balance invariants.
 
-## Build status
+## Current status
+
+**Burst 0 complete.** Specification and scaffold done; engine pipeline
+incomplete.
+
+| | |
+|---|---|
+| **Next** | **Burst 1 — implement the 13 remaining modules in `src/ecomsim/modules/`** |
+| Tests | 18 passing, 5 xfailed (the xfails are the Phase 2 gate) |
+| Gate | `tests/test_baseline.py` — baseline holds within 2% for 12 rounds at N = 2…16 |
+| Known incomplete | M0, M2, M3, M4, M9–M17 raise `NotImplementedError` |
+
+**Opening a session with Claude:** *"Read the repo, check README status, we are
+on burst N."* Claude has no memory between conversations — this repo is the
+entire handover. Closing procedure is in `docs/12-solo-delivery-plan.md`.
+
+The 33.5-week programme in `docs/06` assumed a team. `docs/12` is the active
+plan.
+
+## Build approach
 
 Specification phase. Engine, team console and instructor console not yet started.
 
@@ -57,7 +78,11 @@ Presets ship incrementally as configuration over that engine — never as
 separate engines. See `docs/06-build-sequencing.md`.
 
 Default configuration: **12 monthly rounds**, 8 teams, Advanced (56-decision)
-preset, `founding` start mode (Round 0 setup + 12 operating rounds). See `docs/04-configurability.md` for the alternatives and the reasoning
+preset, `founding` start mode (Round 0 setup + 12 operating rounds).
+
+Delivery is `Google Form → decisions.csv → python run.py → report_<team>.html`,
+not a web application. The simulation is unaffected; only the interface is
+simpler (`docs/12`). See `docs/04-configurability.md` for the alternatives and the reasoning
 behind the monthly-round default.
 
 Planned sequence: calibrate the economic model in a spreadsheet and run two
