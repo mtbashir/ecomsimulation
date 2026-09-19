@@ -29,6 +29,45 @@ reasoned argument.
 
 ## Entries
 
+### 2026-09-19 · Option A — lower capital. Profitability is now reachable.
+
+**DECIDED: starting capital 25M -> 12M, credit facility 24M, fixed costs cut
+to ~1.35M** (payroll 1.0M -> 500k, warehouse 340k -> 250k, tech 180k -> 120k,
+CS 62k -> 48k per agent).
+
+This resolves the incompatibility recorded in the previous entry. With a
+smaller balance, a smaller burn still exhausts capital over twelve rounds, so
+fixed costs can sit below the best reachable contribution:
+
+| | Before | After |
+|---|---|---|
+| Starting capital | 25M | **12M** |
+| Fixed costs / round | 1.93M | **~1.35M** |
+| Baseline EBITDA | -1.16M | **-390k** |
+| Best archetype EBITDA | -678k | **+146k** |
+| Archetypes turning a profit | **0 of 20** | **3 of 20** |
+| Baseline cash at Round 12 | 0 of 25M | **0 of 12M** |
+
+Coasting is still fatal - a do-nothing team ends at zero - and good play now
+clears its cost base. Both goals hold for the first time.
+
+**The credit facility matters more than it looks.** At 12M it produced the
+same failure as before: 52% of viable strategies insolvent, retention_led 98%,
+because working capital demands did not shrink when the buffer halved. A
+business buying ~7M of stock a month on 45-day terms needs roughly two months
+of facility available. At 24M, viable-strategy insolvency is 4%.
+
+Scoring anchors moved with the economics: P1 EBITDA from the frontier-of-losses
+scale (-22/-14/-5%) back to one where breakeven is the midpoint (-12/-2/+6%),
+and the runway bands re-based for a 12M balance.
+
+**The cash-trajectory test was reformulated rather than nudged again.** It had
+measured swings as a share of starting capital, which is scale-dependent - the
+same cycle looks twice as violent against 12M as against 25M. It now checks
+for a spike against the trajectory's own typical step, which is what the
+concern always was.
+
+
 ### 2026-09-19 · Repeat share raised to 35% — and why the two goals cannot both hold
 
 **DONE: repeat-share target 22% -> 35%.** Baseline re-solved and holding;

@@ -59,7 +59,7 @@ delivering the ownership and founding lessons it lacks.
 
 | Item | Value |
 |---|---|
-| Founding capital | PKR 25,000,000 |
+| Founding capital | PKR 12,000,000 |
 | Monthly payroll budget | PKR 1,400,000 |
 | Available SKU catalogue | 40 (filtered by category choice) |
 | Time to launch | Round 0 is setup; no revenue |

@@ -36,7 +36,7 @@ def final_score(team, params, all_teams: dict) -> dict:
 
     # P1 Profitability (25) - all flow
     p1 = (12 * anchor(_flow(h, "contribution_margin_pct", w), 0.0, 0.09, 0.18)
-          + 8 * anchor(_flow(h, "ebitda_margin_pct", w), -0.22, -0.14, -0.05)
+          + 8 * anchor(_flow(h, "ebitda_margin_pct", w), -0.12, -0.02, 0.06)
           + 5 * anchor(_flow(h, "gross_margin_pct", w), 0.25, 0.38, 0.50)) / 100
 
     # P2 Growth (20)
@@ -94,13 +94,13 @@ def _runway_band(runway: float) -> float:
     A team ending with 10+ rounds of runway in a category still growing has
     under-invested just as surely as one about to run out.
     """
-    if runway < 1.0:
+    if runway < 1.5:
         return 0.0
-    if runway < 2.5:
+    if runway < 3.0:
         return 30.0
-    if runway <= 6.0:
+    if runway <= 9.0:
         return 100.0
-    if runway <= 10.0:
+    if runway <= 16.0:
         return 60.0
     return 30.0
 

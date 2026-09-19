@@ -29,7 +29,7 @@ At Round 5 a **second market** opens (Quick Commerce). See `03-core-mechanisms.m
 
 | Metric | Value |
 |---|---|
-| Cash | PKR 25,000,000 |
+| Cash | PKR 12,000,000 |
 | Revenue (Round 0) | PKR 12,000,000 |
 | Orders | 4,000 |
 | AOV | PKR 3,000 |

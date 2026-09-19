@@ -2,7 +2,7 @@ name,module,default,green_min,green_max,hard_min,hard_max,unit,danger,note
 rounds,structural,12,6,20,4,24,rounds,,Total operating rounds excluding Round 0
 round_months,structural,1,1,12,1,12,months,,Round length; 12 disables seasonality
 n_teams,structural,8,2,16,2,16,count,,Adjustments auto-apply at N<=3 and N>=12
-starting_cash,structural,25000000,15000000,50000000,8000000,80000000,PKR,HIGH,Below 8M one ordinary R2 mistake is unrecoverable
+starting_cash,structural,12000000,6000000,30000000,4000000,60000000,PKR,HIGH,Below 8M one ordinary R2 mistake is unrecoverable
 baseline_team_revenue,M1,12000000,8000000,20000000,5000000,40000000,PKR,,Round 0 revenue per team; drives category sizing
 team_share_total,M1,0.64,0.5,0.8,0.3,0.9,ratio,,Share of category held by teams; remainder to incumbents
 category_growth_per_round,M1,0.025,0.0,0.05,-0.02,0.10,ratio,,Above 0.10 growth covers every mistake
@@ -78,7 +78,7 @@ rating_adr_coef,M13,0.6,0.3,1.0,0.0,1.5,coefficient,,Rating contribution from ac
 rating_sla_coef,M13,0.4,0.2,0.7,0.0,1.2,coefficient,,Rating contribution from service SLA attainment
 rating_pack_coef,M13,0.2,0.05,0.40,0.0,0.80,coefficient,,Rating contribution from packaging tier
 gross_margin_base,M14,0.38,0.28,0.50,0.20,0.65,ratio,,Below 0.20 unplayable; above 0.65 no trade-offs exist
-credit_ceiling,M15,25000000,5000000,30000000,0,50000000,PKR,,Above 50M cash never binds
+credit_ceiling,M15,24000000,8000000,30000000,0,45000000,PKR,,Working capital facility - must cover the inventory cycle; ~7M of stock a month on 45-day terms needs roughly two months available or every strategy but coasting runs out
 credit_rate_annual,M15,0.22,0.12,0.32,0.0,0.50,ratio,,Annual interest on drawn credit
 cod_remit_days,M15,16,8,28,1,45,days,,COD remittance lag; above one round length it crosses rounds
 gateway_settle_days,M15,3,1,10,0,20,days,,Prepaid gateway settlement lag
@@ -98,10 +98,10 @@ fulfil_pick_pack_cost,M14,42,20,90,5,200,PKR,,Pick and pack cost per order
 cod_handling_fee,M14,0.012,0.004,0.025,0.0,0.05,ratio,,COD handling fee as share of order value
 gateway_fee,M14,0.029,0.015,0.040,0.005,0.060,ratio,,Prepaid gateway fee as share of order value
 marketplace_commission,M14,0.145,0.08,0.20,0.03,0.30,ratio,,Marketplace commission on marketplace orders
-payroll_base,M14,1000000,600000,3000000,200000,8000000,PKR,,Fixed monthly payroll at baseline headcount
-warehouse_fixed_cost,M14,340000,120000,900000,50000,2500000,PKR,,Fixed warehouse cost per round
-tech_fixed_cost,M14,180000,60000,600000,0,2000000,PKR,,Baseline technology running cost per round
-cs_cost_per_agent,M14,62000,30000,140000,15000,300000,PKR,,Fully loaded monthly cost per service agent
+payroll_base,M14,500000,350000,2500000,150000,6000000,PKR,,Fixed monthly payroll at baseline headcount
+warehouse_fixed_cost,M14,250000,100000,800000,40000,2000000,PKR,,Fixed warehouse cost per round
+tech_fixed_cost,M14,120000,50000,500000,0,1800000,PKR,,Baseline technology running cost per round
+cs_cost_per_agent,M14,48000,25000,120000,12000,250000,PKR,,Fully loaded monthly cost per service agent
 supplier_terms_days,M15,45,0,60,0,90,days,,Default supplier payment terms
 incumbent_a_utility,M7,0.46,0.25,0.65,0.0,1.0,utility,,Price-leader incumbent baseline attractiveness
 incumbent_b_utility,M7,0.50,0.25,0.70,0.0,1.0,utility,,Premium-service incumbent baseline attractiveness
