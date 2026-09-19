@@ -112,6 +112,7 @@ def write_results(path: str | Path, world) -> None:
               "return_rate", "cash_balance", "runway_rounds", "market_share",
               "binding_constraint"]
     path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
     new = not path.exists()
     with path.open("a", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=fields, extrasaction="ignore")
