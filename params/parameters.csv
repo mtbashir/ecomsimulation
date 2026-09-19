@@ -115,3 +115,7 @@ forecast_ai_error_reduction,M4,0.40,0.20,0.60,0.0,0.85,ratio,,Forecast error red
 inventory_holding_rate,M14,0.021,0.008,0.040,0.0,0.080,ratio,,Holding cost per round as a share of average inventory value - storage  capital and shrinkage
 inventory_obsolescence_rounds,M14,6,3,12,2,24,rounds,,Cover beyond this many rounds is written down as ageing stock
 repeat_cr_multiplier,M6,2.6,1.5,4.0,1.0,8.0,multiplier,,How much better a returning customer converts than cold traffic
+segment_focus_coef,M7,0.35,0.2,0.5,0.0,0.8,multiplier,HIGH,How hard a stated segment focus redirects demand; above 0.8 focus decides share on its own
+segment_focus_spill,M7,0.5,0.3,0.7,0.0,1.0,ratio,,Share of the focus tilt paid as a penalty in segments you did not choose
+segment_quality_coef,M12,1.0,0.5,1.5,0.0,3.0,multiplier,,How strongly the segment mix a cohort was won from modulates its repeat rate and churn
+segment_quality_span,M12,1.35,1.2,1.6,1.0,2.5,ratio,HIGH,Clamp on the cohort quality multiplier; above 2.0 one good month compounds away the race

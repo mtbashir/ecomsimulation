@@ -99,6 +99,31 @@ GATEWAY_CHOICES = [
     ("C", "Gateway C - most reliable", "96% succeed, at the highest fee"),
 ]
 
+SEGMENT_DRIVERS = {
+    "w_price": "price", "w_quality": "quality", "w_delivery": "fast delivery",
+    "w_availability": "things being in stock", "w_brand": "the brand",
+    "w_fit": "range",
+}
+
+
+def _segment_driver(seg) -> str:
+    """The one thing this segment weights most, in plain words."""
+    key = max(SEGMENT_DRIVERS, key=lambda k: float(seg.get(k, 0)))
+    return SEGMENT_DRIVERS[key]
+
+
+def _segment_loyalty(seg) -> str:
+    """Whether they come back, said without a number nobody can calibrate."""
+    p = float(seg["repeat_propensity"])
+    if p >= 1.3:
+        return "comes back far more often than average"
+    if p >= 1.0:
+        return "comes back about as often as average"
+    if p >= 0.6:
+        return "comes back less often than average"
+    return "rarely comes back"
+
+
 GROUP_NAMES = {
     "G1": "Assortment & product", "G2": "Pricing", "G3": "Marketing",
     "G4": "Channel", "G5": "Site & experience", "G6": "CRM & retention",
@@ -394,6 +419,7 @@ def register_routes(app: Flask) -> None:
             sourcing=SOURCING_CHOICES, stacks=STACK_CHOICES,
             fulfilment=FULFILMENT_CHOICES, gateways=GATEWAY_CHOICES,
             segments=params.segments, skus=params.skus,
+            seg_driver=_segment_driver, seg_loyalty=_segment_loyalty,
             studies=[st for st in params.studies
                      if st["code"] in founding.FOUNDING_RESEARCH],
             research_discount=founding.FOUNDING_RESEARCH_DISCOUNT,

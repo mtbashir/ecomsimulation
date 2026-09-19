@@ -85,13 +85,36 @@ def _add_cohort(team, world, params, ctx, customers: float) -> None:
         channel = _dominant_channel(team, ctx)
 
     ch = params.channel(channel)
+    quality = _segment_quality(team, params, ctx)
     team.cohorts.append(Cohort(
         acquired_round=world.round,
         channel=channel,
         active=customers,
-        churn_base=float(ch["churn_base"]),
-        freq=float(ch["freq_per_round"]),
+        # Who you won matters as much as where you won them. A Quality-Loyalist
+        # cohort comes back more often and leaves more slowly than a Deal-Hunter
+        # one acquired through the same channel at the same cost.
+        churn_base=float(ch["churn_base"]) / quality,
+        freq=float(ch["freq_per_round"]) * quality,
     ))
+
+
+def _segment_quality(team, params, ctx) -> float:
+    """How good this month's new customers are, against the market average.
+
+    1.0 is a cohort drawn in the same proportions as the market. Above 1.0 the
+    team pulled disproportionately from segments that come back; below it, from
+    segments that do not. Normalising against the market average is what keeps
+    a team that states no preference exactly where it was.
+    """
+    mix = ctx.get("segment_mix", {}).get(team.team_id)
+    if not mix:
+        return 1.0
+    propensity = {s["code"]: float(s["repeat_propensity"]) for s in params.segments}
+    market = sum(float(s["share"]) * propensity[s["code"]] for s in params.segments)
+    drawn = sum(share * propensity.get(code, 1.0) for code, share in mix.items())
+    ratio = drawn / market if market > 0 else 1.0
+    span = params["segment_quality_span"]
+    return max(1 / span, min(span, 1 + params["segment_quality_coef"] * (ratio - 1)))
 
 
 def _dominant_channel(team, ctx) -> str:

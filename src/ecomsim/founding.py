@@ -87,7 +87,7 @@ class Founding:
         f.capital_reserve = capital * 0.18
         f.assortment = [s["code"] for s in sorted(
             params.skus, key=lambda s: -float(s["revenue_weight"]))[:14]]
-        f.segment_priority = [s["code"] for s in params.segments]
+        f.segment_priority = [s["code"] for s in params.segments[:2]]
         return f
 
 
@@ -100,6 +100,10 @@ def validate(f: Founding, params) -> list[str]:
 
     if len(f.categories) != 2 or any(c not in CATEGORIES for c in f.categories):
         errors.append("D0.2: pick exactly two categories from " + ", ".join(CATEGORIES))
+    if len(f.segment_priority) != 2:
+        errors.append(
+            f"D0.3: choose exactly two priority segments "
+            f"(got {len(f.segment_priority)})")
     if f.tier not in TIERS:
         errors.append(f"D0.4: tier must be one of {', '.join(TIERS)}")
     if f.model not in MODELS:

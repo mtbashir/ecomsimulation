@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 
 from ecomsim import bootstrap, params as P
-from ecomsim.engine import run_game
+from ecomsim.engine import run_game, run_round
 
 
 def settled(overrides: dict, decisions: dict, rounds: int = 10):
@@ -61,3 +61,72 @@ def test_no_free_lunch(decision, metric):
             "6.1": 500_000, "7.4": 400_000, "10.1": 10, "9.2": 0.10}[decision]
     moved = settled({}, {decision: high})
     assert moved[metric] < BASE[metric], f"{decision}={high} has no cost on {metric}"
+
+
+def test_focus_wins_more_of_the_segments_you_chose():
+    """A stated focus must actually redirect demand, not just be recorded."""
+    from ecomsim import founding as F
+    from ecomsim.modules import m07_share
+
+    params = P.load({"n_teams": 3, "events_enabled": 0})
+    world = bootstrap.new_world(params, run_id="focus")
+    for tid, focus in [("team_01", ["quality_loyalists", "premium_gifting"]),
+                       ("team_02", ["value_seekers", "deal_hunters"])]:
+        f = F.Founding.default(params)
+        f.tier = "premium"
+        f.segment_priority = focus
+        F.apply(f, world.teams[tid], params)
+
+    mixes = {}
+    original = m07_share.run
+
+    def capture(w, p, r, ctx):
+        original(w, p, r, ctx)
+        mixes.update({k: dict(v) for k, v in ctx["segment_mix"].items()})
+
+    m07_share.run = capture
+    try:
+        run_round(world, params, {})
+    finally:
+        m07_share.run = original
+
+    market = {s["code"]: float(s["share"]) for s in params.segments}
+    assert mixes["team_01"]["quality_loyalists"] > market["quality_loyalists"], (
+        "focusing on a segment you fit must draw more of it than the market")
+    assert mixes["team_01"]["value_seekers"] < market["value_seekers"], (
+        "and less of the segments you turned away from")
+
+
+def test_focus_on_a_segment_your_pricing_contradicts_does_not_pay():
+    """Declaring Premium/Gifting while pricing at value tier must not help."""
+    from ecomsim import founding as F
+
+    params = P.load({"n_teams": 3, "events_enabled": 0})
+
+    def cohort_quality(tier, focus):
+        world = bootstrap.new_world(params, run_id="coherence")
+        f = F.Founding.default(params)
+        f.tier = tier
+        f.segment_priority = focus
+        F.apply(f, world.teams["team_01"], params)
+        for _ in range(3):
+            run_round(world, params, {})
+        team = world.teams["team_01"]
+        return sum(c.freq * c.active for c in team.cohorts) / sum(
+            c.active for c in team.cohorts)
+
+    coherent = cohort_quality("premium", ["quality_loyalists", "premium_gifting"])
+    incoherent = cohort_quality("value", ["quality_loyalists", "premium_gifting"])
+    assert coherent > incoherent, (
+        "a focus the positioning supports must produce better customers than "
+        "the same focus with contradictory pricing")
+
+
+def test_a_team_with_no_founding_round_is_untouched_by_focus():
+    """going_concern games have no D0.3, and must be exactly as they were."""
+    params = P.load({"n_teams": 4, "events_enabled": 0})
+    world = bootstrap.new_world(params, run_id="none")
+    run_round(world, params, {})
+    for team in world.teams.values():
+        assert not hasattr(team, "founding") or team.founding is None
+        assert team.history[-1]["orders"] > 0

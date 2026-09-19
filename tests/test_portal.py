@@ -311,3 +311,28 @@ def test_an_older_database_gains_the_new_columns(tmp_path):
     assert db.game(con)["start_mode"] == "founding"
     assert "briefing_seen_at" in {
         r["name"] for r in con.execute("PRAGMA table_info(account)")}
+
+
+# --- Segment focus (D0.3) ----------------------------------------------------------
+
+def test_exactly_two_segments_or_it_is_not_a_choice(game):
+    app, pw, path = game
+    con = db.connect(path)
+    params = service.load_params(con)
+    team = _team(app, pw)
+    r = team.post("/found", data=_valid_setup(
+        params, segment_priority=["value_seekers"]), follow_redirects=True)
+    assert b"exactly two priority segments" in r.data
+    assert db.founding(con, "team_01") is None
+
+
+def test_the_segment_choice_is_explained_in_business_terms(game):
+    app, pw, path = game
+    team = _team(app, pw)
+    page = team.get("/found").data.decode()
+    assert "Quality Loyalists" in page
+    assert "comes back far more often than average" in page, (
+        "the reason to choose them must be on the page"
+    )
+    assert "18% of the market" in page
+    assert "cares most about quality" in page

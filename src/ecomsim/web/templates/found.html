@@ -68,15 +68,21 @@ you most of your brand equity.</p>
 </div>
 
 <div class="field">
-<label>Segment priority</label>
-<p class="help">Tick the segments you are going after first. This tilts how your
-brand is perceived and which customers you acquire most cheaply.</p>
+<label>Priority segments <span class="note">(choose exactly two)</span></label>
+<p class="help">Who you point the business at: who the creative talks to, what
+the shelf looks like, which customers you go after. You win more of your chosen
+segments and less of the other three &mdash; but only if your positioning
+actually suits them. Aim at a segment your pricing contradicts and the focus
+works against you.</p>
 <div class="checks">
 {% for seg in segments %}
 <label class="check"><input type="checkbox" name="segment_priority"
   value="{{ seg['code'] }}"
   {% if seg['code'] in f.segment_priority %}checked{% endif %}>
-  <span>{{ seg['name'] }}</span></label>
+  <span>{{ seg['name'] }}<br><span class="note">
+  {{ '{:.0%}'.format(seg['share']|float) }} of the market &middot;
+  cares most about {{ seg_driver(seg) }} &middot;
+  {{ seg_loyalty(seg) }}</span></span></label>
 {% endfor %}
 </div>
 </div>

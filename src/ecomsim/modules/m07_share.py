@@ -31,13 +31,25 @@ def run(world, params, resolved, ctx) -> None:
         }
 
     potential: dict[str, float] = {tid: 0.0 for tid in utilities}
+    # Who the contested demand came from, not just how much of it there was.
+    # A customer won from Quality Loyalists repeats half again as often as one
+    # won from Deal Hunters, and M12 cannot know that unless M7 says so.
+    by_segment: dict[str, dict[str, float]] = {tid: {} for tid in utilities}
     for seg in params.segments:
         code, seg_share = seg["code"], float(seg["share"])
-        exps = {tid: math.exp(beta * u[code]) for tid, u in utilities.items()}
+        exps = {tid: math.exp(beta * u[code]) * _team_focus(world, tid, seg, params, ctx)
+                for tid, u in utilities.items()}
         total = sum(exps.values()) or 1.0
         seg_orders = category_orders * seg_share
         for tid, e in exps.items():
-            potential[tid] += seg_orders * (e / total)
+            won = seg_orders * (e / total)
+            potential[tid] += won
+            by_segment[tid][code] = won
+
+    for tid, won in by_segment.items():
+        drawn = sum(won.values()) or 1.0
+        ctx.setdefault("segment_mix", {})[tid] = {
+            code: value / drawn for code, value in won.items()}
 
     # Repeat demand sits on top of the contested pool.
     for team in world.teams.values():
@@ -46,6 +58,12 @@ def run(world, params, resolved, ctx) -> None:
         ctx.setdefault("repeat_demand", {})[team.team_id] = repeat
 
     ctx["potential"] = potential
+
+
+def _team_focus(world, tid: str, seg, params, ctx) -> float:
+    """Incumbents have no founding round, so they carry no focus."""
+    team = world.teams.get(tid)
+    return _focus_weight(team, seg, params, ctx) if team is not None else 1.0
 
 
 def _repeat_demand(team, params, ctx) -> float:
@@ -72,3 +90,36 @@ def _utility(team, seg, params, ctx) -> float:
         + float(seg["w_brand"]) * team.brand_equity
         + float(seg["w_fit"]) * fit
     )
+
+
+def _focus_weight(team, seg, params, ctx) -> float:
+    """What the team said it was going after, in Round 0 (D0.3).
+
+    Focus is not extra merit, so it does not belong in the utility - a team
+    does not become a better proposition by announcing a target. It is where
+    the business points itself: who the creative talks to, which keywords it
+    buys, what the shelf looks like. So it multiplies the draw from a segment
+    rather than the attractiveness within it, and its size does not depend on
+    how sharp the share model happens to be tuned.
+
+    Inside a chosen segment the tilt is scaled by how well the business
+    actually fits it, so declaring Premium/Gifting while pricing at value tier
+    turns the focus against you. Outside the chosen segments it is always a
+    cost: aiming at two groups means showing up less for the other three.
+
+    A going-concern game has no founding record, so there is no focus and
+    nothing here changes.
+    """
+    chosen = list(getattr(getattr(team, "founding", None),
+                          "segment_priority", None) or [])
+    if not chosen:
+        return 1.0
+
+    coef = params["segment_focus_coef"]
+    if seg["code"] in chosen:
+        fit = ctx.get("assortment_fit", {}).get(
+            team.team_id, {}).get(seg["code"], 0.5)
+        # fit runs 0..1 and sits at 0.5 for an indifferent match, so a
+        # well-fitted focus earns the tilt and a contradictory one pays it.
+        return max(0.1, 1 + coef * (2 * fit - 1))
+    return max(0.1, 1 - coef * params["segment_focus_spill"])
