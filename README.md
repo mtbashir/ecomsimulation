@@ -52,13 +52,14 @@ A sim where COD is a rounding error actively mis-teaches this market.
 
 ## Current status
 
-**Burst 3 nearly complete.** 11 of 12 invariants pass; 53 tests green, no xfail.
+**Burst 3 complete.** Engine calibrated and balanced; 11 of 12 invariants
+pass. Ready for burst 4.
 
 | | |
 |---|---|
-| **Next** | **Decide the open question below, then burst 4 (Round 0 + decision I/O)** |
-| Tests | 53 passing |
-| Invariants | 11/12 — I11 open |
+| **Next** | **Burst 4 — Round 0 founding round + decision I/O (form → CSV → report)** |
+| Tests | 53 passing, 0 xfail |
+| Invariants | 11/12 — only I11 open, and narrow |
 | Suites | `pytest -q` · `python calibrate.py` · `python validate.py --games 160` |
 
 ### Resolved — profitability is reachable
@@ -68,6 +69,16 @@ cut to ~1.35M. A smaller balance means a smaller burn still exhausts capital
 over twelve rounds, so fixed costs can sit below the best reachable
 contribution. **Coasting still ends at zero; good play now turns a profit —
 3 of 20 archetypes, against 0 before.** See `docs/13-calibration-log.md`.
+
+### I11, the one open invariant
+
+Spread is 31 against a 35 target, and `harvester` ranks #8 against a
+bottom-40% requirement. The diagnosis is known: stripping costs now maxes the
+P1 EBITDA anchor that making profitability reachable created.
+
+**Recommendation: leave it and run a cohort.** Students will find exploits that
+twenty scripted archetypes never will, and a real cohort informs scorecard
+tuning far better than another synthetic round.
 
 ### Invariant status
 
