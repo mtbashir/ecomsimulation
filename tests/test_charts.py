@@ -97,7 +97,7 @@ def test_delta_colour_follows_good_not_up():
 def test_report_colours_cac_and_debt_as_bad_when_rising():
     world = _played()
     html = report.render(world.teams["team_01"], 5, "/tmp/ecomsim-test").read_text()
-    flags = {label: good for _, metrics in report.BLOCKS
+    flags = {label: good for _, _headline, metrics in report.BLOCKS
              for label, _k, _f, good in metrics}
     assert flags["Blended CAC"] is False
     assert flags["Credit drawn"] is False
@@ -110,7 +110,8 @@ def test_report_has_no_missing_metrics():
     """Every metric the report asks for must be persisted by M17."""
     world = _played(3)
     record = world.teams["team_01"].history[-1]
-    missing = [label for _, metrics in report.BLOCKS for label, key, _f, _g in metrics
+    missing = [label for _, _headline, metrics in report.BLOCKS
+               for label, key, _f, _g in metrics
                if report._value(record, key) is None]
     assert not missing, f"rendered as em-dashes: {missing}"
 

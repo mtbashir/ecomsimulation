@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% block title %}Decisions{% endblock %}
 {% block body %}
 <h1>Which decisions are open</h1>
-<p class="sub">Ticked boxes are what teams see in round {{ round }}. The preset and
+<p class="sub">Ticked boxes are what teams see in month {{ round }}. The preset and
 unlock schedule set the defaults; anything you change here overrides them, so a
 decision can be opened early or held back.</p>
 
@@ -30,6 +30,6 @@ decision can be opened early or held back.</p>
 {% endfor %}
 </section>
 {% endfor %}
-<button type="submit">Save round {{ round }}</button>
+<button type="submit">Save month {{ round }}</button>
 </form>
 {% endblock %}

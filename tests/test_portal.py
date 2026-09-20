@@ -92,15 +92,18 @@ def test_the_dashboard_says_what_to_do_now(game):
     assert "Set up your business" in body
     assert "/found" in body
 
-    # Trading: this month's decisions.
+    # Trading: this month's decisions, with the way in.
     db.set_game(con, round=1, open_round=2)
     body = team.get("/").data.decode()
-    assert "Month 2 is open" in body
-    assert "Make your decisions" in body
+    assert "Enter month 2 decisions" in body
+    assert "/submit" in body
 
-    # Between rounds: nothing to submit.
+    # Between rounds: nothing to submit, and it says so rather than offering a
+    # button that would only refuse.
     db.set_game(con, open_round=None)
-    assert "Nothing to submit right now" in team.get("/").data.decode()
+    closed = team.get("/").data.decode()
+    assert "Submissions are closed" in closed
+    assert "Enter month" not in closed
 
 
 def test_the_dashboard_welcomes_each_round_in_its_own_terms(game):
@@ -377,3 +380,99 @@ def test_a_locally_sourced_product_costs_more_than_an_imported_one(game):
     assert local["cost"] > imported["cost"]
     assert local["margin"] < imported["margin"], (
         "cheaper stock at the same price is a better margin")
+
+
+# --- The rebuilt shell -------------------------------------------------------------
+
+def test_a_team_only_sees_the_field_it_paid_to_see(game):
+    """Rivals' share is a purchased study. Without it, you do not get a table."""
+    app, pw, path = game
+    con = db.connect(path)
+    params = service.load_params(con)
+    for i in (1, 2, 3):
+        cfg = F.Founding.default(params)
+        db.save_founding(con, f"team_{i:02d}", service.founding_to_dict(cfg),
+                         "sys", submitted=True)
+    db.set_game(con, open_round=1)
+    db.submit(con, 1, "team_02", {"12.1": ["MR-03"]}, "sys")
+    service.process_round(con)
+
+    blind = service.standings(con, "team_01")
+    assert blind["bought"] is False, "you have not bought the study"
+    informed = service.standings(con, "team_02")
+    assert informed["bought"] is True
+    assert len(informed["rows"]) == 3
+    assert any(r["you"] for r in informed["rows"])
+
+    team = _team(app, pw, "team_01")
+    body = team.get("/").data.decode()
+    assert "have not bought the Market Share Report" in body
+    assert "Thrift" not in body
+
+
+def test_a_rising_cost_of_acquisition_is_not_good_news(game):
+    """Direction, not sign: the arrow colour has to follow the meaning."""
+    app, pw, path = game
+    con = db.connect(path)
+    params = service.load_params(con)
+    db.save_founding(con, "team_01",
+                     service.founding_to_dict(F.Founding.default(params)),
+                     "sys", submitted=True)
+    for _ in range(2):
+        service.process_round(con)
+
+    kpis = {k["label"]: k for k in service.headline_kpis(con, "team_01")}
+    assert kpis, "the dashboard needs figures once a month has run"
+    cac = kpis["Cost per new customer"]
+    assert cac["rising_is_good"] is False
+    if cac["delta"] and cac["delta"].startswith("+"):
+        assert cac["direction"] == "dn", "rising CAC must not read as good news"
+
+
+def test_the_plan_meters_only_appear_once_a_team_has_promised_something(game):
+    app, pw, path = game
+    con = db.connect(path)
+    params = service.load_params(con)
+
+    bare = F.Founding.default(params)
+    db.save_founding(con, "team_01", service.founding_to_dict(bare), "sys", submitted=True)
+    promised = F.Founding.default(params)
+    promised.target_repeat_share, promised.target_cac = 0.32, 620
+    db.save_founding(con, "team_02", service.founding_to_dict(promised), "sys",
+                     submitted=True)
+    service.process_round(con)
+
+    assert service.plan_meters(con, "team_01") == []
+    meters = service.plan_meters(con, "team_02")
+    assert {m["label"] for m in meters} == {"Repeat order share",
+                                            "Cost per new customer"}
+    assert all(0 <= m["fill"] <= 100 and 0 <= m["mark"] <= 100 for m in meters)
+
+
+def test_the_agenda_reports_real_trouble_not_filler(game):
+    app, pw, path = game
+    con = db.connect(path)
+    params = service.load_params(con)
+    db.save_founding(con, "team_01",
+                     service.founding_to_dict(F.Founding.default(params)),
+                     "sys", submitted=True)
+    db.set_game(con, open_round=1)
+    db.submit(con, 1, "team_01", {"12.1": ["MR-01"]}, "sys")
+    service.process_round(con)
+    db.set_game(con, open_round=2)
+
+    titles = [a["title"] for a in service.agenda(con, "team_01")]
+    assert "Category Demand & Seasonality" in titles, "research bought must be listed"
+    assert "Month 1 report" in titles
+    assert "Submit month 2" in titles
+
+
+def test_the_month_form_is_reachable_while_setup_is_still_the_current_round(game):
+    """Month 1 opens while the game is on round 0. Both links must be there."""
+    app, pw, path = game
+    con = db.connect(path)
+    db.set_game(con, open_round=1)
+    team = _team(app, pw)
+    body = team.get("/").data.decode()
+    assert "/found" in body, "setup is still open"
+    assert "/submit" in body, "and month 1 is taking submissions"

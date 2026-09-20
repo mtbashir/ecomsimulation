@@ -1,8 +1,28 @@
 {% extends "base.html" %}{% block title %}Instructor{% endblock %}
 {% block body %}
-<h1>{{ game['name'] }}</h1>
-<p class="sub">Round {{ game['round'] }} of {{ game['total_rounds'] }} processed
-&middot; {{ teams|length }} teams &middot; {{ game['ai_competitors'] }} AI competitors</p>
+<div class="crumbs">Instructor console &middot; {{ game['name'] }}</div>
+<div class="head">
+  <div><h1>{% if setting_up %}Setup round{% elif game['open_round'] %}Month
+    {{ game['open_round'] }} is open{% else %}Month {{ game['round'] }} is closed{% endif %}</h1>
+    <p>{{ status|length }} of {{ teams|length }} teams have submitted. Nothing is
+    processed until you run the month, and every month can be rolled back.</p></div>
+</div>
+
+<div class="kpis k4" style="margin-bottom:14px">
+  <div class="card k"><div class="lab">Submitted</div>
+    <div class="val num">{{ status|length }} / {{ teams|length }}</div>
+    <div class="d flat">{{ teams|length - status|length }} still out</div></div>
+  <div class="card k"><div class="lab">AI competitors</div>
+    <div class="val num">{{ game['ai_competitors'] }}</div>
+    <div class="d flat">aggression {{ game['ai_aggression'] }}</div></div>
+  <div class="card k"><div class="lab">Month</div>
+    <div class="val num">{{ game['round'] }} / {{ game['total_rounds'] }}</div>
+    <div class="d flat">preset {{ game['preset'] }}</div></div>
+  <div class="card k"><div class="lab">Configuration</div>
+    <div class="val num" style="font-size:20px">{{ 'Overridden' if overrides else 'Default' }}</div>
+    <div class="d {{ 'flat' if overrides else 'up' }}">
+      {{ overrides|length }} parameter{{ '' if overrides|length == 1 else 's' }} changed</div></div>
+</div>
 
 <section>
 <h2>Run the round</h2>

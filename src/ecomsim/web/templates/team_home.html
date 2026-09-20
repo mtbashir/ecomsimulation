@@ -1,130 +1,149 @@
 {% extends "base.html" %}{% block title %}{{ session['name'] }}{% endblock %}
 {% block body %}
+<div class="crumbs">Dashboard &middot;
+  {% if setting_up %}Setup round{% else %}Month {{ game['round'] }} of
+  {{ game['total_rounds'] }}{% endif %}</div>
 
-<div class="welcome">
-  <p class="eyebrow">{{ session['name'] }}
-    {%- if position and position.brand and position.brand != session['name'] %}
-    &middot; {{ position.brand }}{% endif %}</p>
-  <h1>{{ heading }}</h1>
-  <p class="lede">{{ note }}</p>
-</div>
-
-{% if position and position.in_administration %}
-<div class="msg error">Your company is in administration. You are still
-trading, but recovery is slow and expensive &mdash; fix the cash position
-before anything else.</div>
-{% endif %}
-
-{# --- What to do now ------------------------------------------------------- #}
-<section class="act">
-{% if setting_up %}
-  {% if founding_done %}
-  <p class="act-state">Your business is set up.</p>
-  <p class="note">You can still change it until the instructor closes setup.</p>
-  <a class="btn ghost" href="{{ url_for('found') }}">Review your setup</a>
+<div class="head">
+  <div><h1>{{ heading }}</h1><p>{{ note }}</p></div>
+  <div class="cta">
+  {% if setting_up %}
+    <a class="btn" href="{{ url_for('found') }}">
+      {{ 'Review your setup' if founding_done else
+         'Continue setting up' if founding_started else 'Set up your business' }}</a>
+    <small>{{ 'Submitted · you can still change it' if founding_done
+              else 'PKR 12,000,000 · 14 choices' }}</small>
+  {% elif open_round %}
+    <a class="btn {{ 'ghost' if submitted }}" href="{{ url_for('submit') }}">
+      {{ 'Review or revise' if submitted else 'Enter month ' ~ open_round ~ ' decisions' }}</a>
+    <small>{{ open_count }} decisions open{{ ' · submitted' if submitted }}</small>
   {% else %}
-  <p class="act-state">You have a business to build.</p>
-  <p class="note">Twelve million rupees, the same as everyone else. Seven steps,
-  and a projection of your first trading month before you commit.</p>
-  <a class="btn" href="{{ url_for('found') }}">
-    {{ 'Continue setting up' if founding_started else 'Set up your business' }}</a>
+    <small>Submissions are closed.<br>The instructor is processing the month.</small>
   {% endif %}
-{% elif open_round %}
-  {% if submitted %}
-  <p class="act-state">Month {{ open_round }} decisions are in.</p>
-  <p class="note">You can revise them until the instructor closes the month.</p>
-  <a class="btn ghost" href="{{ url_for('submit') }}">Review or revise</a>
-  {% else %}
-  <p class="act-state">Month {{ open_round }} is open.</p>
-  <p class="note">Nothing submitted yet. Submit nothing and last month's
-  decisions stand.</p>
-  <a class="btn" href="{{ url_for('submit') }}">Make your decisions</a>
-  {% endif %}
-{% else %}
-  <p class="act-state">Nothing to submit right now.</p>
-  <p class="note">The instructor is processing the month. Read your last report
-  while you wait &mdash; it is where the next month's decisions come from.</p>
-{% endif %}
-</section>
-
-{# --- Tiles ---------------------------------------------------------------- #}
-<h2 class="tile-head">Prepare</h2>
-<div class="tiles">
-  <a class="tile" href="{{ url_for('brief') }}">
-    <span class="tile-name">How the game works</span>
-    <span class="tile-note">The rules, this market, and how you are
-      scored.</span>
-  </a>
-  <a class="tile" href="{{ url_for('company') }}">
-    <span class="tile-name">Your company</span>
-    <span class="tile-note">
-    {%- if position and position.source == 'trading' %}
-      PKR {{ '{:,.0f}'.format(position.cash) }} in cash,
-      {{ '{:,.0f}'.format(position.inventory_units) }} units of stock,
-      {{ position.skus|length }} lines.
-    {%- elif position %}
-      {{ position.skus|length }} lines, {{ position.tier }} positioning.
-    {%- else %}
-      What you own, what you owe and what you sell.
-    {%- endif %}</span>
-  </a>
-</div>
-
-<h2 class="tile-head">Analyse</h2>
-<div class="tiles">
-  <a class="tile {{ '' if rounds else 'tile-off' }}"
-     {% if rounds %}href="{{ url_for('results', round_=rounds[-1]) }}"
-     target="_blank"{% endif %}>
-    <span class="tile-name">Last month's results</span>
-    <span class="tile-note">
-    {%- if rounds %}Month {{ rounds[-1] }}: where it was won or lost, and what
-      moved.{% else %}Nothing has been traded yet.{% endif %}</span>
-  </a>
-  <div class="tile tile-flat">
-    <span class="tile-name">Research you have bought</span>
-    {% if research %}
-    <ul class="tile-list">
-      {% for r in research[:5] %}
-      <li>{{ r.name }} <span class="note">&middot; month {{ r.round }}</span></li>
-      {% endfor %}
-    </ul>
-    <span class="tile-note">It is in your monthly report, with its margin of
-      error marked.</span>
-    {% else %}
-    <span class="tile-note">None yet. You buy studies with your monthly
-      decisions &mdash; each one has a price and a margin of error.</span>
-    {% endif %}
   </div>
 </div>
 
-<h2 class="tile-head">Decide</h2>
-<div class="tiles">
-  {% if setting_up %}
-  <a class="tile tile-act" href="{{ url_for('found') }}">
-    <span class="tile-name">Set up the business</span>
-    <span class="tile-note">Seven steps, fourteen choices, one projection
-      before you commit.</span>
-  </a>
-  {% else %}
-  <a class="tile {{ 'tile-act' if open_round and not submitted else '' }}
-            {{ '' if open_round else 'tile-off' }}"
-     {% if open_round %}href="{{ url_for('submit') }}"{% endif %}>
-    <span class="tile-name">This month's decisions</span>
-    <span class="tile-note">
-    {%- if not open_round %}Closed until the instructor opens the next month.
-    {%- elif submitted %}Submitted. Revise any time before the month closes.
-    {%- else %}Open now.{% endif %}</span>
-  </a>
-  {% endif %}
-</div>
-
-{% if rounds|length > 1 %}
-<section>
-<h2>Every month so far</h2>
-<p>{% for r in rounds|reverse %}
-<a class="btn ghost" style="margin:0 6px 6px 0"
-   href="{{ url_for('results', round_=r) }}" target="_blank">Month {{ r }}</a>
-{% endfor %}</p>
-</section>
+{% if position and position.in_administration %}
+<div class="msg error">Your company is in administration. You are still trading, but
+recovery is slow and expensive &mdash; fix the cash position before anything else.</div>
 {% endif %}
+
+{# --- The arc of the run ------------------------------------------------- #}
+<div class="rail">
+{% for r in range(1, game['total_rounds'] + 1) %}
+  <i class="{{ 'done' if r <= game['round'] else 'now' if r == open_round else '' }}"></i>
+{% endfor %}
+</div>
+<div class="railcap"><span>Month 1</span>
+  <span>{% if setting_up %}Setup in progress{% elif open_round %}Month {{ open_round }} open
+  {% else %}Month {{ game['round'] }} closed{% endif %}</span>
+  <span>Month {{ game['total_rounds'] }}</span></div>
+
+{% if not setting_up and steps %}
+<div class="steps">
+{% for s in steps %}
+  <span class="step {{ s.state }}"><span class="cir">{{ '&#10003;'|safe if s.state == 'done'
+    else s.n }}</span><b>{{ s.label }}</b></span>
+  {% if not loop.last %}<span class="join {{ 'done' if s.state == 'done' }}"></span>{% endif %}
+{% endfor %}
+</div>
+{% endif %}
+
+{# --- Headline figures ---------------------------------------------------- #}
+{% if kpis %}
+<div class="kpis k5">
+{% for k in kpis %}
+  <div class="card k"><div class="lab">{{ k.label }}</div>
+    <div class="val num">{{ k.value }}</div>
+    {% if k.delta %}<div class="d {{ k.direction }}">
+      {{ '▲' if '+' in k.delta else '▼' }} {{ k.delta }}</div>
+    {% else %}<div class="d flat">no prior month</div>{% endif %}
+    {{ spark(k.series)|safe }}
+  </div>
+{% endfor %}
+</div>
+{% endif %}
+
+<div class="cols c31" style="margin-top:12px">
+  <div>
+    {% if meters %}
+    <h2 class="sec">Against the plan you wrote in month 0</h2>
+    <div class="card">
+      <div class="cols c11" style="gap:28px">
+      {% for m in meters %}
+        <div>
+          <h2>{{ m.label }}</h2>
+          <p class="cap" style="margin:3px 0 0">{{ m.blurb }}</p>
+          <div class="vs"><span class="big num">{{ m.actual }}</span>
+            <span class="tgt">{{ m.target }} promised</span></div>
+          <div class="meter"><i style="width:{{ '%.0f'|format(m.fill) }}%"></i>
+            <u style="left:{{ '%.0f'|format(m.mark) }}%"></u></div>
+          <div class="mcap"><span>{{ m.lo }}</span><span>your target</span>
+            <span>{{ m.hi }}</span></div>
+        </div>
+      {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if standings %}
+    <h2 class="sec">The field &middot; month {{ game['round'] }}</h2>
+    <div class="card">
+      {% if standings.bought %}
+      <table>
+        <tr><th style="width:26px"></th><th>Team</th><th class="r">Share</th></tr>
+        {% for row in standings.rows %}
+        <tr class="{{ 'me' if row.you }}">
+          <td class="num" style="color:var(--mute)">{{ row.rank }}</td>
+          <td>{{ row.name }}{{ ' — you' if row.you }}</td>
+          <td class="r num">{{ '{:.1%}'.format(row.share) }}</td></tr>
+        {% endfor %}
+      </table>
+      <p class="foot">Purchased study &middot; Market Share Report,
+      &plusmn;{{ '{:.0%}'.format(standings.error_band) }} margin of error.
+      Your own figures are exact.</p>
+      {% else %}
+      <p class="cap" style="margin:0">You have not bought the Market Share Report, so you
+      do not know where you stand. Your own numbers are exact; everything about the field
+      costs money to find out. Buy MR-03 with your monthly decisions.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if setting_up %}
+    <h2 class="sec">What happens next</h2>
+    <div class="card">
+      <p class="cap" style="margin:0">Nothing trades this month. You are choosing what kind
+      of business you are going to be, and every team has the same capital to do it with.
+      Once the instructor closes setup, month 1 begins and your choices start earning or
+      costing you.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <h2 class="sec">{{ 'Before you submit' if setting_up else "This month's agenda" }}</h2>
+    <div class="card">
+    {% for a in agenda %}
+      <div class="item"><span class="no">{{ '%02d'|format(loop.index) }}</span>
+        <div><b>{{ a.title }}</b><span>{{ a.note }}</span></div>
+        {% if a.label %}<span class="flag {{ a.flag }}">{{ a.label }}</span>{% endif %}
+      </div>
+    {% else %}
+      <p class="cap" style="margin:0">Nothing needs your attention yet. The first month has
+      not been processed.</p>
+    {% endfor %}
+    </div>
+
+    {% if rounds %}
+    <h2 class="sec">Every month so far</h2>
+    <div class="card">
+      <p>{% for r in rounds|reverse %}
+      <a class="btn ghost" style="margin:0 6px 6px 0;padding:7px 12px;font-size:12.5px"
+         href="{{ url_for('results', round_=r) }}" target="_blank">Month {{ r }}</a>
+      {% endfor %}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}

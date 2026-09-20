@@ -17,6 +17,7 @@ from flask import (
 )
 
 from .. import founding
+from .. import charts
 from ..decisions import REGISTRY
 from ..params import BandViolation
 from . import briefing, db, service
@@ -267,6 +268,20 @@ def safe_next(app: Flask, target: str | None, role: str | None) -> str | None:
 
 def register_routes(app: Flask) -> None:
 
+    @app.context_processor
+    def nav_state():
+        """What the sidebar needs, on every page, without each route saying so."""
+        if "user" not in session or session.get("role") != "team":
+            return {"nav_at": request.endpoint, "open_count": 0}
+        game = db.game(g.db)
+        count = len(service.open_decisions(g.db, game["open_round"])) \
+            if game["open_round"] else 0
+        record = db.founding(g.db, session["team_id"])
+        brand = (record or {}).get("config", {}).get("brand_name")
+        return {"nav_at": request.endpoint, "open_count": count,
+                "brand": brand if brand and brand != "Unnamed" else None}
+
+
     @app.route("/login", methods=["GET", "POST"])
     def login():
         if "user" in session and request.method == "GET":
@@ -317,6 +332,8 @@ def register_routes(app: Flask) -> None:
             0 if setting_up else (open_round or game["round"] or 1),
             game["total_rounds"])
 
+        submitted = (db.submission(g.db, open_round, tid) is not None
+                     if open_round else False)
         return render_template(
             "team_home.html",
             open_round=open_round,
@@ -324,12 +341,33 @@ def register_routes(app: Flask) -> None:
             founding_done=bool(founding and founding["submitted_at"]),
             founding_started=founding is not None,
             heading=heading, note=note,
-            submitted=db.submission(g.db, open_round, tid) is not None
-                      if open_round else False,
+            submitted=submitted,
             rounds=list(range(1, game["round"] + 1)),
             position=service.company_position(g.db, tid),
             research=_research_bought(g.db, tid, game["round"]),
+            kpis=service.headline_kpis(g.db, tid),
+            meters=service.plan_meters(g.db, tid),
+            agenda=service.agenda(g.db, tid),
+            standings=service.standings(g.db, tid),
+            spark=charts.sparkline,
+            steps=_steps(g.db, tid, game, submitted),
         )
+
+    def _steps(con, team_id, game, submitted):
+        """Read results, review research, set decisions, submit. Where you are
+        in that is read off what you have actually done."""
+        read = bool(game["round"])
+        research = bool((db.submission(con, game["round"], team_id) or {}).get("12.1"))
+        entered = submitted
+        done = [read, research or read, entered, entered]
+        labels = ["Read results", "Review research", "Set decisions", "Submit"]
+        out, hit_current = [], False
+        for i, (label, ok) in enumerate(zip(labels, done), 1):
+            state = "done" if ok else ("now" if not hit_current else "")
+            if state == "now":
+                hit_current = True
+            out.append({"n": i, "label": label, "state": state})
+        return out
 
     def _research_bought(con, team_id, upto_round):
         """Every study this team has paid for, newest first."""

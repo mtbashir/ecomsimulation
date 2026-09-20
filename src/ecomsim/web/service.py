@@ -420,6 +420,195 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
     return {"round": nxt, "submitted": len(submitted), "teams": len(world.teams)}
 
 
+# The five figures a team leads with. (label, key, format, up_is_good)
+HEADLINE = [
+    ("Net revenue", "revenue_net", "pkr", True),
+    ("Contribution margin", "contribution_margin_pct", "pct", True),
+    ("Cost per new customer", "cac_blended", "pkr", False),
+    ("Repeat orders", "repeat_order_share", "pct", True),
+    ("Cash", "cash_balance", "pkr", True),
+]
+
+
+def _fmt(value, kind: str) -> str:
+    if value is None:
+        return "—"
+    if kind == "pkr":
+        return (f"{value / 1e6:,.1f}M" if abs(value) >= 1e6
+                else f"{value / 1e3:,.0f}k" if abs(value) >= 10_000
+                else f"{value:,.0f}")
+    if kind == "pct":
+        return f"{value * 100:,.1f}%"
+    return f"{value:,.0f}"
+
+
+def headline_kpis(con, team_id: str) -> list[dict]:
+    """The top row: where each figure is, which way it is going, and whether
+    that direction is good news. A rising cost of acquisition is not green."""
+    world = db.load_world(con)
+    if world is None or team_id not in world.teams:
+        return []
+    history = world.teams[team_id].history
+    if not history:
+        return []
+    out = []
+    for label, key, kind, up_good in HEADLINE:
+        series = [h.get(key) for h in history if h.get(key) is not None]
+        now = series[-1] if series else None
+        prev = series[-2] if len(series) > 1 else None
+        delta = direction = None
+        if now is not None and prev not in (None, 0):
+            change = (now - prev) / abs(prev)
+            delta = f"{change:+.1%}" if kind != "pct" else f"{(now - prev) * 100:+.1f}pp"
+            rising = now > prev
+            direction = "up" if rising == up_good else "dn"
+            if abs(change) < 0.002:
+                direction = "flat"
+        out.append({"label": label, "value": _fmt(now, kind), "series": series,
+                    "delta": delta, "direction": direction,
+                    "rising_is_good": up_good})
+    return out
+
+
+def plan_meters(con, team_id: str) -> list[dict]:
+    """What the team promised in Round 0, against what it has delivered.
+
+    The founding plan is the most valuable thing a team writes and it has been
+    invisible since the month it was written. Nothing here is shown unless the
+    team actually committed to a number.
+    """
+    record = db.founding(con, team_id)
+    world = db.load_world(con)
+    if record is None or world is None or team_id not in world.teams:
+        return []
+    history = world.teams[team_id].history
+    if not history:
+        return []
+    now = history[-1]
+    f = founding_from_dict(record["config"], load_params(con))
+
+    meters = []
+    if f.target_repeat_share:
+        meters.append(_meter("Repeat order share", now.get("repeat_order_share", 0.0),
+                             f.target_repeat_share, 0.10, 0.40, "pct",
+                             "You committed to %s by month 12."))
+    if f.target_cac:
+        meters.append(_meter("Cost per new customer", now.get("cac_blended", 0.0),
+                             f.target_cac, 300.0, 1000.0, "pkr",
+                             "You committed to PKR %s.", lower_is_better=True))
+    return meters
+
+
+def _meter(label, actual, target, lo, hi, kind, blurb, lower_is_better=False) -> dict:
+    def place(v):
+        return max(0.0, min(1.0, (v - lo) / (hi - lo))) * 100
+    hit = actual <= target if lower_is_better else actual >= target
+    return {
+        "label": label, "actual": _fmt(actual, kind), "target": _fmt(target, kind),
+        "blurb": blurb % _fmt(target, kind),
+        "fill": place(actual), "mark": place(target), "hit": hit,
+        "lo": _fmt(lo, kind), "hi": _fmt(hi, kind),
+    }
+
+
+def agenda(con, team_id: str) -> list[dict]:
+    """What this team should deal with, in order of how much it costs to ignore.
+
+    Everything here is read off the team's own state - nothing a team has not
+    paid to see, and nothing invented to fill the list.
+    """
+    game = db.game(con)
+    params = load_params(con)
+    world = db.load_world(con)
+    items: list[dict] = []
+    rnd = game["open_round"]
+
+    if world is not None and team_id in world.teams:
+        team = world.teams[team_id]
+        h = team.history[-1] if team.history else {}
+
+        if team.in_administration:
+            items.append({"title": "You are in administration",
+                          "note": "Trading continues, but recovery is slow and expensive. "
+                                  "Fix the cash position before anything else.",
+                          "flag": "crit", "label": "Act now"})
+
+        cover = h.get("weeks_cover")
+        if cover is not None and cover < 2.5:
+            items.append({"title": "Stock cover is thin",
+                          "note": f"{cover:,.1f} weeks of cover. A good month will "
+                                  f"stock you out.",
+                          "flag": "crit", "label": "Act now"})
+
+        cacs = [x.get("cac_blended") for x in team.history[-3:]
+                if x.get("cac_blended")]
+        if len(cacs) == 3 and cacs[-1] > cacs[0] * 1.15:
+            items.append({"title": "Acquisition is getting dearer",
+                          "note": f"Cost per customer up {(cacs[-1] / cacs[0] - 1):.0%} "
+                                  f"over three months.",
+                          "flag": "warn", "label": "Decide"})
+
+        runway = h.get("runway_rounds")
+        if runway is not None and runway < 4:
+            items.append({"title": "Runway is short",
+                          "note": f"{runway:,.1f} months at this burn.",
+                          "flag": "crit", "label": "Act now"})
+
+        bought = (db.submission(con, game["round"], team_id) or {}).get("12.1") or []
+        for code in bought[:2]:
+            row = next((st for st in params.studies if st["code"] == code), None)
+            if row:
+                items.append({"title": row["name"],
+                              "note": f"Bought last month · ±{float(row['error_band']):.0%} "
+                                      f"margin of error.",
+                              "flag": "ok", "label": "Read"})
+
+        if game["round"]:
+            items.append({"title": f"Month {game['round']} report",
+                          "note": "Where the month was won and lost.",
+                          "flag": "ok", "label": "Read"})
+
+    if rnd:
+        submitted = db.submission(con, rnd, team_id)
+        items.append({
+            "title": f"Submit month {rnd}",
+            "note": (f"{len(submitted)} decisions entered. You can revise until the "
+                     f"month closes." if submitted
+                     else "Nothing entered. Submit nothing and last month's decisions stand."),
+            "flag": "ok" if submitted else "",
+            "label": "Done" if submitted else "Pending"})
+    return items
+
+
+def standings(con, team_id: str) -> dict | None:
+    """The field - but only what this team has paid to know.
+
+    Share comes from the Market Share Report. Without it a team sees its own
+    position and an invitation to go and buy the study, which is the lesson.
+    """
+    game = db.game(con)
+    world = db.load_world(con)
+    if world is None or not game["round"]:
+        return None
+    bought = any("MR-03" in ((db.submission(con, r, team_id) or {}).get("12.1") or [])
+                 for r in range(1, game["round"] + 1))
+    if not bought:
+        return {"bought": False}
+
+    rows = []
+    for tid, team in world.teams.items():
+        h = team.history[-1] if team.history else {}
+        rows.append({"team_id": tid, "name": team.brand_name,
+                     "share": h.get("market_share", 0.0),
+                     "you": tid == team_id})
+    rows.sort(key=lambda r: -r["share"])
+    for i, row in enumerate(rows, 1):
+        row["rank"] = i
+    return {"bought": True, "rows": rows,
+            "error_band": next((float(s["error_band"]) for s in load_params(con).studies
+                                if s["code"] == "MR-03"), 0.05)}
+
+
 def company_position(con, team_id: str) -> dict | None:
     """What this team owns right now, in the terms a founder would use.
 

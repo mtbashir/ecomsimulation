@@ -1,6 +1,7 @@
-{% extends "base.html" %}{% block title %}Round {{ round }} decisions{% endblock %}
+{% extends "base.html" %}{% block title %}Month {{ round }} decisions{% endblock %}
 {% block body %}
-<h1>Round {{ round }} decisions</h1>
+<div class="crumbs">Decisions &middot; month {{ round }}</div>
+<h1>Month {{ round }} decisions</h1>
 <p class="sub">Every field is optional. Leave one blank and it stays where it
 was last month. Where a typical range is given, it is a starting point, not a
 recommendation &mdash; the right answer depends on the strategy you are running.</p>
@@ -114,7 +115,7 @@ recommendation &mdash; the right answer depends on the strategy you are running.
 {% endfor %}
 </section>
 {% endfor %}
-<button type="submit">Submit round {{ round }}</button>
+<button type="submit">Submit month {{ round }}</button>
 <a class="btn ghost" href="{{ url_for('home') }}" style="margin-left:8px">Cancel</a>
 </form>
 {% endblock %}
