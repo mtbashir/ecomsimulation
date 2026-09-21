@@ -193,6 +193,69 @@ def foundings(con) -> dict[str, dict]:
             for r in con.execute("SELECT * FROM founding").fetchall()}
 
 
+def add_teams(con, count: int, actor: str = "admin") -> dict:
+    """Add teams to a game that has not started trading. Returns new passwords.
+
+    Numbering continues from the highest existing team, so a team that was
+    removed does not have its identity handed to somebody else.
+    """
+    import secrets
+
+    existing = {r["team_id"] for r in accounts(con, "team")}
+    highest = max((int(t.split("_")[1]) for t in existing), default=0)
+    passwords = {}
+    with con:
+        for offset in range(1, count + 1):
+            n = highest + offset
+            tid = f"team_{n:02d}"
+            pw = (f"{secrets.choice(WORDS)}-{secrets.choice(WORDS)}-"
+                  f"{secrets.randbelow(90) + 10}")
+            passwords[tid] = pw
+            con.execute(
+                "INSERT OR REPLACE INTO account "
+                "(username, password_hash, role, team_id, display_name, "
+                "initial_password, created_at) VALUES (?, ?, 'team', ?, ?, ?, ?)",
+                (tid, generate_password_hash(pw), tid, f"Team {n}", pw, _now()))
+        log(con, actor, "teams.add", f"{count} added")
+    return passwords
+
+
+def remove_team(con, team_id: str, actor: str = "admin") -> None:
+    """Remove a team and everything it owns. Only before trading starts."""
+    with con:
+        con.execute("DELETE FROM account WHERE team_id = ?", (team_id,))
+        con.execute("DELETE FROM founding WHERE team_id = ?", (team_id,))
+        con.execute("DELETE FROM submission WHERE team_id = ?", (team_id,))
+        log(con, actor, "teams.remove", team_id)
+
+
+def rename_team(con, team_id: str, display_name: str, actor: str = "admin") -> None:
+    with con:
+        con.execute("UPDATE account SET display_name = ? WHERE team_id = ?",
+                    (display_name, team_id))
+        log(con, actor, "teams.rename", f"{team_id}: {display_name}")
+
+
+def rename_company(con, team_id: str, brand: str, actor: str = "admin") -> None:
+    """Change the brand on the founding record.
+
+    The world blob keeps whatever it was built with, so everything that shows a
+    brand reads it from here instead - a rename lands everywhere at once and no
+    stored result is rewritten.
+    """
+    record = founding(con, team_id)
+    config = record["config"] if record else {}
+    config["brand_name"] = brand
+    with con:
+        con.execute(
+            "INSERT INTO founding (team_id, config, submitted_at, submitted_by) "
+            "VALUES (?, ?, ?, ?) ON CONFLICT (team_id) DO UPDATE SET "
+            "config = excluded.config",
+            (team_id, json.dumps(config, sort_keys=True),
+             (record or {}).get("submitted_at"), actor))
+        log(con, actor, "teams.rebrand", f"{team_id}: {brand}")
+
+
 def mark_briefing_seen(con, username: str) -> None:
     with con:
         con.execute("UPDATE account SET briefing_seen_at = ? "

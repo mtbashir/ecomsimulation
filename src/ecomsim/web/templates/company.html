@@ -131,5 +131,26 @@ of the last trading month.</p>
 {% endif %}
 {% endif %}
 
-<a class="btn ghost" href="{{ url_for('home') }}">Back to your dashboard</a>
+<h2 class="sec">Name your team and your company</h2>
+<div class="card">
+  <p class="cap">Your team name is what the instructor sees on the roster. Your
+  company name is the brand on your reports and on the leaderboard &mdash; it is
+  yours to change whenever you like.</p>
+  <form method="post" action="{{ url_for('rename') }}">
+    <div class="cols c11" style="gap:20px">
+      <div class="field" style="border:0;padding:0;margin:0">
+        <label class="f" for="tn">Team name</label>
+        <input id="tn" name="team_name" type="text" value="{{ team_name }}"
+               maxlength="60" placeholder="Team 1"></div>
+      <div class="field" style="border:0;padding:0;margin:0">
+        <label class="f" for="cn">Company name</label>
+        <input id="cn" name="company" type="text" value="{{ company_name }}"
+               maxlength="60" placeholder="Sehat"></div>
+    </div>
+    <button type="submit" style="margin-top:14px">Save names</button>
+  </form>
+</div>
+
+<a class="btn ghost" href="{{ url_for('home') }}"
+   style="margin-top:16px">Back to your dashboard</a>
 {% endblock %}

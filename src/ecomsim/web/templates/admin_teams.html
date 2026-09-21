@@ -1,6 +1,52 @@
 {% extends "base.html" %}{% block title %}Teams{% endblock %}
 {% block body %}
-<h1>Accounts</h1>
+<div class="crumbs">Instructor console &middot; teams</div>
+<div class="head"><div><h1>Teams and the field</h1>
+  <p>How many teams are playing, and how many AI competitors fill the market
+  alongside them.</p></div></div>
+
+<div class="cols c11" style="margin-bottom:14px">
+  <div class="card">
+    <h2>The roster</h2>
+    <p class="cap">{{ team_count }} team{{ '' if team_count == 1 else 's' }}
+    {% if locked %}&middot; fixed now that trading has started
+    {% else %}&middot; can be changed until month 1 runs{% endif %}</p>
+    {% if locked %}
+    <p class="hint" style="margin:0">The market was sized when month 1 ran.
+    Adding a seat afterwards would hand a team a company nobody has heard of,
+    so the roster is fixed. Roll back to month 0 to change it.</p>
+    {% else %}
+    <form method="post" style="display:flex;gap:8px;align-items:flex-end;
+          flex-wrap:wrap">
+      <input type="hidden" name="action" value="add">
+      <div style="max-width:120px"><label class="f" for="n">Add teams</label>
+        <input id="n" name="count" type="text" inputmode="numeric" value="1"></div>
+      <button type="submit">Add</button>
+    </form>
+    <p class="hint">New teams get generated passwords, listed below for
+    collection.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>AI competitors</h2>
+    <p class="cap">With a small class, AI firms keep the market competitive.
+    Two or three is a sensible field for four teams or fewer.</p>
+    <form method="post" style="display:flex;gap:10px;align-items:flex-end;
+          flex-wrap:wrap">
+      <input type="hidden" name="action" value="field">
+      <div style="max-width:120px"><label class="f" for="ai">How many</label>
+        <input id="ai" name="ai_competitors" type="text" inputmode="numeric"
+               value="{{ game['ai_competitors'] }}" {{ 'disabled' if locked }}></div>
+      <div style="max-width:150px"><label class="f" for="ag">Aggression</label>
+        <input id="ag" name="ai_aggression" type="text" inputmode="decimal"
+               value="{{ game['ai_aggression'] }}" {{ 'disabled' if locked }}></div>
+      <button type="submit" {{ 'disabled' if locked }}>Save</button>
+    </form>
+    <p class="hint">0 to 8 competitors, aggression 0 to 1. Like the roster, the
+    field is set when month 1 runs.</p>
+  </div>
+</div>
 
 {% set pending = teams|selectattr('initial_password')|list %}
 {% if pending %}
@@ -25,21 +71,33 @@ replaced.</p>
 </section>
 {% endif %}
 
-<p class="sub">Passwords are stored hashed, so they cannot be read back — only
-replaced.</p>
+<h2 class="sec">Accounts</h2>
 <section>
+<p class="cap">Passwords are stored hashed, so they cannot be read back &mdash;
+only replaced. Teams name themselves; what you see here is what they chose.</p>
 <table>
-<thead><tr><th>Username</th><th>Name</th><th>Role</th>
-<th style="width:320px">Set a new password</th></tr></thead>
+<thead><tr><th>Username</th><th>Team</th><th>Company</th><th>Role</th>
+<th style="width:300px">Set a new password</th>
+{% if not locked %}<th></th>{% endif %}</tr></thead>
 <tbody>
 {% for t in teams %}
-<tr><td>{{ t['username'] }}</td><td>{{ t['display_name'] }}</td>
+<tr><td class="id">{{ t['username'] }}</td><td>{{ t['display_name'] }}</td>
+<td class="note">{{ brands.get(t['team_id']) or '—' }}</td>
 <td><span class="pill">{{ t['role'] }}</span></td>
 <td><form method="post" style="display:flex;gap:8px">
 <input type="hidden" name="username" value="{{ t['username'] }}">
 <input name="password" type="text" placeholder="new password" minlength="6">
 <button type="submit" class="ghost">Set</button>
-</form></td></tr>
+</form></td>
+{% if not locked %}
+<td class="r">{% if t['role'] == 'team' %}
+<form method="post" onsubmit="return confirm('Remove {{ t['username'] }}? Its setup and submissions go with it.')">
+<input type="hidden" name="action" value="remove">
+<input type="hidden" name="team_id" value="{{ t['team_id'] }}">
+<button type="submit" class="ghost" style="padding:6px 10px;font-size:12px">
+  Remove</button></form>{% endif %}</td>
+{% endif %}
+</tr>
 {% endfor %}
 </tbody></table>
 </section>

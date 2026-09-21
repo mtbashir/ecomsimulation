@@ -408,9 +408,14 @@ def register_routes(app: Flask) -> None:
     @login_required("team")
     def company():
         """What you have: stock, cash, catalogue, people, capabilities."""
+        tid = session["team_id"]
+        record = db.founding(g.db, tid)
+        brand = (record or {}).get("config", {}).get("brand_name")
         return render_template(
-            "company.html", position=service.company_position(g.db, session["team_id"]),
-            endowment=service.endowment(g.db), game=db.game(g.db))
+            "company.html", position=service.company_position(g.db, tid),
+            endowment=service.endowment(g.db), game=db.game(g.db),
+            team_name=(db.account(g.db, session["user"]) or {})["display_name"],
+            company_name=brand if brand and brand != "Unnamed" else "")
 
     @app.route("/found", methods=["GET", "POST"])
     @login_required("team")
@@ -671,9 +676,6 @@ def register_routes(app: Flask) -> None:
                 flash(f"Refused: {exc}", "error")
                 return redirect(url_for("admin_params"))
             db.set_overrides(g.db, new, session["user"])
-            db.set_game(g.db,
-                        ai_competitors=int(request.form.get("ai_competitors", 2)),
-                        ai_aggression=float(request.form.get("ai_aggression", 0.5)))
             flash("Saved. Changing economics mid-game affects future rounds only.",
                   "ok")
             return redirect(url_for("admin_params"))
@@ -701,16 +703,72 @@ def register_routes(app: Flask) -> None:
     @app.route("/admin/teams", methods=["GET", "POST"])
     @login_required("admin")
     def admin_teams():
+        game = db.game(g.db)
+        # The world is built once, on the first run, and sized then. Adding a
+        # seat afterwards would hand a team a company the market has never
+        # heard of, so the roster is fixed the moment trading starts.
+        locked = game["round"] > 0
+
         if request.method == "POST":
-            username = request.form["username"]
-            password = request.form["password"].strip()
-            if len(password) < 6:
-                flash("Password must be at least 6 characters.", "error")
+            action = request.form.get("action", "password")
+            if action != "password" and locked:
+                flash("Trading has started. The roster is fixed from month 1.",
+                      "error")
+            elif action == "add":
+                count = max(1, min(12, int(request.form.get("count", 1) or 1)))
+                db.add_teams(g.db, count, session["user"])
+                flash(f"Added {count} team{'' if count == 1 else 's'}. "
+                      f"Their passwords are listed below.", "ok")
+            elif action == "remove":
+                tid = request.form.get("team_id", "")
+                if len(db.accounts(g.db, "team")) <= 2:
+                    flash("A market needs at least two teams.", "error")
+                else:
+                    db.remove_team(g.db, tid, session["user"])
+                    flash(f"{tid} removed, with its setup and submissions.", "ok")
+            elif action == "field":
+                db.set_game(
+                    g.db,
+                    ai_competitors=max(0, min(8, int(
+                        request.form.get("ai_competitors", 2) or 0))),
+                    ai_aggression=max(0.0, min(1.0, float(
+                        request.form.get("ai_aggression", 0.5) or 0.5))))
+                flash("Field updated.", "ok")
             else:
-                db.set_password(g.db, username, password, session["user"])
-                flash(f"Password for {username} changed.", "ok")
+                username = request.form["username"]
+                password = request.form["password"].strip()
+                if len(password) < 6:
+                    flash("Password must be at least 6 characters.", "error")
+                else:
+                    db.set_password(g.db, username, password, session["user"])
+                    flash(f"Password for {username} changed.", "ok")
             return redirect(url_for("admin_teams"))
-        return render_template("admin_teams.html", teams=db.accounts(g.db))
+
+        rows = db.accounts(g.db)
+        foundings = db.foundings(g.db)
+        for row in rows:
+            row = dict(row)
+        return render_template(
+            "admin_teams.html", teams=rows, locked=locked,
+            team_count=len(db.accounts(g.db, "team")),
+            brands={tid: (rec.get("config") or {}).get("brand_name")
+                    for tid, rec in foundings.items()})
+
+    @app.post("/rename")
+    @login_required("team")
+    def rename():
+        """A team names itself and its company."""
+        tid = session["team_id"]
+        team_name = (request.form.get("team_name") or "").strip()
+        company = (request.form.get("company") or "").strip()
+        if team_name:
+            db.rename_team(g.db, tid, team_name[:60], session["user"])
+            session["name"] = team_name[:60]
+        if company:
+            db.rename_company(g.db, tid, company[:60], session["user"])
+        flash("Saved." if (team_name or company) else "Nothing to change.",
+              "ok" if (team_name or company) else "error")
+        return redirect(url_for("company"))
 
     @app.route("/admin/report/<team>/<int:round_>")
     @login_required("admin")

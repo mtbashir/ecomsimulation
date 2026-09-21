@@ -10,21 +10,11 @@ already processed are not recomputed.</p>
 <form method="post">
 <section>
 <h2>The market</h2>
-<div class="row">
-<div class="field">
-<label for="ai">AI competitors</label>
-<input id="ai" name="ai_competitors" type="number" min="1" max="6"
-       value="{{ game['ai_competitors'] }}">
-<div class="hint">How crowded the market is. More competitors means less demand
-reaches each team, which bites hardest on teams pushing for share.</div>
-</div>
-<div class="field">
-<label for="ag">AI aggression</label>
-<input id="ag" name="ai_aggression" type="text" value="{{ game['ai_aggression'] }}">
-<div class="hint">0 to 1. Above 0.95 the incumbents beat every team and agency
-disappears.</div>
-</div>
-</div>
+<p class="cap" style="margin:0">{{ game['ai_competitors'] }} AI competitor{{ ''
+  if game['ai_competitors'] == 1 else 's' }} at aggression
+  {{ game['ai_aggression'] }}. The size of the field is set on the
+  <a href="{{ url_for('admin_teams') }}" style="color:var(--accent)">Teams</a>
+  page, next to the roster it has to balance.</p>
 </section>
 
 {% set groups = {} %}

@@ -256,10 +256,12 @@ def test_parameter_override_outside_its_band_is_refused(game):
 
 
 def test_ai_competitor_count_is_instructor_controlled(game):
+    """The field is set next to the roster it has to balance, not in economics."""
     app, _pw, path = game
     admin = _client(app, "admin", "admin-pw")
-    admin.post("/admin/params", data={"ai_competitors": "5", "ai_aggression": "0.7"},
-               follow_redirects=True)
+    admin.post("/admin/teams",
+               data={"action": "field", "ai_competitors": "5",
+                     "ai_aggression": "0.7"}, follow_redirects=True)
     row = db.game(db.connect(path))
     assert row["ai_competitors"] == 5 and row["ai_aggression"] == 0.7
 

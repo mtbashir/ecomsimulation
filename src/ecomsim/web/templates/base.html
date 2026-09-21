@@ -48,14 +48,20 @@ font-variant-numeric:tabular-nums}
 .app{display:grid;grid-template-columns:224px 1fr;min-height:100vh}
 aside{background:var(--rail);border-right:1px solid var(--line);padding:16px 0;
 display:flex;flex-direction:column}
+.brandmark{display:block;padding:0 16px 14px}
+.brandmark img{width:100%;max-width:170px;height:auto;display:block}
 .org{display:flex;align-items:center;gap:10px;padding:0 16px 15px;
 border-bottom:1px solid var(--line);margin-bottom:10px}
 .avatar{width:31px;height:31px;border-radius:8px;flex:0 0 auto;color:#fff;
 background:linear-gradient(135deg,var(--s1),var(--s3));
 display:grid;place-items:center;font-weight:700;font-size:13px}
 .avatar.admin{background:linear-gradient(135deg,#eb6834,#eda100)}
-.org b{display:block;font-size:14px;line-height:1.25}
-.org span{color:var(--mute);font-size:11.5px}
+.org{min-width:0}
+.org>div{min-width:0}
+.org b{display:block;font-size:14px;line-height:1.25;overflow:hidden;
+text-overflow:ellipsis;white-space:nowrap}
+.org span{color:var(--mute);font-size:11.5px;display:block;
+overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .grp{padding:13px 16px 5px;color:var(--mute);font-size:10.5px;font-weight:600;
 letter-spacing:.09em;text-transform:uppercase}
 nav a{display:flex;align-items:center;gap:9px;margin:0 8px 1px;padding:8px;
@@ -76,6 +82,12 @@ cursor:pointer;padding:0}
 .sw-dark{background:#0d0d0c}.sw-slate{background:#22242a}.sw-light{background:#f4f5f7}
 
 main{padding:20px 26px 46px;max-width:1280px}
+.topbar{display:flex;align-items:center;gap:14px;justify-content:flex-end;
+margin:0 0 10px}
+.topbar .who{color:var(--mute);font-size:12.5px;margin-right:auto}
+.topbar a.out{color:var(--mute);font-size:12.5px;text-decoration:none}
+.topbar a.out:hover{color:var(--ink)}
+.swatches{display:flex;gap:6px}
 .crumbs{color:var(--mute);font-size:12.5px;margin-bottom:9px}
 .head{display:flex;align-items:flex-start;gap:22px;margin-bottom:16px;flex-wrap:wrap}
 h1{font-size:25px;letter-spacing:-.022em;margin-bottom:5px}
@@ -205,6 +217,7 @@ th{text-align:left;color:var(--mute);font-weight:600;font-size:11px;padding:0 9p
 letter-spacing:.05em;text-transform:uppercase}
 td{padding:8px 9px;border-top:1px solid var(--line)}
 td.num,th.num,td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+td.id{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12.5px}
 tr.me td{background:var(--tint)}
 tr.me td:first-child{box-shadow:inset 2px 0 0 var(--accent)}
 .foot{color:var(--mute);font-size:11.5px;margin-top:11px}
@@ -217,7 +230,8 @@ color:var(--dim)}
 
 /* --- Forms -------------------------------------------------------------- */
 label{display:block;font-size:13px;color:var(--dim);margin:0 0 3px}
-input[type=text],input[type=password],input[type=number],select,textarea{
+input:not([type]),input[type=text],input[type=password],input[type=number],
+select,textarea{
 width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;
 background:var(--panel-2);color:var(--ink);font:inherit}
 select{max-width:520px}
@@ -226,7 +240,7 @@ select{max-width:520px}
 .field label,label.f{font-size:14px;font-weight:600;color:var(--ink);margin:0 0 2px}
 .field .help,.help{font-size:13px;color:var(--dim);margin:0 0 8px;max-width:62ch}
 .field .hint,.hint{font-size:11.5px;color:var(--mute);margin-top:5px}
-.field input[type=text]{max-width:520px}
+.field input:not([type]),.field input[type=text]{max-width:520px}
 .code-ref{font-size:11px;color:var(--mute);margin-top:5px;opacity:.7}
 .with-prefix,.with-suffix{display:flex;align-items:stretch;max-width:320px}
 .with-prefix .prefix,.with-suffix .suffix{display:flex;align-items:center;padding:0 10px;
@@ -275,20 +289,30 @@ background:var(--panel-2)}
 font-variant-numeric:tabular-nums}
 .stat-note{display:block;font-size:12px;color:var(--mute);margin-top:2px}
 .lede{color:var(--dim);font-size:15px;max-width:64ch}
+main.signed-out{max-width:none;display:grid;place-items:center;
+min-height:100vh;padding:40px 18px}
+.signin{width:100%;max-width:392px}
+.signin-logo{width:230px;max-width:70%;height:auto;display:block;margin:0 auto 26px}
+.signin-foot{display:flex;justify-content:center;margin-top:22px}
 @media(max-width:900px){.app{grid-template-columns:1fr}
+.topbar{margin-bottom:6px}.brandmark{padding:0 10px 0 0}
+.brandmark img{max-width:120px}
 aside{flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 12px}
 .org{border:0;margin:0;padding:0 12px 0 0}.grp{display:none}
-nav{display:flex}.themebar{margin:0 0 0 auto;padding:0;border:0}.themebar p{display:none}
+nav{display:flex}
 .k4,.k5,.c21,.c11,.c31{grid-template-columns:1fr}main{padding:16px 14px 40px}}
 </style></head>
 <body>
 {% if user %}
 <div class="app">
 <aside>
+  <a class="brandmark" href="{{ url_for('home') if role != 'admin' else url_for('admin') }}">
+    <img src="{{ url_for('static', filename='consulytics.png') }}"
+         alt="Consulytics.ai"></a>
   <div class="org">
     <span class="avatar {{ 'admin' if role == 'admin' }}">{{ (brand or session.get('name') or user)[:1]|upper }}</span>
     <div><b>{{ brand or session.get('name') or user }}</b>
-      <span>{% if role == 'admin' %}{{ game['name'] }}{% else %}{{ session['team_id'] }} &middot;
+      <span>{% if role == 'admin' %}Instructor console{% else %}{{ session['team_id'] }} &middot;
       {% if game['start_mode'] == 'founding' and game['round'] == 0 %}Setup round
       {% else %}Month {{ game['round'] }}{% endif %}{% endif %}</span></div>
   </div>
@@ -338,23 +362,42 @@ nav{display:flex}.themebar{margin:0 0 0 auto;padding:0;border:0}.themebar p{disp
     {% endif %}
   </nav>
   {% endif %}
-  <div class="themebar"><p>Appearance</p>
-    <div class="swatches">
-      <button class="sw sw-dark" data-set-theme="dark" title="Dark"></button>
-      <button class="sw sw-slate" data-set-theme="slate" title="Slate"></button>
-      <button class="sw sw-light" data-set-theme="light" title="Light"></button>
-    </div>
-    <p style="margin:12px 0 0"><a href="{{ url_for('logout') }}"
-      style="color:var(--mute);text-decoration:none;font-size:12px;
-      letter-spacing:0;text-transform:none;font-weight:400">Sign out ({{ user }})</a></p>
-  </div>
 </aside>
 <main>
-{% else %}<main style="max-width:420px;margin:0 auto;padding-top:70px">{% endif %}
+<div class="topbar">
+  <span class="who">{{ game['name'] }}</span>
+  <div class="swatches">
+    <button class="sw sw-dark" data-set-theme="dark" title="Dark"
+            aria-label="Dark theme"></button>
+    <button class="sw sw-slate" data-set-theme="slate" title="Slate"
+            aria-label="Slate theme"></button>
+    <button class="sw sw-light" data-set-theme="light" title="Light"
+            aria-label="Light theme"></button>
+  </div>
+  <a class="out" href="{{ url_for('logout') }}">Sign out ({{ user }})</a>
+</div>
+{% else %}
+<main class="signed-out">
+<div class="signin">
+  <img class="signin-logo" src="{{ url_for('static', filename='consulytics.png') }}"
+       alt="Consulytics.ai">
+{% endif %}
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% for cat, m in messages %}<div class="msg {{ cat }}">{{ m }}</div>{% endfor %}
 {% endwith %}
 {% block body %}{% endblock %}
+{% if not user %}
+<div class="signin-foot">
+  <div class="swatches">
+    <button class="sw sw-dark" data-set-theme="dark" title="Dark"
+            aria-label="Dark theme"></button>
+    <button class="sw sw-slate" data-set-theme="slate" title="Slate"
+            aria-label="Slate theme"></button>
+    <button class="sw sw-light" data-set-theme="light" title="Light"
+            aria-label="Light theme"></button>
+  </div>
+</div></div>
+{% endif %}
 </main>{% if user %}</div>{% endif %}
 <script>
 // Theme is a per-viewer convenience, so it lives in the browser. Reads and

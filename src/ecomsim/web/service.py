@@ -719,10 +719,14 @@ def standings(con, team_id: str) -> dict | None:
     if not bought:
         return {"bought": False}
 
+    brands = {tid: (rec.get("config") or {}).get("brand_name")
+              for tid, rec in db.foundings(con).items()}
     rows = []
     for tid, team in world.teams.items():
         h = team.history[-1] if team.history else {}
-        rows.append({"team_id": tid, "name": team.brand_name,
+        brand = brands.get(tid)
+        rows.append({"team_id": tid,
+                     "name": brand if brand and brand != "Unnamed" else team.brand_name,
                      "share": h.get("market_share", 0.0),
                      "you": tid == team_id})
     rows.sort(key=lambda r: -r["share"])
@@ -810,6 +814,11 @@ def team_report(con, team_id: str, round_: int) -> str | None:
 
     params = load_params(con)
     team = world.teams[team_id]
+    # The world blob keeps the brand it was built with. Reading the current one
+    # here means a rename shows on every report without rewriting a result.
+    brand = (db.founding(con, team_id) or {}).get("config", {}).get("brand_name")
+    if brand and brand != "Unnamed":
+        team.brand_name = brand
     card = scoring.final_score(team, params, world.teams) if round_ >= 2 else None
     with tempfile.TemporaryDirectory() as tmp:
         return report.render(team, round_, Path(tmp), card).read_text(encoding="utf-8")

@@ -576,3 +576,101 @@ def test_leaving_the_shelf_exactly_as_it_was_is_not_a_change(game):
 
     assert "1.1" not in (db.submission(con, 2, "team_01") or {}), (
         "re-submitting the standing shelf is not a decision")
+
+
+# --- Roster, names, branding ---------------------------------------------------------
+
+def test_the_instructor_can_add_and_remove_teams_before_trading(game):
+    app, _pw, path = game
+    con = db.connect(path)
+    admin = app.test_client()
+    admin.post("/login", data={"username": "admin", "password": "admin-pw"})
+
+    admin.post("/admin/teams", data={"action": "add", "count": "2"},
+               follow_redirects=True)
+    ids = [r["team_id"] for r in db.accounts(con, "team")]
+    assert len(ids) == 5 and "team_05" in ids
+
+    admin.post("/admin/teams", data={"action": "remove", "team_id": "team_05"},
+               follow_redirects=True)
+    assert "team_05" not in [r["team_id"] for r in db.accounts(con, "team")]
+
+    # And a market needs somebody to be a market.
+    for tid in ("team_04", "team_03"):
+        admin.post("/admin/teams", data={"action": "remove", "team_id": tid},
+                   follow_redirects=True)
+    r = admin.post("/admin/teams", data={"action": "remove", "team_id": "team_02"},
+                   follow_redirects=True)
+    assert b"at least two teams" in r.data
+    assert len(db.accounts(con, "team")) == 2
+
+
+def test_the_roster_is_fixed_once_the_market_has_been_sized(game):
+    """The world is built on the first run. A seat added later has no company."""
+    app, _pw, path = game
+    con = db.connect(path)
+    service.process_round(con)
+    admin = app.test_client()
+    admin.post("/login", data={"username": "admin", "password": "admin-pw"})
+
+    r = admin.post("/admin/teams", data={"action": "add", "count": "1"},
+                   follow_redirects=True)
+    assert b"roster is fixed" in r.data
+    assert len(db.accounts(con, "team")) == 3
+
+
+def test_adding_a_team_grows_the_market_it_trades_in(game):
+    app, _pw, path = game
+    con = db.connect(path)
+    admin = app.test_client()
+    admin.post("/login", data={"username": "admin", "password": "admin-pw"})
+    admin.post("/admin/teams", data={"action": "add", "count": "3"},
+               follow_redirects=True)
+
+    service.process_round(con)
+    assert len(db.load_world(con).teams) == 6, "everyone on the roster trades"
+
+
+def test_a_team_names_itself_and_its_company(game):
+    app, pw, path = game
+    con = db.connect(path)
+    params = service.load_params(con)
+    db.save_founding(con, "team_01",
+                     service.founding_to_dict(F.Founding.default(params)),
+                     "sys", submitted=True)
+    team = _team(app, pw)
+    team.post("/rename", data={"team_name": "The Cartel", "company": "Sehat"},
+              follow_redirects=True)
+
+    assert db.account(con, "team_01")["display_name"] == "The Cartel"
+    assert db.founding(con, "team_01")["config"]["brand_name"] == "Sehat"
+    assert "Sehat" in team.get("/").data.decode(), "the brand leads the sidebar"
+
+
+def test_a_rename_reaches_the_report_without_rewriting_the_result(game):
+    app, pw, path = game
+    con = db.connect(path)
+    params = service.load_params(con)
+    cfg = F.Founding.default(params)
+    cfg.brand_name = "Old Name"
+    db.save_founding(con, "team_01", service.founding_to_dict(cfg), "sys",
+                     submitted=True)
+    service.process_round(con)
+    assert "Old Name" in service.team_report(con, "team_01", 1)
+
+    db.rename_company(con, "team_01", "New Name")
+    assert "New Name" in service.team_report(con, "team_01", 1)
+    assert db.load_world(con).teams["team_01"].brand_name == "Old Name", (
+        "the stored result is not rewritten")
+
+
+def test_the_logo_and_theme_picker_are_on_every_page(game):
+    app, pw, path = game
+    db.set_game(db.connect(path), open_round=1)
+    team = _team(app, pw)
+    anon = app.test_client()
+    for client, path_ in [(anon, "/login"), (team, "/"), (team, "/company"),
+                          (team, "/brief"), (team, "/submit")]:
+        body = client.get(path_).data.decode()
+        assert "consulytics.png" in body, path_
+        assert 'data-set-theme="light"' in body, path_

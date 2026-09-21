@@ -1,13 +1,21 @@
 {% extends "base.html" %}{% block title %}Sign in{% endblock %}
 {% block body %}
-<section style="max-width:380px;margin:40px auto">
-<h1>{{ game['name'] }}</h1>
-<p class="sub">Sign in with the username and password your instructor gave you.</p>
-<form method="post">
-<div class="field"><label for="u">Username</label>
-<input id="u" name="username" autocomplete="username" autofocus required></div>
-<div class="field"><label for="p">Password</label>
-<input id="p" name="password" type="password" autocomplete="current-password" required></div>
-<button type="submit">Sign in</button>
-</form></section>
+<div class="card">
+  <h1 style="font-size:20px;margin-bottom:4px">{{ game['name'] }}</h1>
+  <p class="cap" style="margin-bottom:18px">Sign in with the username and password
+  your instructor gave you.</p>
+  <form method="post">
+    <div class="field" style="border:0;padding-bottom:0;margin-bottom:14px">
+      <label class="f" for="u">Username</label>
+      <input id="u" name="username" type="text" autocomplete="username" autofocus required
+             placeholder="team_01"></div>
+    <div class="field" style="border:0;padding-bottom:0;margin-bottom:18px">
+      <label class="f" for="p">Password</label>
+      <input id="p" name="password" type="password"
+             autocomplete="current-password" required></div>
+    <button type="submit" style="width:100%">Sign in</button>
+  </form>
+</div>
+<p class="hint" style="text-align:center;margin-top:16px">
+  Lost your password? Your instructor can set a new one.</p>
 {% endblock %}
