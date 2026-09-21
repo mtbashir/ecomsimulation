@@ -44,8 +44,10 @@ who is playing. Your company is the firm. Your brand is what the market sees
   </div>
 
   <label class="f">Appearance</label>
-  <p class="help">How the portal looks, on this device. Everyone on your team
-  can pick their own.</p>
+  <p class="help">How the portal looks for your team. It is saved against your
+  sign-in rather than the browser, so a shared lab machine does not hand your
+  colours to the team after you.</p>
+  <input type="hidden" name="theme" value="{{ theme }}">
   <div class="swatches" style="margin-bottom:16px">
     <button type="button" class="sw sw-consulytics" data-set-theme="consulytics"
             title="Consulytics" aria-label="Consulytics theme"></button>

@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS account (
   display_name  TEXT    NOT NULL,
   initial_password TEXT,             -- one-time handover; cleared once seen
   briefing_seen_at TEXT,             -- NULL until the team has read the brief
+  theme         TEXT,                -- chosen appearance; NULL means the default
   created_at    TEXT    NOT NULL
 );
 
@@ -119,6 +120,7 @@ def migrate(con) -> None:
     for table, column, ddl in [
         ("game", "start_mode", "TEXT NOT NULL DEFAULT 'founding'"),
         ("account", "briefing_seen_at", "TEXT"),
+        ("account", "theme", "TEXT"),
     ]:
         have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
         if column not in have:
@@ -255,6 +257,22 @@ def set_identity(con, team_id: str, fields: dict, actor: str = "admin") -> None:
              (record or {}).get("submitted_at"), actor))
         log(con, actor, "teams.identity",
             f"{team_id}: {', '.join(f'{k}={v}' for k, v in fields.items() if v)}")
+
+
+THEMES = ("consulytics", "light", "slate", "dark")
+
+
+def set_theme(con, username: str, theme: str) -> None:
+    """Remember an account's appearance on the account, not in the browser.
+
+    Two teams sharing a lab machine would otherwise share one setting, and a
+    team that moves to another room would lose theirs.
+    """
+    if theme not in THEMES:
+        return
+    with con:
+        con.execute("UPDATE account SET theme = ? WHERE username = ?",
+                    (theme, username))
 
 
 def mark_briefing_seen(con, username: str) -> None:

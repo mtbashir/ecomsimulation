@@ -109,6 +109,27 @@ offline. The file path always works.</p>
 </section>
 
 <section>
+<h2>Appearance</h2>
+<p class="cap">How the console looks for you. It is saved against your account,
+not the browser, so each team keeps its own choice and yours never follows them.</p>
+<form method="post" action="{{ url_for('set_theme') }}">
+  <input type="hidden" name="theme" value="{{ theme }}">
+  <input type="hidden" name="next" value="{{ url_for('admin') }}">
+  <div class="swatches">
+    <button type="button" class="sw sw-consulytics" data-set-theme="consulytics"
+            title="Consulytics" aria-label="Consulytics theme"></button>
+    <button type="button" class="sw sw-light" data-set-theme="light"
+            title="Light" aria-label="Light theme"></button>
+    <button type="button" class="sw sw-slate" data-set-theme="slate"
+            title="Slate" aria-label="Slate theme"></button>
+    <button type="button" class="sw sw-dark" data-set-theme="dark"
+            title="Dark" aria-label="Dark theme"></button>
+  </div>
+  <noscript><button type="submit" style="margin-top:10px">Save appearance</button></noscript>
+</form>
+</section>
+
+<section>
 <h2>Recent activity</h2>
 <table><tbody>
 {% for a in audit %}

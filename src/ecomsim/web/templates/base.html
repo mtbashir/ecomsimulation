@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="consulytics"><head><meta charset="utf-8">
+<html lang="en" data-theme="{{ theme|default('consulytics') }}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block title %}{{ game['name'] }}{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -207,7 +207,6 @@ overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .disc-input{max-width:56px;text-align:right;border-radius:7px 0 0 7px;padding:6px 7px}
 .bprice-input{max-width:92px;text-align:right;padding:6px 8px}
 .bun-row{opacity:.5}.bun-row.on{opacity:1}
-.bun-row td:first-child{width:52px}
 .save-cell,.bmargin-cell,.net-cell{font-variant-numeric:tabular-nums;
 white-space:nowrap}
 .bmargin-cell{font-weight:650}
@@ -229,8 +228,29 @@ box-shadow:0 8px 24px rgba(0,0,0,.28);cursor:auto}
 text-decoration:none}
 .refcard a:hover{text-decoration:underline}
 .t-body .catalogue td{vertical-align:middle}
-.src-cell{width:190px}.src-cell select{width:100%;min-width:0}
-.catalogue td:first-child{width:34%}
+/* Both grids get their columns stated outright. Left to itself the table hands
+   all the slack to whichever column holds text, which is what pushed the
+   product name onto four lines and left a field of white after the pack name. */
+.catalogue.range,.catalogue.packs{table-layout:fixed}
+/* Percentages, so the slack is shared out rather than pooling in one gap. */
+.catalogue.range .c-cat{width:9%}
+.catalogue.range .c-name{width:20%}
+.catalogue.range .c-src{width:13%}
+.catalogue.range .c-cogs,.catalogue.range .c-mkt{width:9%}
+.catalogue.range .c-price{width:11%}
+.catalogue.range .c-disc{width:10%}
+.catalogue.range .c-net,.catalogue.range .c-gm{width:9.5%}
+.src-cell select{width:100%;min-width:0;padding:6px 20px 6px 8px}
+/* The discount box belongs under its own right-aligned heading. */
+.disc-cell .with-suffix{margin-left:auto}
+.catalogue.packs .c-on{width:6%}
+.catalogue.packs .c-pack{width:28%}
+.catalogue.packs .c-bcogs,.catalogue.packs .c-save,
+.catalogue.packs .c-bgm{width:13%}
+.catalogue.packs .c-single{width:14%}
+.catalogue.packs .c-bprice{width:13%}
+.cat-row .c-cat{color:var(--mute);font-size:12.5px}
+.c-cat,.c-name,.c-pack{overflow-wrap:anywhere}
 
 /* --- Agenda ------------------------------------------------------------- */
 .item{display:flex;gap:13px;padding:13px 0;border-top:1px solid var(--line)}
@@ -312,7 +332,6 @@ background:var(--panel-2);color:var(--dim);font-size:13px;font-weight:600}
 table.catalogue td{vertical-align:top;padding:9px 8px}
 table.catalogue th{white-space:nowrap}
 .cat-row{opacity:.55}.cat-row.on{opacity:1}
-.cat-row td:first-child{width:34px}
 .price-input.price-input{max-width:92px;text-align:right;padding:6px 8px}
 .margin-cell{font-variant-numeric:tabular-nums;font-weight:650;white-space:nowrap}
 .margin-cell.thin{color:var(--warn-ink)}.margin-cell.loss{color:var(--bad-ink)}
@@ -443,26 +462,28 @@ nav{display:flex}
 {% if not user %}</div>{% endif %}
 </main>{% if user %}</div>{% endif %}
 <script>
-// Theme is a per-viewer convenience, so it lives in the browser. Reads and
-// writes are wrapped because storage throws in a private window.
+// Appearance belongs to the account, not the browser: two teams on one lab
+// machine would otherwise share a setting, and a team that moves rooms would
+// lose theirs. The click paints immediately and tells the server after, so the
+// swatch feels instant but survives the next sign-in.
 (function () {
-  var KEY = "ecomsim-theme";
   function apply(t) {
     document.documentElement.setAttribute("data-theme", t);
     document.querySelectorAll("[data-set-theme]").forEach(function (b) {
       b.setAttribute("aria-pressed", b.dataset.setTheme === t);
     });
+    document.querySelectorAll("input[name='theme']").forEach(function (i) {
+      i.value = t;
+    });
   }
-  // Fall back to whatever the document was served with, not to a name
-  // hard-coded here - otherwise this quietly overrides the default theme.
-  var initial = document.documentElement.getAttribute("data-theme") || "consulytics";
-  var saved = initial;
-  try { saved = localStorage.getItem(KEY) || initial; } catch (e) {}
-  apply(saved);
+  apply(document.documentElement.getAttribute("data-theme") || "consulytics");
   document.querySelectorAll("[data-set-theme]").forEach(function (b) {
     b.addEventListener("click", function () {
       apply(b.dataset.setTheme);
-      try { localStorage.setItem(KEY, b.dataset.setTheme); } catch (e) {}
+      var body = new FormData();
+      body.append("theme", b.dataset.setTheme);
+      fetch({{ url_for('set_theme')|tojson }},
+            {method: "POST", body: body, credentials: "same-origin"});
     });
   });
 })();

@@ -791,3 +791,44 @@ def test_every_decision_carries_a_handbook_entry_you_can_open(game):
         entry = service.handbook_entry(spec)
         assert entry["help"], spec.code
         assert entry["url"].endswith(spec.code.replace(".", "")), spec.code
+
+
+def test_appearance_is_remembered_against_the_account_not_the_browser(game):
+    """Two teams on one lab machine must not share one colour scheme."""
+    app, pw, _ = game
+    one, two = _team(app, pw, "team_01"), _team(app, pw, "team_02")
+    one.post("/theme", data={"theme": "dark"})
+    assert 'data-theme="dark"' in one.get("/brief").data.decode()
+    assert 'data-theme="consulytics"' in two.get("/brief").data.decode(), (
+        "the second team still gets the default")
+
+    fresh = app.test_client()          # a new browser, no storage of its own
+    fresh.post("/login", data={"username": "team_01", "password": pw["team_01"]})
+    assert 'data-theme="dark"' in fresh.get("/brief").data.decode()
+
+
+def test_the_instructor_can_set_their_own_appearance(game):
+    app, _, _ = game
+    c = app.test_client()
+    c.post("/login", data={"username": "admin", "password": "admin-pw"})
+    assert 'action="/theme"' in c.get("/admin").data.decode()
+    c.post("/theme", data={"theme": "slate"})
+    assert 'data-theme="slate"' in c.get("/admin").data.decode()
+
+
+def test_a_made_up_theme_is_ignored_rather_than_stored(game):
+    app, pw, _ = game
+    c = _team(app, pw)
+    c.post("/theme", data={"theme": "neon"})
+    assert 'data-theme="consulytics"' in c.get("/brief").data.decode()
+
+
+def test_the_range_grid_is_grouped_by_category(game):
+    """Teams review a range category by category, not in SKU-code order."""
+    app, pw, path = game
+    con = _trading(app, path)
+    rows = service.monthly_catalogue(con, "team_01", {})
+    seen = [r["category"] for r in rows]
+    assert seen == sorted(seen), "each category's lines sit together"
+    page = _team(app, pw).get("/submit").data.decode()
+    assert "<th class=\"c-cat\">Category</th>" in page

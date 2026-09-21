@@ -507,6 +507,9 @@ def monthly_catalogue(con, team_id: str, current: dict) -> list[dict]:
             "margin": (net - cost) / net if net > 0 else 0.0,
             "changed": code in grid,
         })
+    # Grouped by category so the grid reads like a range review rather than a
+    # SKU dump; within a category the biggest sellers come first.
+    rows.sort(key=lambda r: (r["category"], -r["weight"], r["name"]))
     return rows
 
 

@@ -270,15 +270,20 @@ def register_routes(app: Flask) -> None:
 
     @app.context_processor
     def nav_state():
-        """What the sidebar needs, on every page, without each route saying so."""
-        if "user" not in session or session.get("role") != "team":
-            return {"nav_at": request.endpoint, "open_count": 0}
+        """What the shell needs, on every page, without each route saying so."""
+        theme = session.get("theme") or "consulytics"
+        if "user" not in session:
+            return {"nav_at": request.endpoint, "open_count": 0, "theme": theme}
+        if session.get("role") != "team":
+            return {"nav_at": request.endpoint, "open_count": 0, "theme": theme,
+                    "themes": db.THEMES}
         game = db.game(g.db)
         count = len(service.open_decisions(g.db, game["open_round"])) \
             if game["open_round"] else 0
         record = db.founding(g.db, session["team_id"])
         brand = (record or {}).get("config", {}).get("brand_name")
-        return {"nav_at": request.endpoint, "open_count": count,
+        return {"nav_at": request.endpoint, "open_count": count, "theme": theme,
+                "themes": db.THEMES,
                 "brand": brand if brand and brand != "Unnamed" else None}
 
 
@@ -295,7 +300,8 @@ def register_routes(app: Flask) -> None:
                 flash("Wrong username or password.", "error")
             else:
                 session.update(user=row["username"], role=row["role"],
-                               team_id=row["team_id"], name=row["display_name"])
+                               team_id=row["team_id"], name=row["display_name"],
+                               theme=row["theme"] or "consulytics")
                 with g.db:
                     db.log(g.db, row["username"], "auth.login", "")
                 dest = safe_next(app, request.args.get("next"), row["role"])
@@ -782,6 +788,19 @@ def register_routes(app: Flask) -> None:
             brands={tid: (rec.get("config") or {}).get("brand_name")
                     for tid, rec in foundings.items()})
 
+    @app.post("/theme")
+    @login_required()
+    def set_theme():
+        """Appearance, remembered against the account."""
+        choice = (request.form.get("theme") or "").strip()
+        if choice in db.THEMES:
+            db.set_theme(g.db, session["user"], choice)
+            session["theme"] = choice
+        home = url_for("home") if session.get("role") == "team" \
+            else url_for("admin")
+        return redirect(safe_next(app, request.form.get("next"),
+                                  session.get("role")) or home)
+
     @app.post("/setup")
     @login_required("team")
     def setup():
@@ -800,6 +819,10 @@ def register_routes(app: Flask) -> None:
         }
         if fields["objective"] not in founding.OBJECTIVE_LABELS:
             fields["objective"] = ""
+        choice = (request.form.get("theme") or "").strip()
+        if choice in db.THEMES:
+            db.set_theme(g.db, session["user"], choice)
+            session["theme"] = choice
         if team_name:
             db.rename_team(g.db, tid, team_name, session["user"])
             session["name"] = team_name
