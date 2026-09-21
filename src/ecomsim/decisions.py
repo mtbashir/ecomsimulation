@@ -61,6 +61,14 @@ REGISTRY: dict[str, DecisionSpec] = {
 
         # --- Assortment & product -------------------------------------------
         DecisionSpec(
+            "1.1", "G1", "Range, prices and sourcing", "grid", None, ALL,
+            help="What you charge for each product, and where each one is "
+                 "sourced from. Cost follows the sourcing choice, so the margin "
+                 "on every line moves with it. Which products you sell was "
+                 "settled at founding - changing the range mid-run is not "
+                 "modelled, so this is price and sourcing only.",
+            catalogue="skus"),
+        DecisionSpec(
             "1.5", "G1", "Product quality positioning", "select", None, ALL,
             help="Where your catalogue sits on quality. A higher tier lifts "
                  "how customers rate you and converts better, but costs more "

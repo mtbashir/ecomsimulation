@@ -122,6 +122,26 @@ def default_shares(params, name: str) -> dict[str, float]:
 def coerce(code: str, raw):
     """Turn a form value into what the engine expects."""
     spec = REGISTRY[code]
+    if spec.kind == "grid":
+        # {sku: {"price": float, "sourcing": str}} - only the lines the team
+        # actually filled in, so a blank grid falls through to the founding
+        # prices rather than overwriting them with zeros.
+        if not isinstance(raw, dict):
+            return None
+        out = {}
+        for sku, cell in raw.items():
+            entry = {}
+            price = str(cell.get("price") or "").replace(",", "").strip()
+            if price:
+                try:
+                    entry["price"] = float(price)
+                except ValueError:
+                    raise ValueError(f"{sku}: {price!r} is not a price")
+            if cell.get("sourcing"):
+                entry["sourcing"] = str(cell["sourcing"])
+            if entry:
+                out[sku] = entry
+        return out or None
     if spec.kind == "shares":
         if not isinstance(raw, dict):
             return None
@@ -156,6 +176,18 @@ def validate(code: str, value) -> str | None:
     """Per-decision sanity, so a typo does not become a silent catastrophe."""
     spec = REGISTRY[code]
     if value is None:
+        return None
+    if spec.kind == "grid":
+        for sku, cell in value.items():
+            price = cell.get("price")
+            if price is None:
+                continue
+            if price <= 0:
+                return f"{spec.name}: {sku} needs a price above zero"
+            ref = float(params_sku_price(sku))
+            if ref and price > ref * 4:
+                return (f"{spec.name}: {sku} at {price:,.0f} is more than four "
+                        f"times the market reference of {ref:,.0f}")
         return None
     if spec.kind == "shares":
         total = sum(float(v) for v in value.values())
@@ -381,6 +413,98 @@ def apply_foundings(con, world, params) -> None:
             founding_mod.apply(f, team, params)
         team.brand_name = (f.brand_name if record and f.brand_name != "Unnamed"
                            else row["display_name"])
+
+
+def monthly_catalogue(con, team_id: str, current: dict) -> list[dict]:
+    """The team's shelf as it stands this month: price, sourcing, cost, margin.
+
+    Founding set the opening shelf; each month the team may re-price a line or
+    move it between local and imported. What is shown is what would be charged
+    if the team submitted now.
+    """
+    params = load_params(con)
+    record = db.founding(con, team_id)
+    world = db.load_world(con)
+    grid = current.get("1.1") or {}
+
+    if record is not None:
+        f = founding_from_dict(record["config"], params)
+        active, tier = f.assortment, f.tier
+    elif world is not None and team_id in world.teams:
+        active = world.teams[team_id].active_skus
+        tier = "mainstream"
+        f = None
+    else:
+        return []
+
+    supplier = float(next(sp for sp in params.suppliers
+                          if sp["code"] == "B")["cost_index"])
+    rows = []
+    for code in active:
+        sku = params.sku(code)
+        founded = founding_mod.sourcing_of(f, code) if f else "mixed"
+        sourcing = (grid.get(code) or {}).get("sourcing") or founded
+        cost = founding_mod.unit_cost(sku, sourcing, tier, params, supplier)
+        standing = ((f.prices or {}).get(code) if f else None) \
+            or founding_mod.reference_price(sku, tier)
+        price = float((grid.get(code) or {}).get("price") or standing)
+        rows.append({
+            "code": code, "name": sku["name"], "category": sku["category"],
+            "sourcing": sourcing, "cost": cost, "price": price,
+            "standing": standing,
+            "reference": founding_mod.reference_price(sku, tier),
+            "cost_local": founding_mod.unit_cost(sku, "local", tier, params, supplier),
+            "cost_import": founding_mod.unit_cost(sku, "import", tier, params, supplier),
+            "cost_mixed": founding_mod.unit_cost(sku, "mixed", tier, params, supplier),
+            "margin": (price - cost) / price if price > 0 else 0.0,
+            "changed": code in grid,
+        })
+    return rows
+
+
+def decision_summary(spec, value, catalogue_rows=None) -> str:
+    """One line describing where a decision stands, for the tile face."""
+    if value is None or value == "" or value == [] or value == {}:
+        return ""
+    if spec.kind == "grid":
+        changed = len(value)
+        return f"{changed} line{'' if changed == 1 else 's'} changed"
+    if spec.kind == "shares":
+        return " · ".join(f"{k} {v * 100:.0f}%" for k, v in value.items())
+    if spec.kind == "multi":
+        names = {r["value"]: r["label"] for r in (catalogue_rows or [])}
+        picked = [names.get(v, v) for v in value]
+        if not picked:
+            return ""
+        head = ", ".join(picked[:2])
+        return head + (f" +{len(picked) - 2} more" if len(picked) > 2 else "")
+    if spec.kind == "pct":
+        return f"{float(value) * 100:,.4g}%"
+    if spec.kind == "curr":
+        return f"PKR {float(value):,.0f}"
+    if spec.kind == "num":
+        return f"{float(value):,.4g}{' ' + spec.unit if spec.unit else ''}"
+    if spec.kind == "select":
+        if isinstance(value, bool):
+            return "Yes" if value else "No"
+        labels = {o[0]: o[1] for o in spec.options}
+        labels.update({r["value"]: r["label"] for r in (catalogue_rows or [])})
+        return labels.get(str(value), str(value))
+    if spec.kind == "text":
+        text = str(value)
+        return text[:44] + ("…" if len(text) > 44 else "")
+    return str(value)
+
+
+def params_sku_price(code: str) -> float:
+    """The catalogue reference for one product, for validating a typed price."""
+    global _SKU_PRICES
+    if _SKU_PRICES is None:
+        _SKU_PRICES = {s["code"]: float(s["list_price"]) for s in P.load().skus}
+    return _SKU_PRICES.get(code, 0.0)
+
+
+_SKU_PRICES: dict[str, float] | None = None
 
 
 def process_round(con, actor: str = "admin", out_dir=None) -> dict:

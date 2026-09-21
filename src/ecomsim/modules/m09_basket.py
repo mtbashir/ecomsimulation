@@ -78,7 +78,7 @@ def _consume_stock(team, params, orders: float, ctx) -> None:
         # by five points and is a recalibration, not a sourcing feature.
         cogs += (taken * float(params.sku(code)["unit_cost"])
                  * float(supplier.get("cost_index", 1.0))
-                 * m03.landed_index(team, code)
+                 * m03.landed_index(team, code, ctx["resolved"][team.team_id])
                  * params["cogs_scale"])
     # Units served over units wanted. instock_ratio reads opening stock - what
     # a customer sees on the listing page, and the right input to conversion -

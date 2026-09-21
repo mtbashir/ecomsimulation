@@ -1,121 +1,202 @@
 {% extends "base.html" %}{% block title %}Month {{ round }} decisions{% endblock %}
 {% block body %}
 <div class="crumbs">Decisions &middot; month {{ round }}</div>
-<h1>Month {{ round }} decisions</h1>
-<p class="sub">Every field is optional. Leave one blank and it stays where it
-was last month. Where a typical range is given, it is a starting point, not a
-recommendation &mdash; the right answer depends on the strategy you are running.</p>
+<div class="head">
+  <div><h1>Month {{ round }} decisions</h1>
+    <p>Every lever is optional. A tile you do not open keeps what you had last
+    month &mdash; that is still a decision, and the red bar is there so it is a
+    decision you took rather than one you missed.</p></div>
+</div>
+
 <form method="post">
-{% for group, specs in by_group.items() %}
-<section>
-<h2>{{ group_names.get(group, group) }}</h2>
+<div class="tally">
+  <div><b class="num">{{ taken }}</b> of {{ summaries|length }} changed this month</div>
+  <div class="key"><span><i class="dot set"></i>changed</span>
+    <span><i class="dot"></i>carried forward</span></div>
+  <div style="margin-left:auto;display:flex;gap:8px">
+    <button type="submit">Submit month {{ round }}</button>
+    <a class="btn ghost" href="{{ url_for('home') }}">Cancel</a></div>
+</div>
+
+{% for group in group_order %}
+{% set specs = by_group[group] %}
+<h2 class="sec">{{ group_names.get(group, group) }}</h2>
+<div class="tiles">
 {% for s in specs %}
-<div class="field">
-<label for="{{ s.code }}">{{ s.name }}{% if s.unit %}
-  <span class="note">({{ s.unit }})</span>{% endif %}</label>
-{% if s.help %}<p class="help">{{ s.help }}</p>{% endif %}
 {% set val = current.get(s.code, '') %}
+{% set was_set = s.code in current %}
+<details class="tile {{ 'set' if was_set }}">
+  <summary>
+    <i class="dot {{ 'set' if was_set }}"></i>
+    <span class="t-text">
+      <span class="t-name">{{ s.name }}</span>
+      {# the formatted value already carries % and PKR; the unit only adds
+         what it does not say #}
+      {%- set u = '' if s.unit in ('%', '') else
+          (s.unit[4:] if s.unit.startswith('PKR') else s.unit) %}
+      <span class="t-val">{{ summaries[s.code] or 'carried forward' }}
+        {%- if u %} <span class="note">&middot; {{ u }}</span>{% endif %}</span>
+    </span>
+  </summary>
+  <div class="t-body">
+  <p class="help">{{ s.help }}</p>
 
-{% if s.kind == 'shares' %}
-  {% set chosen = val if val is mapping else default_shares.get(s.code, {}) %}
-  <div class="shares">
-  {% for o in catalogues.get(s.code, []) %}
-    <div class="share-row">
-      <input id="{{ s.code }}__{{ o.value }}" name="{{ s.code }}__{{ o.value }}"
-             type="text" inputmode="decimal" class="share-input"
-             value="{{ '%0.0f'|format(chosen.get(o.value, 0) * 100) }}">
-      <span class="share-pct">%</span>
-      <span class="share-name">{{ o.label }}<br>
-        <span class="note">{{ o.note }}</span></span>
-    </div>
-  {% endfor %}
-  </div>
-  <div class="hint">These must add up to 100%.</div>
+  {% if s.kind == 'grid' %}
+    <table class="catalogue">
+    <thead><tr><th>Product</th><th>Source from</th><th class="r">COGS</th>
+      <th class="r">Market</th><th class="r">Your price</th>
+      <th class="r">Margin</th></tr></thead>
+    <tbody>
+    {% for row in shelf %}
+    <tr class="cat-row on">
+      <td><strong>{{ row.name }}</strong><br><span class="note">{{ row.category }}</span></td>
+      <td class="src-cell"><select name="sourcing_{{ row.code }}" class="src-input"
+           data-local="{{ '%.2f'|format(row.cost_local) }}"
+           data-import="{{ '%.2f'|format(row.cost_import) }}"
+           data-mixed="{{ '%.2f'|format(row.cost_mixed) }}">
+        <option value="local" {% if row.sourcing == 'local' %}selected{% endif %}>
+          Local &middot; 9 days</option>
+        <option value="import" {% if row.sourcing == 'import' %}selected{% endif %}>
+          Imported &middot; 22 days</option>
+        <option value="mixed" {% if row.sourcing == 'mixed' %}selected{% endif %}>
+          Both &middot; 14 days</option>
+      </select></td>
+      <td class="num cost-cell">{{ '{:,.0f}'.format(row.cost) }}</td>
+      <td class="num note">{{ '{:,.0f}'.format(row.reference) }}</td>
+      <td class="r"><input type="text" inputmode="decimal" class="price-input"
+          name="price_{{ row.code }}" value="{{ '{:,.0f}'.format(row.price) }}"></td>
+      <td class="num margin-cell">{{ '{:.0%}'.format(row.margin) }}</td></tr>
+    {% endfor %}
+    </tbody></table>
+    <div class="hint">COGS follows the sourcing choice and is what the P&amp;L will
+    charge. Which products you sell was settled at founding.</div>
 
-{% elif s.kind == 'select' and s.default_when_disabled is sameas true
-        or s.kind == 'select' and s.default_when_disabled is sameas false %}
-  <select id="{{ s.code }}" name="{{ s.code }}">
-    <option value="">&mdash; keep {{ standing.get(s.code, 'current choice') }} &mdash;</option>
-    <option value="yes" {% if val is sameas true %}selected{% endif %}>Yes &mdash; switch it on</option>
-    <option value="no" {% if val is sameas false %}selected{% endif %}>No &mdash; do not use it</option>
-  </select>
-
-{% elif s.kind == 'select' and s.catalogue %}
-  <select id="{{ s.code }}" name="{{ s.code }}">
-    <option value="">&mdash; keep {{ standing.get(s.code, 'current choice') }} &mdash;</option>
+  {% elif s.kind == 'shares' %}
+    {% set chosen = val if val is mapping else default_shares.get(s.code, {}) %}
+    <div class="shares">
     {% for o in catalogues.get(s.code, []) %}
-    <option value="{{ o.value }}" {% if val == o.value %}selected{% endif %}>
-      {{ o.label }}{% if o.note %} &mdash; {{ o.note }}{% endif %}</option>
+      <div class="share-row">
+        <input name="{{ s.code }}__{{ o.value }}" type="text" inputmode="decimal"
+               class="share-input"
+               value="{{ '%0.0f'|format(chosen.get(o.value, 0) * 100) }}">
+        <span class="share-pct">%</span>
+        <span class="share-name">{{ o.label }}<br>
+          <span class="note">{{ o.note }}</span></span>
+      </div>
     {% endfor %}
-  </select>
+    </div>
+    <div class="hint">These must add up to 100%.</div>
 
-{% elif s.kind == 'select' and s.options %}
-  <select id="{{ s.code }}" name="{{ s.code }}">
-    {% if s.options[0][0] != '' %}
-    <option value="">&mdash; keep {{ standing.get(s.code, 'current choice') }} &mdash;</option>
-    {% endif %}
-    {% for value, label, note in s.options %}
-    <option value="{{ value }}" {% if val == value %}selected{% endif %}>
-      {{ label }}{% if note %} &mdash; {{ note }}{% endif %}</option>
+  {% elif s.kind == 'select' and s.default_when_disabled is sameas true
+          or s.kind == 'select' and s.default_when_disabled is sameas false %}
+    <select name="{{ s.code }}">
+      <option value="">&mdash; keep {{ standing.get(s.code, 'current choice') }} &mdash;</option>
+      <option value="yes" {% if val is sameas true %}selected{% endif %}>Yes</option>
+      <option value="no" {% if val is sameas false %}selected{% endif %}>No</option>
+    </select>
+
+  {% elif s.kind == 'select' and s.catalogue %}
+    <select name="{{ s.code }}">
+      <option value="">&mdash; keep {{ standing.get(s.code, 'current choice') }} &mdash;</option>
+      {% for o in catalogues.get(s.code, []) %}
+      <option value="{{ o.value }}" {% if val == o.value %}selected{% endif %}>
+        {{ o.label }}{% if o.note %} &mdash; {{ o.note }}{% endif %}</option>
+      {% endfor %}
+    </select>
+
+  {% elif s.kind == 'select' and s.options %}
+    <select name="{{ s.code }}">
+      {% if s.options[0][0] != '' %}
+      <option value="">&mdash; keep {{ standing.get(s.code, 'current choice') }} &mdash;</option>
+      {% endif %}
+      {% for value, label, note in s.options %}
+      <option value="{{ value }}" {% if val == value %}selected{% endif %}>
+        {{ label }}{% if note %} &mdash; {{ note }}{% endif %}</option>
+      {% endfor %}
+    </select>
+
+  {% elif s.kind == 'multi' %}
+    {% set picked = val if val else [] %}
+    <div class="checks">
+    {% for o in catalogues.get(s.code, []) %}
+      <label class="check"><input type="checkbox" name="{{ s.code }}"
+        value="{{ o.value }}" {% if o.value in picked %}checked{% endif %}>
+        <span>{{ o.label }}{% if o.note %}<br>
+          <span class="note">{{ o.note }}</span>{% endif %}</span></label>
     {% endfor %}
-  </select>
+    </div>
 
-{% elif s.kind == 'multi' %}
-  {% set picked = val if val else [] %}
-  <div class="checks">
-  {% for o in catalogues.get(s.code, []) %}
-    <label class="check">
-      <input type="checkbox" name="{{ s.code }}" value="{{ o.value }}"
-             {% if o.value in picked %}checked{% endif %}>
-      <span>{{ o.label }}{% if o.note %}<br>
-        <span class="note">{{ o.note }}</span>{% endif %}</span>
-    </label>
-  {% endfor %}
-  </div>
+  {% elif s.kind == 'pct' %}
+    <div class="with-suffix">
+      <input name="{{ s.code }}" type="text" inputmode="decimal"
+             value="{{ '%0.4g'|format(val * 100) if val not in ('', None) else '' }}"
+             placeholder="{{ '%0.4g'|format(s.default_when_disabled * 100)
+                             if s.default_when_disabled is not none else '0' }}">
+      <span class="suffix">%</span></div>
 
-{% elif s.kind == 'pct' %}
-  <div class="with-suffix">
-    <input id="{{ s.code }}" name="{{ s.code }}" type="text" inputmode="decimal"
-           value="{{ '%0.4g'|format(val * 100) if val not in ('', None) else '' }}"
-           placeholder="{{ '%0.4g'|format(s.default_when_disabled * 100)
-                           if s.default_when_disabled is not none else '0' }}">
-    <span class="suffix">%</span>
-  </div>
+  {% elif s.kind == 'curr' %}
+    <div class="with-prefix"><span class="prefix">PKR</span>
+      <input name="{{ s.code }}" type="text" inputmode="decimal"
+             value="{{ '{:,.0f}'.format(val) if val not in ('', None) else '' }}"
+             placeholder="{{ '{:,.0f}'.format(s.default_when_disabled)
+                             if s.default_when_disabled is not none else '' }}"></div>
 
-{% elif s.kind == 'curr' %}
-  <div class="with-prefix">
-    <span class="prefix">PKR</span>
-    <input id="{{ s.code }}" name="{{ s.code }}" type="text" inputmode="decimal"
-           value="{{ '{:,.0f}'.format(val) if val not in ('', None) else '' }}"
+  {% elif s.kind == 'text' %}
+    <input name="{{ s.code }}" type="text" value="{{ val }}"
+           placeholder="One or two sentences.">
+
+  {% else %}
+    <input name="{{ s.code }}" type="text" inputmode="decimal" value="{{ val }}"
            placeholder="{{ '{:,.0f}'.format(s.default_when_disabled)
-                           if s.default_when_disabled is not none else '' }}">
+                           if s.default_when_disabled is not none
+                           else 'leave blank and we order for you' }}">
+  {% endif %}
+
+  {% if s.guide %}<div class="hint">{{ s.guide }}</div>{% endif %}
+  {% if s.code in previous and s.kind != 'grid' %}
+  <div class="hint">Last month:
+    {{ previous[s.code]|join(', ') if previous[s.code] is iterable
+       and previous[s.code] is not string and previous[s.code] is not mapping
+       else previous[s.code] }}</div>
+  {% endif %}
+  <div class="code-ref">Handbook reference {{ s.code }}</div>
   </div>
-
-{% elif s.kind == 'text' %}
-  <input id="{{ s.code }}" name="{{ s.code }}" type="text" value="{{ val }}"
-         placeholder="One or two sentences.">
-
-{% else %}
-  <input id="{{ s.code }}" name="{{ s.code }}" type="text" inputmode="decimal"
-         value="{{ val }}"
-         placeholder="{{ '{:,.0f}'.format(s.default_when_disabled)
-                         if s.default_when_disabled is not none
-                         else 'leave blank and we order for you' }}">
-{% endif %}
-
-{% if s.guide %}<div class="hint">{{ s.guide }}</div>{% endif %}
-{% if s.code in previous %}
-<div class="hint">Last month you chose:
-  {{ previous[s.code]|join(', ') if previous[s.code] is iterable
-     and previous[s.code] is not string and previous[s.code] is not mapping
-     else previous[s.code] }}</div>
-{% endif %}
-<div class="code-ref">Handbook reference {{ s.code }}</div>
+</details>
+{% endfor %}
 </div>
 {% endfor %}
-</section>
-{% endfor %}
-<button type="submit">Submit month {{ round }}</button>
-<a class="btn ghost" href="{{ url_for('home') }}" style="margin-left:8px">Cancel</a>
+
+<div class="tally" style="margin-top:18px">
+  <div style="margin-left:auto;display:flex;gap:8px">
+    <button type="submit">Submit month {{ round }}</button>
+    <a class="btn ghost" href="{{ url_for('home') }}">Cancel</a></div>
+</div>
 </form>
+
+<script>
+// Margin follows the sourcing and the price as you type. The server recomputes
+// on save either way, so the page is correct with this blocked - just slower.
+(function () {
+  document.querySelectorAll(".cat-row").forEach(function (row) {
+    var box = row.querySelector(".price-input");
+    var src = row.querySelector(".src-input");
+    if (!box || !src) return;
+    function paint() {
+      var cost = parseFloat(src.dataset[src.value === "import" ? "import"
+                                        : src.value === "local" ? "local" : "mixed"]);
+      var price = parseFloat(box.value.replace(/,/g, ""));
+      row.querySelector(".cost-cell").textContent = Math.round(cost).toLocaleString();
+      var cell = row.querySelector(".margin-cell");
+      if (!(price > 0)) { cell.textContent = "—"; return; }
+      var m = (price - cost) / price;
+      cell.textContent = Math.round(m * 100) + "%";
+      cell.classList.toggle("thin", m < 0.25);
+      cell.classList.toggle("loss", m < 0);
+    }
+    box.addEventListener("input", paint);
+    src.addEventListener("change", paint);
+    paint();
+  });
+})();
+</script>
 {% endblock %}

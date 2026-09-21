@@ -37,17 +37,32 @@ def run(world, params, resolved, ctx) -> None:
         ctx.setdefault("instock_ratio", {})[tid] = _instock_ratio(team, params)
 
 
-def landed_index(team, code: str) -> float:
+def landed_index(team, code: str, d=None) -> float:
     """How this team's own choices scale the cost of one product.
 
-    Sourcing is chosen per product in Round 0 and positioning applies to all of
-    them. A going-concern team chose neither, so it lands at 1.0 and nothing
+    Sourcing is chosen per product - at founding, and again any month the team
+    wants to move a line. This month's choice wins; otherwise the founding one
+    stands. A going-concern team chose neither, so it lands at 1.0 and nothing
     below it changes.
     """
+    from ..founding import cost_multiplier
+    from .m00_resolve import monthly_sourcing
+
+    switched = monthly_sourcing(d or {}).get(code)
+    if switched:
+        tier = getattr(getattr(team, "founding", None), "tier", "mainstream")
+        return cost_multiplier(switched, tier)
     return team.sku_cost_index.get(code, team.cost_multiplier)
 
 
-def fx_multiplier(team, code: str, events) -> float:
+def sourcing_of(team, code: str, d=None) -> str:
+    """Where this product is coming from this month."""
+    from .m00_resolve import monthly_sourcing
+    return (monthly_sourcing(d or {}).get(code)
+            or team.sku_sourcing.get(code, "mixed"))
+
+
+def fx_multiplier(team, code: str, events, d=None) -> float:
     """A currency shock hits imported lines and leaves local ones alone.
 
     A team that never chose where its stock comes from - any going-concern
@@ -58,7 +73,7 @@ def fx_multiplier(team, code: str, events) -> float:
     if shock == 1.0 or not team.sku_sourcing:
         return shock
     from ..founding import fx_exposure
-    return 1 + (shock - 1) * fx_exposure(team.sku_sourcing.get(code, "mixed"))
+    return 1 + (shock - 1) * fx_exposure(sourcing_of(team, code, d))
 
 
 def _supplier(params, d) -> dict:
@@ -175,9 +190,10 @@ def _commit_po(team, world, params, ctx, supplier, events, units, round_days) ->
     alloc = {
         c: units * float(params.sku(c)["revenue_weight"]) / total_w for c in skus
     }
+    d = ctx["resolved"][team.team_id]
     cost = sum(
         alloc[c] * float(params.sku(c)["unit_cost"]) * float(supplier["cost_index"])
-        * landed_index(team, c) * fx_multiplier(team, c, events)
+        * landed_index(team, c, d) * fx_multiplier(team, c, events, d)
         for c in skus
     )
 

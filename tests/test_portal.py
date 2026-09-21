@@ -476,3 +476,103 @@ def test_the_month_form_is_reachable_while_setup_is_still_the_current_round(game
     body = team.get("/").data.decode()
     assert "/found" in body, "setup is still open"
     assert "/submit" in body, "and month 1 is taking submissions"
+
+
+# --- The decision page as tiles ------------------------------------------------------
+
+def _trading(app, path, months=1):
+    """A founded team, some months in, with month N+1 open."""
+    con = db.connect(path)
+    params = service.load_params(con)
+    for i in (1, 2, 3):
+        cfg = F.Founding.default(params)
+        cfg.prices = {c: F.reference_price(params.sku(c), cfg.tier)
+                      for c in cfg.assortment}
+        cfg.sourcing_by_sku = {c: "local" for c in cfg.assortment}
+        db.save_founding(con, f"team_{i:02d}", service.founding_to_dict(cfg),
+                         "sys", submitted=True)
+    for r in range(1, months + 1):
+        db.set_game(con, open_round=r)
+        service.process_round(con)
+    db.set_game(con, open_round=months + 1)
+    return con
+
+
+def test_a_decision_not_taken_is_marked_and_counted(game):
+    app, pw, path = game
+    con = _trading(app, path)
+    team = _team(app, pw)
+
+    page = team.get("/submit").data.decode()
+    assert "changed this month" in page
+    assert "carried forward" in page, "an untouched lever says so on its face"
+    assert page.count('class="tile set"') == 0, "nothing has been changed yet"
+
+    team.post("/submit", data={"3.1": "750000"}, follow_redirects=True)
+    page = team.get("/submit").data.decode()
+    assert page.count('class="tile set"') == 1
+    assert ">1</b> of" in page, "the tally counts what was changed"
+
+
+def test_the_tile_face_says_where_a_decision_stands(game):
+    app, pw, path = game
+    con = _trading(app, path)
+    team = _team(app, pw)
+    team.post("/submit", data={"2.2": "12", "8.5": "branded"}, follow_redirects=True)
+
+    page = team.get("/submit").data.decode()
+    assert "12%" in page, "a percentage shows as a percentage"
+    assert "Branded" in page, "a choice shows its label, not its code"
+
+
+def test_this_months_prices_reach_the_engine(game):
+    """Re-pricing is a monthly lever, not only a founding one."""
+    app, pw, path = game
+    con = _trading(app, path)
+    team = _team(app, pw)
+
+    shelf = service.monthly_catalogue(con, "team_01", {})
+    data = {f"price_{r['code']}": f"{r['standing'] * 1.25:.0f}" for r in shelf}
+    data.update({f"sourcing_{r['code']}": r["sourcing"] for r in shelf})
+    team.post("/submit", data=data, follow_redirects=True)
+
+    saved = db.submission(con, 2, "team_01")["1.1"]
+    assert len(saved) == len(shelf), "every line was re-priced"
+    assert all("price" in cell for cell in saved.values())
+
+    before = db.load_world(con).teams["team_01"].history[-1]["aov_net"]
+    service.process_round(con)
+    after = db.load_world(con).teams["team_01"].history[-1]["aov_net"]
+    assert after > before * 1.1, "a 25% price rise must reach the basket"
+
+
+def test_switching_a_line_to_imported_this_month_cuts_its_cost(game):
+    app, pw, path = game
+    con = _trading(app, path)
+    team = _team(app, pw)
+    shelf = service.monthly_catalogue(con, "team_01", {})
+    assert all(r["sourcing"] == "local" for r in shelf)
+
+    data = {f"sourcing_{r['code']}": "import" for r in shelf}
+    data.update({f"price_{r['code']}": f"{r['standing']:.0f}" for r in shelf})
+    team.post("/submit", data=data, follow_redirects=True)
+
+    moved = service.monthly_catalogue(con, "team_01", db.submission(con, 2, "team_01"))
+    assert all(r["sourcing"] == "import" for r in moved)
+    assert moved[0]["cost"] < shelf[0]["cost"], "imported lands cheaper"
+    assert moved[0]["margin"] > shelf[0]["margin"], "so the margin improves"
+
+
+def test_leaving_the_shelf_exactly_as_it_was_is_not_a_change(game):
+    """Submitting the form without touching it must not read as 33 decisions."""
+    app, pw, path = game
+    con = _trading(app, path)
+    team = _team(app, pw)
+    shelf = service.monthly_catalogue(con, "team_01", {})
+
+    data = {f"price_{r['code']}": f"{r['standing']:,.0f}" for r in shelf}
+    data.update({f"sourcing_{r['code']}": r["sourcing"] for r in shelf})
+    team.post("/submit", data=data, follow_redirects=True)
+
+    assert "1.1" not in (db.submission(con, 2, "team_01") or {}), (
+        "re-submitting the standing shelf is not a decision")

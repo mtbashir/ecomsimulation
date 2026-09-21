@@ -51,7 +51,7 @@ def run(world, params, resolved, ctx) -> None:
         discount = _clamp(float(d.get("2.2", 0) or 0), 0.0, 0.50)
         ctx.setdefault("discount", {})[tid] = discount
 
-        list_price = _basket_list_price(team, params)
+        list_price = _basket_list_price(team, params, d)
         ctx.setdefault("basket_list_price", {})[tid] = list_price
         net_prices[tid] = list_price * (1 - discount)
 
@@ -100,7 +100,25 @@ def run(world, params, resolved, ctx) -> None:
         ctx.setdefault("price_index", {})[tid] = price / max(market_avg, 1.0)
 
 
-def _basket_list_price(team, params) -> float:
+def monthly_prices(d) -> dict:
+    """Prices the team set for this month, keyed by product."""
+    grid = d.get("1.1")
+    if not isinstance(grid, dict):
+        return {}
+    return {code: float(cell["price"]) for code, cell in grid.items()
+            if isinstance(cell, dict) and cell.get("price")}
+
+
+def monthly_sourcing(d) -> dict:
+    """Where the team is sourcing each product from this month."""
+    grid = d.get("1.1")
+    if not isinstance(grid, dict):
+        return {}
+    return {code: str(cell["sourcing"]) for code, cell in grid.items()
+            if isinstance(cell, dict) and cell.get("sourcing")}
+
+
+def _basket_list_price(team, params, d=None) -> float:
     """Revenue-weighted average unit price across the team's active SKUs.
 
     A team that priced its own catalogue in Round 0 is charged what it set -
@@ -113,9 +131,15 @@ def _basket_list_price(team, params) -> float:
     """
     skus = [params.sku(c) for c in team.active_skus] or params.skus
     total_w = sum(float(s["revenue_weight"]) for s in skus) or 1.0
-    own = team.sku_prices or {}
+    # This month's price list wins over the founding one, which wins over the
+    # catalogue at the team's tier. Re-pricing is a monthly decision; not
+    # taking it leaves last month's shelf exactly as it was.
+    this_month = monthly_prices(d or {})
+    founding = team.sku_prices or {}
     base = sum(
-        own.get(s["code"], float(s["list_price"]) * team.price_multiplier)
+        this_month.get(s["code"],
+                       founding.get(s["code"],
+                                    float(s["list_price"]) * team.price_multiplier))
         * float(s["revenue_weight"])
         for s in skus
     ) / total_w

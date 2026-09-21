@@ -369,6 +369,13 @@ def register_routes(app: Flask) -> None:
             out.append({"n": i, "label": label, "state": state})
         return out
 
+    def _differs(typed: str, standing: float) -> bool:
+        """Did the team actually change this price, or just leave it sitting?"""
+        try:
+            return abs(float(typed.replace(",", "")) - float(standing)) > 0.5
+        except ValueError:
+            return True
+
     def _research_bought(con, team_id, upto_round):
         """Every study this team has paid for, newest first."""
         params = service.load_params(con)
@@ -499,7 +506,23 @@ def register_routes(app: Flask) -> None:
         if request.method == "POST":
             values, errors = {}, []
             for spec in specs:
-                if spec.kind == "shares":
+                if spec.kind == "grid":
+                    raw = {}
+                    for row in service.monthly_catalogue(g.db, tid, current):
+                        code = row["code"]
+                        price = (request.form.get(f"price_{code}") or "").strip()
+                        source = (request.form.get(f"sourcing_{code}") or "").strip()
+                        cell = {}
+                        # Only a real change counts. Re-submitting the standing
+                        # price should not read as a decision the team took.
+                        if price and _differs(price, row["standing"]):
+                            cell["price"] = price
+                        if source and source != row["sourcing"]:
+                            cell["sourcing"] = source
+                        if cell:
+                            raw[code] = cell
+                    raw = raw or None
+                elif spec.kind == "shares":
                     raw = {o["value"]: request.form.get(f"{spec.code}__{o['value']}", "")
                            for o in catalogues.get(spec.code, [])}
                     if not any(v.strip() for v in raw.values()):
@@ -534,6 +557,14 @@ def register_routes(app: Flask) -> None:
         by_group: dict[str, list] = {}
         for spec in specs:
             by_group.setdefault(spec.group, []).append(spec)
+
+        shelf = service.monthly_catalogue(g.db, tid, current)
+        summaries = {
+            s.code: service.decision_summary(s, current.get(s.code),
+                                             catalogues.get(s.code))
+            for s in specs
+        }
+        taken = sum(1 for s in specs if s.code in current)
         return render_template(
             "submit.html", round=rnd, by_group=by_group,
             current=current, previous=previous, catalogues=catalogues,
@@ -541,7 +572,9 @@ def register_routes(app: Flask) -> None:
                             for s in specs if s.kind == "shares"},
             standing={s.code: service.standing_choice(
                           s, previous, catalogues.get(s.code, []))
-                      for s in specs if s.kind == "select"})
+                      for s in specs if s.kind == "select"},
+            shelf=shelf, summaries=summaries, taken=taken,
+            group_order=sorted(by_group, key=lambda gr: int(gr[1:])))
 
     @app.route("/results/<int:round_>")
     @login_required("team")
