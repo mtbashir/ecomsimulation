@@ -950,3 +950,287 @@ def export_decisions(con, round_: int) -> str:
                 value = ";".join(str(v) for v in value)
             w.writerow([team_id, code, value])
     return buf.getvalue()
+
+
+# --- The research desk ---------------------------------------------------------
+#
+# M16 has always written real findings to team.reports and nothing has ever read
+# them. A team bought MR-07 for 75,000, the P&L charged it, the engine computed a
+# perception gap - and the student saw no number. Everything below is the reading
+# half of a mechanism that was only ever half built.
+#
+# A finding needs three things to be worth the money: what it says, how much to
+# trust it, and which decision it bears on. The table carries all three, because
+# a number with no decision attached is trivia.
+
+STUDY_READS = {
+    "MR-01": dict(kind="seasonal", asks="How big is the category about to get?",
+                  bears_on=["3.1", "3.2", "7.5", "7.1"],
+                  read="An index above 1.0 is a month the whole category buys "
+                       "more. It does not move YOUR share - it moves the pool "
+                       "your share is taken from. Spend and stock into a peak "
+                       "you can actually serve; a peak you cannot serve is "
+                       "someone else's month."),
+    "MR-02": dict(kind="pkr", asks="What is the market really charging, net of promo?",
+                  bears_on=["1.1", "1.5"],
+                  read="This is the average basket price across the category, "
+                       "after discounts. Your own price against it is your real "
+                       "position - not the one on your website."),
+    "MR-03": dict(kind="pct", asks="What share of the category is yours?",
+                  bears_on=["3.1", "3.2", "3.4", "1.5"],
+                  read="Share is the only number here you can only win by "
+                       "taking it from somebody. Rising share on falling margin "
+                       "is a decision, not an accident."),
+    "MR-04": dict(kind="pkr", asks="What are rivals spending to get it?",
+                  bears_on=["3.1", "3.2", "3.4", "3.9"],
+                  read="Estimated from the outside, and understated on purpose - "
+                       "outside-in spend estimates always are. Treat it as a "
+                       "floor, not a figure."),
+    "MR-05": dict(kind="warning", asks="What is about to happen to the category?",
+                  bears_on=["7.5", "7.1", "3.1", "12.5"],
+                  read="It catches about three events in five. Silence is not "
+                       "an all-clear."),
+    "MR-06": dict(kind="segments", asks="What do the segments actually trade off?",
+                  bears_on=["1.5", "1.1", "2.2", "3.4"],
+                  read="The weights are what each segment cares about, and they "
+                       "are the only place the trade-offs are written down. A "
+                       "segment that weights price at 0.42 will not pay for "
+                       "quality you added at a cost."),
+    "MR-07": dict(kind="gap", asks="What does the market think of you, against what you deliver?",
+                  bears_on=["3.9", "3.8", "7.4", "1.5"],
+                  read="Positive means you are over-promising: marketing has run "
+                       "ahead of the product and the returns and ratings will "
+                       "follow. Negative means you are under-selling something "
+                       "you already do well, which is the cheapest gap to close."),
+    "MR-08": dict(kind="index", asks="Is brand spend building anything?",
+                  bears_on=["3.9", "3.8"],
+                  read="Brand equity carries most of your organic traffic and it "
+                       "decays every month you do not feed it. Slow to move, "
+                       "expensive to rebuild."),
+    "MR-09": dict(kind="score", asks="What do customers say after the parcel arrives?",
+                  bears_on=["10.1", "7.4", "8.3", "7.2"],
+                  read="The cheapest early warning in the catalogue. It turns "
+                       "before your revenue does, because unhappy customers stop "
+                       "reordering before they stop ordering."),
+    "MR-10": dict(kind="pct", asks="How fast is the customer base leaking?",
+                  bears_on=["6.1", "2.2", "3.4"],
+                  read="A blended monthly churn rate. It climbs when you buy "
+                       "customers with discounts: a deal-driven cohort churns at "
+                       "more than twice the rate of an organic one, so the mix "
+                       "you acquired shows up here months later."),
+    "MR-11": dict(kind="pkr", asks="What does a customer cost the rest of the market?",
+                  bears_on=["3.1", "3.2", "3.4"],
+                  read="Market-level, not yours. Paying well above it means your "
+                       "creative or your targeting is doing the work badly; well "
+                       "below it usually means you are buying a cheaper customer "
+                       "than you think."),
+    "MR-12": dict(kind="roas", asks="What did marketing actually contribute?",
+                  bears_on=["3.1", "3.2", "3.4", "3.6"],
+                  read="The platforms report the number on the left for free and "
+                       "over-attribute it by about a third. The number on the "
+                       "right is what your marketing really returned. Budgets "
+                       "set on the free number are set on someone else's "
+                       "marketing material."),
+    "MR-13": dict(kind="pct", asks="Where do you rank on the marketplace?",
+                  bears_on=["4.1", "1.1", "1.5"],
+                  read="Only means anything while you are listed."),
+    "MR-14": dict(kind="index", asks="Is the creative any good, before you back it?",
+                  bears_on=["3.8", "3.1", "11.3"],
+                  read="Twenty thousand to find out before you spend four hundred "
+                       "thousand pushing it. Creative quality multiplies every "
+                       "paid rupee that follows it."),
+    "MR-15": dict(kind="pct", asks="Is the courier doing what it promised?",
+                  bears_on=["8.2", "8.3", "9.1"],
+                  read="Stated service levels and actual ones are different "
+                       "numbers. In a COD market the gap between them is paid "
+                       "for twice - once in the failed delivery and again in the "
+                       "customer who does not come back."),
+    "MR-16": dict(kind="pct", asks="Why are parcels coming back?",
+                  bears_on=["7.4", "1.5", "8.5", "3.8"],
+                  read="A quality return and an expectation return need opposite "
+                       "fixes: one is the product, the other is what your "
+                       "marketing led people to expect."),
+    "MR-17": dict(kind="leadtime", asks="Is the supply chain about to slip?",
+                  bears_on=["7.1", "7.5", "7.2", "1.1"],
+                  read="It catches about seven shocks in ten. A multiplier above "
+                       "1.0 is a month your orders may not land. Note what the "
+                       "defence costs before you mount it - cover is cheaper "
+                       "than switching supplier, and both are often dearer than "
+                       "the shock."),
+    "MR-18": dict(kind="index", asks="Does the range fit what people want?",
+                  bears_on=["1.1", "1.5", "11.1"],
+                  read="Assortment fit against the segments you are actually "
+                       "drawing. A low score with high traffic means you are "
+                       "bringing the wrong people to the right shop, or the "
+                       "reverse."),
+    "MR-19": dict(kind="dossier", asks="Everything the competition will tell you from outside.",
+                  bears_on=["3.1", "1.1", "1.5", "7.5"],
+                  read="Price, share, rival spend and how much stock the field "
+                       "is sitting on. Thin cover across the field is a month "
+                       "somebody runs out; deep cover is a month somebody "
+                       "discounts."),
+    "MR-20": dict(kind="index", asks="Could you actually run quick commerce?",
+                  bears_on=["8.2", "7.5", "8.3"],
+                  read="Readiness is delivery speed and stock depth together. "
+                       "Entering without both is a promise you will break in "
+                       "public."),
+}
+
+
+def _finding(code: str, payload: dict, params, history: dict | None) -> dict | None:
+    """One study, rendered as something a student can act on in ten seconds."""
+    meta = STUDY_READS.get(code)
+    study = next((s for s in params.studies if s["code"] == code), None)
+    if meta is None or study is None or payload is None:
+        return None
+
+    out = {
+        "code": code, "name": study["name"],
+        "asks": meta["asks"], "read": meta["read"], "kind": meta["kind"],
+        "tier": study["tier"],
+        "as_of": payload.get("as_of_round"),
+        "lagged": payload.get("status") == "lagged",
+        "no_data": payload.get("status") == "no_data",
+        "band": payload.get("error_band"),
+        "bears_on": [{"code": c, "name": REGISTRY[c].name}
+                     for c in meta["bears_on"] if c in REGISTRY],
+    }
+    if out["no_data"]:
+        out["headline"] = "No data"
+        out["detail"] = ("Nothing to measure yet - this study needs the "
+                         "decision it reports on to be switched on.")
+        return out
+
+    kind, value = meta["kind"], payload.get("reported")
+    if kind == "seasonal":
+        idx = payload.get("seasonal_index", {})
+        months = [(int(r), v) for r, v in sorted(idx.items(), key=lambda kv: int(kv[0]))]
+        peak = max(months, key=lambda m: m[1]) if months else None
+        out["headline"] = (f"Month {peak[0]} peaks at {peak[1]:.2f}x"
+                           if peak else "No forecast")
+        out["series"] = [{"label": f"Month {m}", "value": f"{v:.2f}x",
+                          "hot": v >= 1.15, "cold": v <= 0.95} for m, v in months]
+    elif kind == "leadtime":
+        view = payload.get("lead_time_forecast", {})
+        months = [(int(r), v.get("lead_time_mult", 1.0))
+                  for r, v in sorted(view.items(), key=lambda kv: int(kv[0]))]
+        worst = max(months, key=lambda m: m[1]) if months else None
+        out["headline"] = ("No slip forecast" if not worst or worst[1] <= 1.05
+                           else f"Month {worst[0]}: lead times {worst[1]:.1f}x")
+        out["series"] = [{"label": f"Month {m}",
+                          "value": "normal" if v <= 1.05 else f"{v:.1f}x slower",
+                          "hot": v > 1.05, "cold": False} for m, v in months]
+    elif kind == "warning":
+        warn = payload.get("warning")
+        out["headline"] = (f"{warn['event']} expected in month {warn['round']}"
+                           if warn else "Nothing flagged")
+        out["quiet"] = warn is None
+    elif kind == "segments":
+        segs = payload.get("segments", [])
+        out["headline"] = f"{len(segs)} segments, with their trade-offs"
+        out["segments"] = [
+            {"name": s["name"], "share": f"{s['share']:.0%}",
+             "repeat": f"{s['repeat_propensity']:.2f}x",
+             "weights": sorted(((k.replace("_", " "), v)
+                                for k, v in s["weights"].items()),
+                               key=lambda kv: -kv[1])[:3]}
+            for s in segs]
+    elif kind == "dossier":
+        parts = payload.get("bundles", {})
+        out["parts"] = [f for f in
+                        (_finding(c, p, params, history) for c, p in parts.items())
+                        if f]
+        cover = payload.get("competitor_stock")
+        out["headline"] = (f"The field holds {cover:.1f} weeks of stock"
+                           if cover is not None else "Four readings on the field")
+        if cover is not None:
+            out["verdict"] = ("Thin - somebody is about to run out"
+                              if cover < 2.5 else
+                              "Deep - somebody is about to discount"
+                              if cover > 6.0 else
+                              "Normal cover across the field")
+    elif kind == "roas":
+        free = (history or {}).get("roas_reported")
+        out["headline"] = f"{value:.2f}x actually returned"
+        out["compare"] = ({"label": "What the platforms report",
+                           "value": f"{free:.2f}x",
+                           "label2": "What it truly returned",
+                           "value2": f"{value:.2f}x",
+                           "delta": f"over-attributed by {free / value - 1:.0%}"}
+                          if free and value else None)
+    elif kind == "gap":
+        out["headline"] = f"{value:+.1%}"
+        out["verdict"] = ("Over-promising" if value > 0.03
+                          else "Under-selling" if value < -0.03
+                          else "Promise and delivery are in line")
+    elif kind == "pkr":
+        out["headline"] = f"PKR {value:,.0f}"
+    elif kind == "pct":
+        out["headline"] = f"{value:.1%}"
+    elif kind == "score":
+        out["headline"] = f"{value:.0f}"
+    elif kind == "index":
+        out["headline"] = f"{value:.2f}"
+        out["scale"] = "on a 0 to 1 scale"
+    else:
+        out["headline"] = f"{value:.2f}"
+
+    if out.get("band"):
+        out["confidence"] = f"plus or minus {out['band']:.0%}"
+    return out
+
+
+def research_desk(con, team_id: str) -> dict:
+    """Every finding this team has paid for, and what is still on the shelf."""
+    params = load_params(con)
+    game = db.game(con)
+    world = db.load_world(con)
+    team = (world.teams.get(team_id) if world else None)
+    history = team.history[-1] if team and team.history else None
+
+    findings, seen = [], set()
+    reports = dict(getattr(team, "reports", {}) or {}) if team else {}
+    for rnd in sorted(reports, reverse=True):
+        for code, payload in sorted(reports[rnd].items()):
+            if code in seen:
+                continue                     # the latest reading is the reading
+            seen.add(code)
+            found = _finding(code, payload, params, history)
+            if found:
+                found["bought_round"] = rnd
+                findings.append(found)
+
+    order = {"market": 0, "customer": 1, "channel": 2, "operations": 3, "premium": 4}
+    findings.sort(key=lambda f: (order.get(f["tier"], 9), f["code"]))
+
+    shelf = [
+        {"code": s["code"], "name": s["name"], "price": float(s["price"]),
+         "tier": s["tier"], "lag": int(s["lag_rounds"]),
+         "band": float(s["error_band"]),
+         "min_round": int(s["min_round"]),
+         "asks": STUDY_READS.get(s["code"], {}).get("asks", s["note"]),
+         "owned": s["code"] in seen}
+        for s in params.studies
+    ]
+    return {"findings": findings, "shelf": shelf,
+            "round": game["round"], "open_round": game["open_round"],
+            "roas_reported": (history or {}).get("roas_reported"),
+            "spent": _research_spend(con, team_id, params, game["round"])}
+
+
+def _research_spend(con, team_id: str, params, upto: int) -> float:
+    """What research has actually cost, not what the shelf lists.
+
+    A study bought in three separate months is paid for three times, and the
+    founding round is half price. Listing each study once at list price would
+    understate a team that re-buys and overstate one that bought at founding.
+    """
+    price = {s["code"]: float(s["price"]) for s in params.studies}
+    total = 0.0
+    record = db.founding(con, team_id)
+    for code in ((record or {}).get("config", {}) or {}).get("research", []):
+        total += price.get(code, 0.0) * founding_mod.FOUNDING_RESEARCH_DISCOUNT
+    for rnd in range(1, (upto or 0) + 1):
+        for code in (db.submission(con, rnd, team_id) or {}).get("12.1", []) or []:
+            total += price.get(code, 0.0)
+    return total

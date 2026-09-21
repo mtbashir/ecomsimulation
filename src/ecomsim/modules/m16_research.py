@@ -66,7 +66,7 @@ def _exists(params, code: str) -> bool:
 
 def _generate(world, params, ctx, tid: str, study: dict) -> dict:
     code = str(study["code"])
-    forward = _forward_view(world, params, tid, code)
+    forward = _forward_view(world, params, ctx, tid, code)
     if forward is not None:
         return forward | {"as_of_round": world.round, "status": "ok"}
 
@@ -86,7 +86,7 @@ def _generate(world, params, ctx, tid: str, study: dict) -> dict:
     }
 
 
-def _forward_view(world, params, tid: str, code: str):  # noqa: C901
+def _forward_view(world, params, ctx, tid: str, code: str):  # noqa: C901
     """Studies whose value is what they say about the NEXT rounds.
 
     This is what makes research worth buying: MR-01 shows the seasonal peaks,
@@ -134,9 +134,34 @@ def _forward_view(world, params, tid: str, code: str):  # noqa: C901
             for seg in params.segments]}
 
     if code == "MR-19":
-        return {"bundles": ["MR-02", "MR-03", "MR-04"]}
+        # The dossier has to BE the three studies, not name them. It returned a
+        # list of codes, so the dearest study in the catalogue delivered nothing
+        # a team could read - and cost 15,000 more than buying its own contents
+        # separately. Each part keeps its own bias and error band, because the
+        # dossier does not make a noisy estimate less noisy.
+        parts = {}
+        for part in ("MR-02", "MR-03", "MR-04"):
+            if _exists(params, part):
+                parts[part] = _generate(world, params, ctx, tid,
+                                        params.study(part))
+        return {"bundles": parts, "competitor_stock": _rival_cover(world, params, ctx, tid)}
 
     return None
+
+
+def _rival_cover(world, params, ctx, tid: str) -> float | None:
+    """Weeks of stock the rest of the field is sitting on, on average.
+
+    The fourth thing MR-19's own note promises, and the one a competitor cannot
+    infer from prices: a field carrying thin cover is a field about to be out
+    of stock, and a field carrying deep cover is a field about to discount.
+    """
+    covers = []
+    for other in world.teams.values():
+        if other.team_id == tid or not other.history:
+            continue
+        covers.append(float(other.history[-1].get("weeks_cover", 0.0)))
+    return sum(covers) / len(covers) if covers else None
 
 
 def _true_value(world, params, ctx, tid: str, code: str):

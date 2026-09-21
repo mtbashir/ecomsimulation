@@ -29,6 +29,52 @@ reasoned argument.
 
 ## Entries
 
+### 2026-09-21 · The research desk — the reading half of M16
+
+**Basis:** The mechanism was only ever half built.
+
+**Confidence:** High.
+
+**Downstream:** Nothing in the engine. This is presentation, plus one payload
+fix.
+
+`M16` has always written real findings to `team.reports[round]`, and until now
+**nothing in the product ever read them**. A team bought MR-07 for 75,000, the
+P&L charged it, the engine computed a perception gap of −7.4% — and no page in
+the portal showed a number. Grep the repo before this change and the only
+readers of `team.reports` are the validation archetypes and the tests.
+
+That also qualifies what closing I7 meant. The invariant proved research pays
+for a *bot* reading the store programmatically; a student in a classroom could
+not act on nineteen of the twenty studies, because they could not read them.
+The one exception was MR-03, which gates the rival leaderboard on the dashboard.
+
+**Now:** a Research page in the team nav renders every finding the team holds —
+the number, its error band, the month it was measured, and the decisions it
+bears on — with the shelf beneath it. Each study carries a plain-English
+question it answers and a paragraph on how to read it, both in
+`service.STUDY_READS`, because a number with no decision attached is trivia.
+
+The page leads with the thing the exercise depends on: **research buys
+information, never advantage**. No study raises a number, wins a customer or
+moves share. It tells a team whether the decision it is about to take is the
+right one; everything that actually moves is still the team's call. Two teams
+holding the same report finish the year in different places, and the difference
+is entirely what they did about it.
+
+**MR-19 fixed.** The dearest study in the catalogue, at 200,000, returned
+`{"bundles": ["MR-02", "MR-03", "MR-04"]}` — a list of three codes and no data,
+for 15,000 more than buying its own contents separately. It now generates the
+three payloads, each keeping its own bias and error band, plus the competitor
+stock cover its note has always promised. A field on thin cover is a field
+about to run out; a field on deep cover is a field about to discount.
+
+**Two reporting corrections while wiring it up:** segment `repeat_propensity`
+is a multiplier on the baseline repeat rate, not a rate, so 1.45 renders as
+"1.45x" rather than "145%"; and research spend counts every purchase, with the
+founding round at half price, rather than listing each study once at list price.
+
+
 ### 2026-09-21 · Closing I7 and I11 — six defects, then a recalibration
 
 **Basis:** Measurement, not judgement. Every change below is a bug the engine

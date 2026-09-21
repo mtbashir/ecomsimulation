@@ -42,8 +42,8 @@ recovery is slow and expensive &mdash; fix the cash position before anything els
 {% if not setting_up and steps %}
 <div class="steps">
 {% for s in steps %}
-  <span class="step {{ s.state }}"><span class="cir">{{ '&#10003;'|safe if s.state == 'done'
-    else s.n }}</span><b>{{ s.label }}</b></span>
+  <a class="step {{ s.state }}" {% if s.href %}href="{{ s.href }}"{% endif %}><span
+    class="cir">{{ '&#10003;'|safe if s.state == 'done' else s.n }}</span><b>{{ s.label }}</b></a>
   {% if not loop.last %}<span class="join {{ 'done' if s.state == 'done' }}"></span>{% endif %}
 {% endfor %}
 </div>
@@ -83,6 +83,16 @@ recovery is slow and expensive &mdash; fix the cash position before anything els
         </div>
       {% endfor %}
       </div>
+    </div>
+    {% endif %}
+
+    {% if research %}
+    <h2 class="sec">Research you hold</h2>
+    <div class="card">
+      <p class="cap" style="margin-bottom:9px">{{ research|length }} stud{{ 'y'
+      if research|length == 1 else 'ies' }} commissioned. What they say is on
+      the research desk &mdash; read it before you decide.</p>
+      <a class="btn ghost" href="{{ url_for('research') }}">Open the research desk</a>
     </div>
     {% endif %}
 

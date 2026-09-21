@@ -832,3 +832,99 @@ def test_the_range_grid_is_grouped_by_category(game):
     assert seen == sorted(seen), "each category's lines sit together"
     page = _team(app, pw).get("/submit").data.decode()
     assert "<th class=\"c-cat\">Category</th>" in page
+
+
+def _with_research(app, path, codes, rounds=2):
+    """Play `rounds` months with team_01 commissioning `codes` each month."""
+    con = db.connect(path)
+    for rnd in range(1, rounds + 1):
+        with con:
+            con.execute("UPDATE game SET open_round = ?", (rnd,))
+        for tid in ("team_01", "team_02", "team_03"):
+            db.submit(con, rnd, tid, {"12.1": list(codes)} if tid == "team_01" else {},
+                      by=tid)
+        service.process_round(con, actor="admin")
+    return con
+
+
+def test_a_purchased_study_is_actually_readable(game):
+    """M16 wrote findings nobody could read for the whole of the project.
+
+    A team paid 75,000 for the perception gap, the P&L charged it, the engine
+    computed the number - and no page in the portal ever showed it.
+    """
+    app, pw, path = game
+    con = _with_research(app, path, ["MR-07", "MR-01"])
+    desk = service.research_desk(con, "team_01")
+    codes = {f["code"] for f in desk["findings"]}
+    assert {"MR-07", "MR-01"} <= codes
+
+    page = _team(app, pw).get("/research").data.decode()
+    assert "Brand Perception Tracker" in page
+    assert "Category Demand &amp; Seasonality" in page
+    gap = next(f for f in desk["findings"] if f["code"] == "MR-07")
+    assert gap["headline"] in page, "the number itself has to be on the page"
+
+
+def test_the_dashboard_points_at_the_desk_once_you_hold_a_study(game):
+    app, pw, path = game
+    _with_research(app, path, ["MR-09"])
+    page = _team(app, pw).get("/").data.decode()
+    assert "Research you hold" in page
+    assert "1 study commissioned" in page
+
+
+def test_the_page_says_research_buys_no_advantage(game):
+    """The point of the exercise, stated where a student cannot miss it."""
+    app, pw, path = game
+    _with_research(app, path, ["MR-09"])
+    page = _team(app, pw).get("/research").data.decode()
+    assert "never advantage" in page
+
+
+def test_a_team_that_bought_nothing_still_sees_the_shelf(game):
+    app, pw, path = game
+    _trading(app, path)
+    page = _team(app, pw).get("/research").data.decode()
+    assert "Nothing commissioned yet" in page
+    assert "Attribution Study" in page, "the catalogue is visible to everyone"
+
+
+def test_every_finding_names_a_decision_it_bears_on(game):
+    """A number with no decision attached is trivia."""
+    app, pw, path = game
+    codes = [f"MR-{i:02d}" for i in range(1, 21)]
+    con = _with_research(app, path, codes)
+    desk = service.research_desk(con, "team_01")
+    assert len(desk["findings"]) == 20
+    for f in desk["findings"]:
+        assert f["bears_on"], f["code"]
+        assert f["read"], f["code"]
+        assert f["headline"], f["code"]
+
+
+def test_the_dossier_contains_its_studies_rather_than_naming_them(game):
+    """MR-19 cost 200,000 and returned a list of three codes."""
+    app, pw, path = game
+    con = _with_research(app, path, ["MR-19"])
+    dossier = next(f for f in service.research_desk(con, "team_01")["findings"]
+                   if f["code"] == "MR-19")
+    assert len(dossier["parts"]) == 3
+    assert all(p["headline"] for p in dossier["parts"])
+
+
+def test_research_spend_counts_every_purchase_not_every_study(game):
+    """Buying the same study three months running is paid for three times."""
+    app, pw, path = game
+    con = _with_research(app, path, ["MR-09"], rounds=3)
+    price = next(float(s["price"]) for s in service.load_params(con).studies
+                 if s["code"] == "MR-09")
+    assert service.research_desk(con, "team_01")["spent"] == pytest.approx(price * 3)
+
+
+def test_a_lagged_study_says_when_it_was_measured(game):
+    app, pw, path = game
+    con = _with_research(app, path, ["MR-06"], rounds=3)
+    seg = next(f for f in service.research_desk(con, "team_01")["findings"]
+               if f["code"] == "MR-06")
+    assert seg["lagged"] or seg["as_of"] is not None

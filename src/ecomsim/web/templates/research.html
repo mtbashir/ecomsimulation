@@ -1,0 +1,145 @@
+{% extends "base.html" %}{% block title %}Research{% endblock %}
+{% block body %}
+<div class="crumbs">Research desk &middot; month {{ desk.round or 0 }}</div>
+<div class="head">
+  <div><h1>What your research says</h1>
+    <p>Every study you have paid for, in one page, with the decision it bears
+    on. Read it before you set this month's decisions &mdash; that is the only
+    moment it is worth anything.</p></div>
+  {% if desk.spent %}
+  <div class="cta"><span class="note">Spent on research to date</span>
+    <div class="val num" style="font-size:20px">PKR {{ '{:,.0f}'.format(desk.spent) }}</div>
+  </div>{% endif %}
+</div>
+
+<div class="card note-card">
+  <strong>Research buys information, never advantage.</strong>
+  Nothing on this page raises a number, wins a customer or moves your share. A
+  study cannot make a decision good &mdash; it can only tell you whether the one
+  you are about to take is. Two teams holding the same report will finish the
+  year in different places, and the difference will be entirely what they did
+  about it. That is the point of the exercise.
+</div>
+
+{% if not desk.findings %}
+<section>
+<h2>Nothing commissioned yet</h2>
+<p class="cap">You have not bought any studies. You can run the whole game
+without them &mdash; teams that do are simply deciding with less evidence, and
+paying for the mistake instead of the study. The shelf is below; you commission
+studies under <em>Market research to buy</em> on the decision form.</p>
+{% if desk.open_round %}
+<a class="btn" href="{{ url_for('submit') }}">Go to this month's decisions</a>
+{% endif %}
+</section>
+{% endif %}
+
+{% for f in desk.findings %}
+<section class="finding">
+  <div class="f-head">
+    <div>
+      <h2>{{ f.name }}</h2>
+      <p class="cap">{{ f.asks }}</p>
+    </div>
+    <div class="f-figure">
+      <div class="f-value {{ 'quiet' if f.quiet or f.no_data }}">{{ f.headline }}</div>
+      <div class="f-meta">
+        {% if f.scale %}<span class="pill">{{ f.scale }}</span>{% endif %}
+        {% if f.confidence %}<span class="pill">{{ f.confidence }}</span>{% endif %}
+        {% if f.lagged %}<span class="pill warn">measured month {{ f.as_of }}</span>
+        {% elif f.as_of %}<span class="pill">month {{ f.as_of }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if f.verdict %}<p class="verdict">{{ f.verdict }}</p>{% endif %}
+
+  {% if f.compare %}
+  <div class="compare">
+    <div><span class="lab">{{ f.compare.label }}</span>
+      <span class="num free">{{ f.compare.value }}</span></div>
+    <div class="arrow">&rarr;</div>
+    <div><span class="lab">{{ f.compare.label2 }}</span>
+      <span class="num true">{{ f.compare.value2 }}</span></div>
+    <div class="delta">{{ f.compare.delta }}</div>
+  </div>
+  {% endif %}
+
+  {% if f.series %}
+  <div class="series">
+    {% for s in f.series %}
+    <div class="s-cell {{ 'hot' if s.hot }}{{ ' cold' if s.cold }}">
+      <span class="s-lab">{{ s.label }}</span>
+      <span class="s-val">{{ s.value }}</span></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if f.segments %}
+  <table class="segs">
+  <thead><tr><th>Segment</th><th class="r">Share</th><th class="r">Repeat rate</th>
+    <th>Cares most about</th></tr></thead>
+  <tbody>
+  {% for s in f.segments %}
+  <tr><td><strong>{{ s.name }}</strong></td>
+    <td class="num">{{ s.share }}</td><td class="num">{{ s.repeat }}</td>
+    <td>{% for name, w in s.weights %}<span class="pill">{{ name }}
+      {{ '%.2f'|format(w) }}</span>{% endfor %}</td></tr>
+  {% endfor %}
+  </tbody></table>
+  {% endif %}
+
+  {% if f.parts %}
+  <div class="series">
+    {% for part in f.parts %}
+    <div class="s-cell"><span class="s-lab">{{ part.name }}{% if part.confidence %}
+      &middot; {{ part.confidence }}{% endif %}</span>
+      <span class="s-val">{{ part.headline }}</span></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <p class="read">{{ f.read }}</p>
+
+  {% if f.bears_on %}
+  <div class="bears">
+    <span class="bears-lab">Bears on</span>
+    {% for d in f.bears_on %}
+    <a class="pill link" href="{{ url_for('submit') }}#d{{ d.code|replace('.', '-') }}">
+      {{ d.code }} {{ d.name }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endfor %}
+
+<section>
+<h2>The shelf</h2>
+<p class="cap">Priced for one month's reading. A lagged study is commissioned
+now and lands next month, which is worth knowing before you need the answer
+this month. The error band is how far the figure may sit from the truth &mdash;
+re-buying the same study returns the same number, so there is nothing to
+average out.</p>
+<table class="shelf">
+<thead><tr><th style="width:60px">Study</th><th>What it answers</th>
+  <th class="r">Price</th><th class="r">Error</th><th class="r">Lands</th>
+  <th class="r">Held</th></tr></thead>
+<tbody>
+{% for s in desk.shelf %}
+<tr class="{{ 'owned' if s.owned }}">
+  <td class="num">{{ s.code }}</td>
+  <td><strong>{{ s.name }}</strong><br><span class="note">{{ s.asks }}</span></td>
+  <td class="num">{{ '{:,.0f}'.format(s.price) }}</td>
+  <td class="num note">{{ '±{:.0%}'.format(s.band) if s.band else 'exact' }}</td>
+  <td class="num note">{{ 'next month' if s.lag else 'same month' }}</td>
+  <td class="r">{% if s.owned %}<span class="pill good">held</span>
+    {% elif desk.round and s.min_round > desk.round + 1 %}
+    <span class="note">month {{ s.min_round }}</span>{% endif %}</td></tr>
+{% endfor %}
+</tbody></table>
+{% if desk.open_round %}
+<a class="btn" style="margin-top:14px" href="{{ url_for('submit') }}">Commission
+  studies on the decision form</a>
+{% endif %}
+</section>
+{% endblock %}

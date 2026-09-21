@@ -367,12 +367,14 @@ def register_routes(app: Flask) -> None:
         entered = submitted
         done = [read, research or read, entered, entered]
         labels = ["Read results", "Review research", "Set decisions", "Submit"]
+        links = [url_for("results", round_=game["round"]) if game["round"] else None,
+                 url_for("research"), url_for("submit"), url_for("submit")]
         out, hit_current = [], False
-        for i, (label, ok) in enumerate(zip(labels, done), 1):
+        for i, (label, ok, href) in enumerate(zip(labels, done, links), 1):
             state = "done" if ok else ("now" if not hit_current else "")
             if state == "now":
                 hit_current = True
-            out.append({"n": i, "label": label, "state": state})
+            out.append({"n": i, "label": label, "state": state, "href": href})
         return out
 
     def _differs(typed: str, standing: float) -> bool:
@@ -383,17 +385,38 @@ def register_routes(app: Flask) -> None:
             return True
 
     def _research_bought(con, team_id, upto_round):
-        """Every study this team has paid for, newest first."""
+        """The distinct studies this team holds, most recent reading first.
+
+        Distinct, not one row per purchase: a team that re-buys MR-09 every
+        month holds one study, not six, and the dashboard card counts what it
+        can read rather than what it has spent.
+        """
         params = service.load_params(con)
         by_code = {s["code"]: s for s in params.studies}
-        out = []
+        out, seen = [], set()
         for rnd in range(upto_round, 0, -1):
             for code in (db.submission(con, rnd, team_id) or {}).get("12.1", []):
                 row = by_code.get(code)
-                if row:
+                if row and code not in seen:
+                    seen.add(code)
                     out.append({"round": rnd, "name": row["name"],
                                 "price": float(row["price"]), "code": code})
         return out
+
+    @app.get("/research")
+    @login_required("team")
+    def research():
+        """What the studies you paid for actually say.
+
+        Research buys no advantage. It cannot raise a number or win a customer;
+        the only thing it does is tell you whether the decision you are about to
+        take is the right one. Everything that moves is still the team's call.
+        """
+        return render_template(
+            "research.html",
+            desk=service.research_desk(g.db, session["team_id"]),
+            game=db.game(g.db))
+
 
     @app.route("/brief", methods=["GET", "POST"])
     @login_required("team")
