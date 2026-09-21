@@ -260,13 +260,15 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--games", type=int, default=200)
     ap.add_argument("--set", action="append", default=[])
+    ap.add_argument("--rounds", type=int, default=12)
     args = ap.parse_args()
     overrides = {}
     for item in args.set:
         k, _, v = item.partition("="); overrides[k] = float(v)
     t0 = time.perf_counter()
-    rows = run(args.games, overrides)
-    rows_off = run(max(20, args.games // 4), overrides | {"events_enabled": 0})
-    paired = research_pairs(max(150, args.games // 2), overrides)
+    rows = run(args.games, overrides, args.rounds)
+    rows_off = run(max(20, args.games // 4), overrides | {"events_enabled": 0},
+                   args.rounds)
+    paired = research_pairs(max(150, args.games // 2), overrides, args.rounds)
     ok = report(rows, rows_off, P.load(overrides), time.perf_counter() - t0, paired)
     sys.exit(0 if ok else 1)
