@@ -418,6 +418,59 @@ def register_routes(app: Flask) -> None:
             game=db.game(g.db))
 
 
+    @app.post("/research/commission")
+    @login_required("team")
+    def commission():
+        """Order this month's studies, from the page that shows what they say.
+
+        The order replaces the month's list rather than adding to it, so
+        un-ticking a study is how you cancel it. Nothing is charged until the
+        instructor runs the month, which is why a team may change its mind as
+        often as it likes while the round is open.
+        """
+        game = db.game(g.db)
+        rnd = game["open_round"]
+        if not rnd:
+            flash("Submissions are closed, so nothing can be commissioned.",
+                  "error")
+            return redirect(url_for("research"))
+
+        tid = session["team_id"]
+        params = service.load_params(g.db)
+        allowed = {s["code"]: int(s["min_round"]) for s in params.studies}
+        wanted, refused = [], []
+        for code in request.form.getlist("study"):
+            if code not in allowed:
+                continue
+            if allowed[code] > rnd:
+                refused.append(code)
+                continue
+            wanted.append(code)
+
+        current = dict(db.submission(g.db, rnd, tid) or {})
+        if wanted:
+            current["12.1"] = wanted
+        else:
+            current.pop("12.1", None)
+        db.submit(g.db, rnd, tid, current, session["user"])
+        with g.db:
+            db.log(g.db, session["user"], "commission",
+                   f"r{rnd}: {len(wanted)} studies")
+
+        for code in refused:
+            flash(f"{code} does not open until month {allowed[code]}.", "error")
+        if wanted:
+            cost = sum(float(s["price"]) for s in params.studies
+                       if s["code"] in wanted)
+            flash(f"{len(wanted)} stud{'y' if len(wanted) == 1 else 'ies'} "
+                  f"commissioned for month {rnd}, PKR {cost:,.0f}. It is "
+                  f"charged when the month is run, and the findings land here.",
+                  "ok")
+        elif not refused:
+            flash("Nothing commissioned for this month.", "ok")
+        return redirect(url_for("research"))
+
+
     @app.route("/brief", methods=["GET", "POST"])
     @login_required("team")
     def brief():
@@ -535,6 +588,10 @@ def register_routes(app: Flask) -> None:
         # site-wide lever no longer gets a tile of its own. The engine still
         # reads it - it is what the file runner and the archetypes use.
         specs = [s for s in specs if s.code != "2.2"]
+        # 12.1 keeps its tile - it is a decision, and the red bar has to say
+        # whether it was taken - but the tile is a link to the research desk,
+        # so the form carries no field for it and must not be able to clear it.
+        ELSEWHERE = {"12.1"}
         # Positioning comes before pricing: what you claim to be decides what
         # your prices are allowed to say.
         specs.sort(key=lambda s: (int(s.group[1:]), s.code != "1.5",
@@ -552,6 +609,8 @@ def register_routes(app: Flask) -> None:
         if request.method == "POST":
             values, errors = {}, []
             for spec in specs:
+                if spec.code in ELSEWHERE:
+                    continue
                 if spec.kind == "bundles":
                     raw = {}
                     for row in service.bundle_rows(g.db, tid, current):
@@ -605,6 +664,9 @@ def register_routes(app: Flask) -> None:
                 for e in errors:
                     flash(e, "error")
             else:
+                for code in ELSEWHERE:
+                    if current.get(code):
+                        values[code] = current[code]
                 db.submit(g.db, rnd, tid, values, session["user"])
                 with g.db:
                     db.log(g.db, session["user"], "submit", f"r{rnd}: {len(values)} decisions")

@@ -570,6 +570,11 @@ def decision_summary(spec, value, catalogue_rows=None) -> str:
         return f"{offered} pack{'' if offered == 1 else 's'} offered"
     if spec.kind == "shares":
         return " · ".join(f"{k} {v * 100:.0f}%" for k, v in value.items())
+    if spec.code == "12.1":
+        # Named, two studies of five fit on a tile face and the rest becomes an
+        # ellipsis. A count says the same thing and leaves room for the help.
+        n = len(value)
+        return f"{n} stud{'y' if n == 1 else 'ies'} commissioned"
     if spec.kind == "multi":
         names = {r["value"]: r["label"] for r in (catalogue_rows or [])}
         picked = [names.get(v, v) for v in value]
@@ -1203,17 +1208,32 @@ def research_desk(con, team_id: str) -> dict:
     order = {"market": 0, "customer": 1, "channel": 2, "operations": 3, "premium": 4}
     findings.sort(key=lambda f: (order.get(f["tier"], 9), f["code"]))
 
-    shelf = [
-        {"code": s["code"], "name": s["name"], "price": float(s["price"]),
-         "tier": s["tier"], "lag": int(s["lag_rounds"]),
-         "band": float(s["error_band"]),
-         "min_round": int(s["min_round"]),
-         "asks": STUDY_READS.get(s["code"], {}).get("asks", s["note"]),
-         "owned": s["code"] in seen}
-        for s in params.studies
-    ]
+    # What this month's order already contains. Distinct from "owned": a team
+    # can hold a reading from month 2 and have commissioned nothing since.
+    open_round = game["open_round"]
+    ordered = set((db.submission(con, open_round, team_id) or {}).get("12.1") or []) \
+        if open_round else set()
+
+    shelf = []
+    for s in params.studies:
+        code, min_round = s["code"], int(s["min_round"])
+        # min_round has sat in studies.csv unread since the catalogue was
+        # written. A team could commission Q-Commerce Readiness in month 1 and
+        # get a reading on a business that cannot yet be ready for anything.
+        locked = open_round is not None and min_round > open_round
+        shelf.append({
+            "code": code, "name": s["name"], "price": float(s["price"]),
+            "tier": s["tier"], "lag": int(s["lag_rounds"]),
+            "band": float(s["error_band"]), "min_round": min_round,
+            "asks": STUDY_READS.get(code, {}).get("asks", s["note"]),
+            "owned": code in seen,
+            "ordered": code in ordered,
+            "locked": locked,
+            "can_order": open_round is not None and not locked,
+        })
     return {"findings": findings, "shelf": shelf,
-            "round": game["round"], "open_round": game["open_round"],
+            "round": game["round"], "open_round": open_round,
+            "ordered_cost": sum(r["price"] for r in shelf if r["ordered"]),
             "roas_reported": (history or {}).get("roas_reported"),
             "spent": _research_spend(con, team_id, params, game["round"])}
 

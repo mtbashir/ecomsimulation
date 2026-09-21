@@ -25,6 +25,20 @@
 {% for s in specs %}
 {% set val = current.get(s.code, '') %}
 {% set was_set = s.code in current %}
+{% if s.code == '12.1' %}
+{# Studies are commissioned on the research desk, where the findings are, so
+   the tile is a door rather than a drawer: picking studies next to the
+   answers they gave last month is the only place the choice makes sense. #}
+<a class="tile door {{ 'set' if was_set }}" href="{{ url_for('research') }}">
+  <span class="d-face">
+    <i class="dot {{ 'set' if was_set }}"></i>
+    <span class="t-name">{{ s.name }}</span>
+  </span>
+  <span class="t-val">{{ summaries[s.code] or 'nothing commissioned' }}</span>
+  <span class="t-help">{{ s.help }}</span>
+  <span class="go">Read and commission &rarr;</span>
+</a>
+{% else %}
 <details class="tile {{ 'set' if was_set }}">
   <summary>
     <i class="dot {{ 'set' if was_set }}"></i>
@@ -217,6 +231,7 @@
   </div>
   </div>
 </details>
+{% endif %}
 {% endfor %}
 </div>
 {% endfor %}

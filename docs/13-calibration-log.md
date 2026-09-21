@@ -29,6 +29,43 @@ reasoned argument.
 
 ## Entries
 
+### 2026-09-21 · Studies are commissioned where they are read
+
+**Basis:** The choice only makes sense next to the answers.
+
+**Confidence:** High.
+
+**Downstream:** One decision moves page. Nothing in the engine.
+
+Decision 12.1 was a checkbox list on the monthly form, twenty codes and prices
+with no findings anywhere near them. A team picked next month's studies without
+being able to see what last month's said. The tile is now a door: it keeps its
+red and green bar, because commissioning is still a decision the team either
+took or did not, and it leads to the research desk where the shelf has an
+**Order** column, a running total, and the findings sitting above it.
+
+Two things that had to be got right:
+
+**The form must not be able to wipe an order.** `db.submit` replaces a team's
+whole decision dict, so a form with no field for 12.1 would clear it on the
+next save. The submit handler now carries any stored 12.1 through
+(`ELSEWHERE` in `app.py`), and a test holds that line.
+
+**`min_round` is now enforced.** It has sat in `studies.csv` since the
+catalogue was written and nothing read it: a team could commission Q-Commerce
+Readiness in month 1 and get a reading on a business that could not yet be
+ready for anything. The shelf locks a study until its month and the route
+refuses it, so the rule holds whichever way the request arrives.
+
+Ordering replaces the month's list rather than adding to it, so un-ticking is
+how a team cancels, and nothing is charged until the instructor runs the month.
+
+**Found while updating the tests:** `test_research_is_picked_from_the_list_with_its_price`
+asserted `"150,000" in page` under the comment "each study must show what it
+costs". No study costs 150,000 — it was matching that number in some other
+decision's guide text, and would have passed with every price on the page
+wrong.
+
 ### 2026-09-21 · The research desk — the reading half of M16
 
 **Basis:** The mechanism was only ever half built.

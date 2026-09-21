@@ -299,9 +299,32 @@ max-width:76ch}
 .bears{margin-top:11px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .bears-lab{color:var(--mute);font-size:10.5px;letter-spacing:.09em;
 text-transform:uppercase;font-weight:600;margin-right:3px}
-table.shelf td{vertical-align:top}
-table.shelf tr.owned td{color:var(--ink)}
-table.shelf tr:not(.owned) td:first-child{color:var(--mute)}
+.catalogue.shelf{table-layout:fixed}
+.catalogue.shelf .c-tick{width:62px}
+.catalogue.shelf .c-code{width:74px}
+.catalogue.shelf .c-price{width:88px}
+.catalogue.shelf .c-err{width:70px}
+.catalogue.shelf .c-lands{width:96px}
+.catalogue.shelf .c-held{width:110px}
+.catalogue.shelf td{vertical-align:top}
+.shelf-row td{transition:background .12s}
+.shelf-row.ordered td{background:var(--panel-2)}
+.shelf-row.ordered .c-code,.shelf-row.ordered .c-what strong{color:var(--accent)}
+.shelf-row.locked td{opacity:.5}
+.shelf-row input[type=checkbox]{width:16px;height:16px;cursor:pointer;margin:0}
+.order-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;
+padding:12px 14px;border-radius:9px;background:var(--panel-2);
+border:1px solid var(--line);font-size:13.5px;color:var(--dim)}
+.order-bar b{color:var(--ink);font-variant-numeric:tabular-nums}
+/* The research tile on the decision form is a door, not a drawer. */
+a.tile.door{display:block;text-decoration:none;color:inherit;padding:13px 15px}
+a.tile.door .d-face{display:flex;align-items:center;gap:11px}
+a.tile.door .t-val{margin:3px 0 0 25px;white-space:normal}
+a.tile.door .t-help{display:block;margin:7px 0 0 25px;color:var(--mute);
+font-size:12px;line-height:1.45}
+a.tile.door .go{display:block;margin:9px 0 0 25px;color:var(--accent);
+font-size:12.5px;font-weight:600}
+a.tile.door:hover{border-color:var(--accent)}
 
 /* --- Agenda ------------------------------------------------------------- */
 .item{display:flex;gap:13px;padding:13px 0;border-top:1px solid var(--line)}

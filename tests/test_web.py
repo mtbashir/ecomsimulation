@@ -177,7 +177,8 @@ def test_choices_are_offered_by_name_not_by_code(game):
     team = _client(app, "team_01", pw["team_01"])
     page = team.get("/submit").data.decode()
     assert "Speed Express" in page, "courier names must appear"
-    assert escape("Category Demand & Seasonality") in page, "study names must appear"
+    assert escape("Category Demand & Seasonality") in \
+        team.get("/research").data.decode(), "study names must appear"
     assert "Facewash 100ml" in page, "product names must appear"
     assert "Cash on delivery" in page
     assert "MR-01;MR-17" not in page, "no raw-code placeholder anywhere"
@@ -222,15 +223,57 @@ def test_a_courier_mix_that_does_not_add_up_is_refused(game):
     assert b"must add up to 100%" in r.data
 
 
-def test_research_is_picked_from_the_list_with_its_price(game):
+def test_research_is_commissioned_where_its_findings_are_read(game):
+    """Studies are ordered on the research desk, not on the decision form.
+
+    Picking studies next to the answers last month's studies gave is the only
+    place the choice makes sense, so the decision tile is a door to that page.
+    """
     app, pw, path = game
     con = db.connect(path)
     db.set_game(con, open_round=1)
     team = _client(app, "team_01", pw["team_01"])
-    page = team.get("/submit").data.decode()
-    assert "150,000" in page, "each study must show what it costs"
-    team.post("/submit", data={"12.1": ["MR-01", "MR-03"]}, follow_redirects=True)
+
+    form = team.get("/submit").data.decode()
+    assert "/research" in form, "the tile has to lead somewhere"
+
+    desk = team.get("/research").data.decode()
+    assert "110,000" in desk and "200,000" in desk, \
+        "each study must show what it costs"
+    team.post("/research/commission", data={"study": ["MR-01", "MR-03"]},
+              follow_redirects=True)
     assert db.submission(con, 1, "team_01")["12.1"] == ["MR-01", "MR-03"]
+
+    # Un-ticking is how you cancel; the order replaces the month's list.
+    team.post("/research/commission", data={"study": ["MR-03"]},
+              follow_redirects=True)
+    assert db.submission(con, 1, "team_01")["12.1"] == ["MR-03"]
+
+
+def test_submitting_the_form_cannot_wipe_a_commissioned_study(game):
+    """The form carries no field for 12.1, so it must carry the stored value."""
+    app, pw, path = game
+    con = db.connect(path)
+    db.set_game(con, open_round=1)
+    team = _client(app, "team_01", pw["team_01"])
+    team.post("/research/commission", data={"study": ["MR-07"]},
+              follow_redirects=True)
+    team.post("/submit", data={"3.1": "900000"}, follow_redirects=True)
+    stored = db.submission(con, 1, "team_01")
+    assert stored["12.1"] == ["MR-07"], "the decision form ate the order"
+    assert stored["3.1"] == 900_000
+
+
+def test_a_study_cannot_be_commissioned_before_it_opens(game):
+    """min_round has sat in studies.csv unread since the catalogue was written."""
+    app, pw, path = game
+    con = db.connect(path)
+    db.set_game(con, open_round=1)
+    team = _client(app, "team_01", pw["team_01"])
+    # MR-20 Q-Commerce Readiness does not open until month 4.
+    team.post("/research/commission", data={"study": ["MR-20", "MR-01"]},
+              follow_redirects=True)
+    assert db.submission(con, 1, "team_01")["12.1"] == ["MR-01"]
 
 
 # --- Instructor control ------------------------------------------------------------
@@ -307,9 +350,10 @@ def test_decisions_export_matches_the_file_runner_format(game):
     """If the app fails mid-class, this CSV runs the round offline."""
     app, pw, path = game
     db.set_game(db.connect(path), open_round=1)
-    _client(app, "team_01", pw["team_01"]).post(
-        "/submit", data={"3.1": "900000", "12.1": "MR-01;MR-17"},
-        follow_redirects=True)
+    team = _client(app, "team_01", pw["team_01"])
+    team.post("/research/commission", data={"study": ["MR-01", "MR-17"]},
+              follow_redirects=True)
+    team.post("/submit", data={"3.1": "900000"}, follow_redirects=True)
 
     csv_text = _client(app, "admin", "admin-pw").get("/admin/export/1.csv").data.decode()
     assert csv_text.splitlines()[0] == "team_id,decision,value"

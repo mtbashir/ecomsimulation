@@ -1,13 +1,15 @@
 {% extends "base.html" %}{% block title %}Research{% endblock %}
 {% block body %}
-<div class="crumbs">Research desk &middot; month {{ desk.round or 0 }}</div>
+<div class="crumbs">Research desk &middot; findings through month
+  {{ desk.round or 0 }}{% if desk.open_round %} &middot; month
+  {{ desk.open_round }} open for orders{% endif %}</div>
 <div class="head">
   <div><h1>What your research says</h1>
     <p>Every study you have paid for, in one page, with the decision it bears
     on. Read it before you set this month's decisions &mdash; that is the only
     moment it is worth anything.</p></div>
   {% if desk.spent %}
-  <div class="cta"><span class="note">Spent on research to date</span>
+  <div class="cta"><span class="note">Charged for research so far</span>
     <div class="val num" style="font-size:20px">PKR {{ '{:,.0f}'.format(desk.spent) }}</div>
   </div>{% endif %}
 </div>
@@ -114,32 +116,79 @@ studies under <em>Market research to buy</em> on the decision form.</p>
 {% endfor %}
 
 <section>
-<h2>The shelf</h2>
-<p class="cap">Priced for one month's reading. A lagged study is commissioned
-now and lands next month, which is worth knowing before you need the answer
-this month. The error band is how far the figure may sit from the truth &mdash;
-re-buying the same study returns the same number, so there is nothing to
-average out.</p>
-<table class="shelf">
-<thead><tr><th style="width:60px">Study</th><th>What it answers</th>
-  <th class="r">Price</th><th class="r">Error</th><th class="r">Lands</th>
-  <th class="r">Held</th></tr></thead>
+<h2>Commission studies{% if desk.open_round %} for month {{ desk.open_round }}{% endif %}</h2>
+{% if desk.open_round %}
+<p class="cap">Tick what you want and order it. Nothing is charged until the
+instructor runs the month, so you may change your mind while the round is open
+&mdash; un-ticking a study cancels it. A lagged study is commissioned now and
+lands next month, which is worth knowing before you need the answer this month.
+The error band is how far the figure may sit from the truth, and re-buying the
+same study returns the same number, so there is nothing to average out.</p>
+{% else %}
+<p class="cap">Submissions are closed, so nothing can be ordered right now.
+This is the catalogue as it stands &mdash; prices, error bands, and which
+studies land a month late.</p>
+{% endif %}
+
+<form method="post" action="{{ url_for('commission') }}">
+<table class="catalogue shelf">
+<thead><tr><th class="c-tick">Order</th><th class="c-code">Study</th>
+  <th class="c-what">What it answers</th><th class="r c-price">Price</th>
+  <th class="r c-err">Error</th><th class="r c-lands">Lands</th>
+  <th class="r c-held">Held</th></tr></thead>
 <tbody>
 {% for s in desk.shelf %}
-<tr class="{{ 'owned' if s.owned }}">
-  <td class="num">{{ s.code }}</td>
-  <td><strong>{{ s.name }}</strong><br><span class="note">{{ s.asks }}</span></td>
-  <td class="num">{{ '{:,.0f}'.format(s.price) }}</td>
-  <td class="num note">{{ '±{:.0%}'.format(s.band) if s.band else 'exact' }}</td>
-  <td class="num note">{{ 'next month' if s.lag else 'same month' }}</td>
-  <td class="r">{% if s.owned %}<span class="pill good">held</span>
-    {% elif desk.round and s.min_round > desk.round + 1 %}
-    <span class="note">month {{ s.min_round }}</span>{% endif %}</td></tr>
+<tr class="shelf-row {{ 'ordered' if s.ordered }}{{ ' locked' if s.locked }}">
+  <td class="c-tick">
+    {% if s.can_order %}
+    <input type="checkbox" name="study" value="{{ s.code }}"
+           data-price="{{ s.price }}" {% if s.ordered %}checked{% endif %}>
+    {% elif s.locked %}<span class="note">month {{ s.min_round }}</span>
+    {% endif %}</td>
+  <td class="num c-code">{{ s.code }}</td>
+  <td class="c-what"><strong>{{ s.name }}</strong><br>
+    <span class="note">{{ s.asks }}</span></td>
+  <td class="num c-price">{{ '{:,.0f}'.format(s.price) }}</td>
+  <td class="num note c-err">{{ '±{:.0%}'.format(s.band) if s.band else 'exact' }}</td>
+  <td class="num note c-lands">{{ 'next month' if s.lag else 'same month' }}</td>
+  <td class="r c-held">{% if s.owned %}<span class="pill good">reading held</span>{% endif %}</td>
+</tr>
 {% endfor %}
 </tbody></table>
+
 {% if desk.open_round %}
-<a class="btn" style="margin-top:14px" href="{{ url_for('submit') }}">Commission
-  studies on the decision form</a>
+{% set n_ordered = desk.shelf|selectattr('ordered')|list|length %}
+<div class="order-bar">
+  <div>This month's order: <b class="num order-n">{{ n_ordered }}</b>
+    stud<span class="order-suffix">{{ 'y' if n_ordered == 1 else 'ies' }}</span>,
+    PKR <b class="num order-cost">{{ '{:,.0f}'.format(desk.ordered_cost) }}</b>
+    <span class="note">&mdash; charged when the month is run</span></div>
+  <button type="submit" style="margin-left:auto">Commission these studies</button>
+</div>
 {% endif %}
+</form>
 </section>
+
+<script>
+// The running total, so a team sees what an order costs before it places it.
+(function () {
+  var boxes = document.querySelectorAll(".shelf-row input[name='study']");
+  var n = document.querySelector(".order-n");
+  var cost = document.querySelector(".order-cost");
+  var suffix = document.querySelector(".order-suffix");
+  if (!n || !cost) return;
+  function paint() {
+    var count = 0, total = 0;
+    boxes.forEach(function (b) {
+      b.closest("tr").classList.toggle("ordered", b.checked);
+      if (b.checked) { count += 1; total += parseFloat(b.dataset.price) || 0; }
+    });
+    n.textContent = count;
+    cost.textContent = total.toLocaleString("en-US", {maximumFractionDigits: 0});
+    if (suffix) suffix.textContent = count === 1 ? "y" : "ies";
+  }
+  boxes.forEach(function (b) { b.addEventListener("change", paint); });
+  paint();
+})();
+</script>
 {% endblock %}
