@@ -50,7 +50,7 @@ def test_monotone(decision, value, up, down):
 COST_OF = {
     "3.1": "contribution_margin_pct", "3.9": "contribution_margin_pct",
     "2.2": "gross_margin_pct", "7.5": "cash_balance", "6.1": "contribution_margin_pct",
-    "7.4": "contribution_margin_pct", "10.1": "ebitda_margin_pct",
+    "7.4": "ebitda_margin_pct", "10.1": "ebitda_margin_pct",
     "9.2": "aov_net",
 }
 
@@ -130,3 +130,53 @@ def test_a_team_with_no_founding_round_is_untouched_by_focus():
     for team in world.teams.values():
         assert not hasattr(team, "founding") or team.founding is None
         assert team.history[-1]["orders"] > 0
+
+
+def test_brand_spend_reaches_brand_equity():
+    """M5 receives `resolved` keyed by team, and has to index into it.
+
+    It did not: every helper asked the outer map for a decision code, so brand
+    spend, creative spend and the discount rate read as zero for every team in
+    every game, and brand equity decayed identically for the whole field. The
+    symptom is subtle - nothing errors, the numbers are plausible - so this
+    checks the one thing that cannot be true if the wiring is wrong.
+    """
+    from ecomsim import bootstrap
+    from ecomsim.engine import run_game
+
+    params = P.load({"n_teams": 2, "events_enabled": 0})
+    world = bootstrap.new_world(params, run_id="brand")
+    spend = {"team_01": 900_000, "team_02": 0}
+    run_game(world, params,
+             strategy=lambda w, r, t: {"3.9": spend[t]}, rounds=6)
+
+    spender = world.teams["team_01"].brand_equity
+    miser = world.teams["team_02"].brand_equity
+    assert spender > miser * 1.5, (
+        f"brand spend bought nothing: {spender:.3f} against {miser:.3f}")
+
+
+def test_a_going_concern_opens_at_its_own_steady_state():
+    """Round 1 IS the baseline, not the bottom of a climb into it.
+
+    Seeding brand equity and the customer base below where the default plan
+    sustains them made every team spend the game catching up, and put Round 1 a
+    third under the figure the whole calibration is anchored to.
+    """
+    from ecomsim import bootstrap
+    from ecomsim.engine import run_game
+
+    params = P.load({"n_teams": 8, "events_enabled": 0})
+    world = bootstrap.new_world(params, run_id="steady")
+    run_game(world, params, strategy=lambda w, r, t: {}, rounds=12)
+
+    orders = [h["orders"] for h in world.teams["team_01"].history]
+    target = params["baseline_team_revenue"] / params["aov_base"]
+    # Round 1 still opens under the settled figure, because the cohort keeps
+    # compounding for the whole game and the opening base cannot be raised
+    # further without breaking the founding guardrails in test_founding. What
+    # this locks in is the distance: it was a third under with a 37% ramp.
+    assert abs(orders[0] - target) / target <= 0.20, (
+        f"Round 1 orders {orders[0]:,.0f} against a baseline of {target:,.0f}")
+    assert orders[-1] / orders[0] <= 1.30, (
+        f"orders drift {orders[0]:,.0f} -> {orders[-1]:,.0f} across the game")

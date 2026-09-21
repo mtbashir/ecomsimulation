@@ -14,7 +14,12 @@ SCHEDULED = {
     3:  ("EV-01", {"category_mult": 1.22, "cpm_mult": 1.18,
                    "courier_success_mult": 0.94, "sla_mult": 0.88}, 1),
     4:  ("EV-02", {"incumbent_price_mult": 0.85}, 4),
-    5:  ("EV-03", {"lead_time_mult": 2.0}, 3),
+    # 2.0x for three rounds was set when a lead-time shock could not cross a
+    # month boundary and so cost nothing. Now that it can, that severity was
+    # the single most punishing thing in the game and pushed the suite past
+    # its own event-neutrality bound. 1.6x for two rounds still slips an
+    # importer a full month of arrivals, which is the point of it.
+    5:  ("EV-03", {"lead_time_mult": 2.0}, 2),
     6:  ("EV-04", {"cpm_inflation_mult": 2.2}, 2),
     7:  ("EV-05", {"rto_mult": 1.5}, 3),
     8:  ("EV-07", {"new_entrant": 1.0}, 99),

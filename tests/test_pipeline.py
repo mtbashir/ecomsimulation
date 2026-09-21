@@ -143,3 +143,24 @@ def test_every_study_reports_something():
     silent = [c for c, r in world.teams["team_01"].reports[4].items()
               if r.get("status") == "no_data"]
     assert not silent, f"studies that report nothing: {silent}"
+
+
+def test_a_margin_is_not_the_mean_of_monthly_margins():
+    """Ratios do not average; the scorecard has to read them over the totals.
+
+    Two identical years except for the last quarter: one keeps trading, one
+    stops marketing, sells half as much and books a fat margin on what is left.
+    Read as a mean of monthly percentages the second looks more profitable.
+    """
+    from ecomsim import scoring
+
+    steady = [{"revenue_net": 10_000_000, "contribution_margin_pct": 0.10}] * 12
+    harvest = ([{"revenue_net": 10_000_000, "contribution_margin_pct": 0.10}] * 9
+               + [{"revenue_net": 5_000_000, "contribution_margin_pct": 0.28}] * 3)
+
+    mean_of_percentages = sum(h["contribution_margin_pct"] for h in harvest) / 12
+    assert mean_of_percentages > 0.10, "the old reading favoured the harvest"
+
+    assert scoring._margin(steady, "contribution_margin_pct") == pytest.approx(0.10)
+    assert scoring._margin(harvest, "contribution_margin_pct") < 0.145, (
+        "a margin taken on half the volume cannot count for a full month")

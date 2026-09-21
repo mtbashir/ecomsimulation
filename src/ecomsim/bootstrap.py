@@ -77,9 +77,17 @@ def _category_scale(world, params) -> float:
     # share, and the scale grew the category to compensate. They did nothing.
     # Holding the reference fixed keeps per-team economics N-invariant (T2
     # needs that) while letting a crowded market actually cost a team share.
+    # The reference field carries the floor the engine forces at small N, not a
+    # flat two. Below four teams the roster is padded to four incumbents so a
+    # duopoly is not a tug-of-war; scaling against two while the team actually
+    # faced four charged it for a floor it did not ask for, and left N=2 and
+    # N=3 short of the baseline while every larger game sat on it. Anything the
+    # instructor adds ON TOP of the floor still costs share, which is the point
+    # of holding the reference fixed.
+    floor = 4 if n <= 3 else 2
     reference = [
-        {"utility": params["incumbent_a_utility"]},
-        {"utility": params["incumbent_b_utility"]},
+        {"utility": params[u] if isinstance(u, str) else u}
+        for _, _, u in AI_ROSTER[:floor]
     ]
     seeded_ctx = {
         "price_index": {team.team_id: 1.0},
@@ -101,8 +109,35 @@ def _category_scale(world, params) -> float:
     return wanted / max(raw_category_orders * team_share, 1e-9)
 
 
+def _steady_brand(params) -> tuple[float, float]:
+    """Where brand equity and creative quality settle at the default spend.
+
+    A going concern opens mid-life, so it opens where twelve months of the
+    default marketing plan would have put it. Seeding both at a flat 0.50 was
+    harmless only while M5 could not read a spend decision at all; with that
+    wired up, every team spent the game climbing out of a hole the bootstrap
+    had dug, and Round 1 came in a third below the baseline it is supposed to
+    define.
+    """
+    from .decisions import REGISTRY
+
+    brand_spend = float(REGISTRY["3.9"].default_when_disabled)
+    creative_spend = float(REGISTRY["3.8"].default_when_disabled)
+    brand = (params["brand_alpha"] * brand_spend
+             / (params["brand_decay"] * params["brand_ref_spend"]))
+    creative = (params["creative_kappa"]
+                * (creative_spend / params["creative_ref_spend"]) ** 0.5
+                / params["creative_decay"])
+    return min(1.0, brand), min(1.0, creative)
+
+
 def new_team(params, team_id: str) -> TeamState:
     team = TeamState(team_id=team_id, cash=params["starting_cash"])
+    team.brand_equity, team.creative_quality = _steady_brand(params)
+    # The lag in M5 peaks at t-1, so a going concern also opens with three
+    # months of that spend behind it rather than a blank history.
+    from .decisions import REGISTRY
+    team.brand_spend_history = [float(REGISTRY["3.9"].default_when_disabled)] * 3
 
     active = _active_skus(params)
     team.active_skus = [s["code"] for s in active]
@@ -153,7 +188,9 @@ def _seed_pipeline(team, params, active, units_per_round) -> None:
     lag = params["supplier_terms_days"] / round_days
     frac = lag - int(lag)
     # Owed to suppliers: one round's purchases due next round, plus the tail of
-    # the round before that.
+    # the round before that. Under 45-day terms a going concern is always two
+    # POs deep, so the opening balance owes 1.48 rounds of purchases and each
+    # round then settles one - which is the steady state, not an over-seeding.
     team.payables[1] = cost
     if frac > 0:
         team.payables[2] = cost * frac

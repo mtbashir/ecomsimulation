@@ -135,6 +135,17 @@ def run(world, params, resolved, ctx) -> None:
         ctx.setdefault("contribution_margin_pct", {})[tid] = (
             contribution / net_revenue if net_revenue > 0 else 0.0
         )
+        # The same margin one line higher, before a rupee of marketing. This is
+        # the economics of fulfilling an order - product, shipping, payment,
+        # returns, commission - and nothing a team spends to win the order.
+        # docs/08 asks the three scored margins to sit at different levels of
+        # the P&L so that no single lever moves all three; with marketing
+        # inside contribution, cutting marketing moved contribution and EBITDA
+        # together, which is 20 of profitability's 25 points on one lever.
+        ctx.setdefault("contribution_pre_marketing_pct", {})[tid] = (
+            (contribution + marketing + affiliate) / net_revenue
+            if net_revenue > 0 else 0.0
+        )
         ctx.setdefault("net_revenue", {})[tid] = net_revenue
         ctx.setdefault("cac_blended", {})[tid] = (
             marketing / ctx["new_customers"][tid]

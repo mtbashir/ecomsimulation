@@ -93,6 +93,10 @@ class TeamState:
     sku_sourcing: dict[str, str] = field(default_factory=dict)
     sku_cost_index: dict[str, float] = field(default_factory=dict)
     lead_time_multiplier: float = 1.0
+    # What the buyer thinks the lead time is, which is what they plan against.
+    # It only catches up with a shock after deliveries have actually run late,
+    # so a slip costs a month of cover before the policy absorbs it.
+    lead_time_belief: float = 1.0
     # What the team charges for each product, set in Round 0. Empty means the
     # team never priced anything itself, so the catalogue's reference price
     # scaled by the positioning tier stands in.

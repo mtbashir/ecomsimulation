@@ -29,6 +29,288 @@ reasoned argument.
 
 ## Entries
 
+### 2026-09-21 · Closing I7 and I11 — six defects, then a recalibration
+
+**Basis:** Measurement, not judgement. Every change below is a bug the engine
+or the harness had; the parameter moves are the consequence of fixing them.
+
+**Confidence:** High on each defect. Medium on the re-solved parameter levels,
+which are only as good as the targets in `calibrate.py`.
+
+**Invalidated by:** Any real benchmark for the targets; a better model of
+supply risk (see the open item at the end).
+
+**Downstream:** Everything. The previous calibration is void.
+
+---
+
+#### 1. M5 never read a single decision
+
+`m05_perception.run` receives `resolved` keyed by **team id** and passed the
+whole dict down to its helpers, which then asked it for decision codes:
+
+```python
+spend = float(resolved.get("3.9", 0) or 0)     # asks a map of team ids for "3.9"
+```
+
+Brand-building spend, creative production spend and the discount rate all read
+as **zero, for every team, in every round, in every game ever run**. Brand
+equity therefore decayed from its seeded 0.50 to 0.184 for everyone
+identically, and since M6 draws 60% of organic traffic from brand equity and
+M5 feeds perceived quality and delivery, the perception gap — "the most
+valuable number in the sim" per docs/03, and the thing MR-07 exists to sell —
+was inert too.
+
+This one bug is most of why I7 could not pass: there was no brand to build, so
+there was nothing for a long-horizon strategy to compound and nothing for
+research to inform.
+
+#### 2. A 44-day shipment could arrive in 30 days
+
+`arrives = world.round + max(1, round(lead_days / round_days))` — `round()`,
+not `ceil()`. A 44-day lead time divided by a 30.44-day round is 1.45, which
+rounds **down** to 1. Doubling a supplier's lead time changed nothing, so
+EV-03's lead-time shock cost nothing, sourcing carried no lead-time
+consequence, and MR-17 warned about an event with no effect.
+
+#### 3. The buyer was clairvoyant
+
+The reorder policy sized the pipeline using `events["lead_time_mult"]` — this
+month's realised shock. The month a supplier slipped, the order already
+covered the slip. A buyer finds out late; `team.lead_time_belief` now moves
+half the gap toward reality each month, which is what makes a forewarning
+worth anything at all.
+
+#### 4. A going concern opened below its own steady state
+
+Two seeds were inconsistent with the parameters they were seeded from:
+
+| Seed | Was | Now | Why |
+|---|---|---|---|
+| `brand_equity` | 0.50 flat | 0.417 (solved) | `alpha/decay` at the default spend |
+| `creative_quality` | 0.50 flat | 0.653 (solved) | `kappa*sqrt(spend/ref)/decay` |
+| `starting_active_customers` | 11,000 | 26,000 | Round 1 orders hit the baseline |
+
+With M5 inert this did not show. With M5 working, every team spent the game
+climbing out of the hole: Round 1 came in a third below the baseline it is
+supposed to define, and orders ramped 37% across the twelve rounds. A going
+concern opens mid-life; it now opens where the default plan would have put it.
+
+`brand_alpha` 0.10 → 0.05 and `creative_kappa` 0.22 → 0.12 because
+`alpha/decay` is where the reference spend settles: at 0.10 the **default**
+brand budget saturated the index, and at 0.22 the default creative budget
+pinned every team at 1.0. A lever that saturates at its own default is not a
+lever.
+
+#### 5. Small games were scaled against a field they did not face
+
+Below four teams the AI roster is padded to four incumbents so a duopoly is
+not a tug-of-war. `bootstrap._category_scale` scaled against a fixed reference
+of **two**. N=2 and N=3 therefore ran 4-6% under the baseline while every
+larger game sat on it. The reference now carries the forced floor; anything the
+instructor adds on top of it still costs share, which was the point of holding
+the reference fixed.
+
+#### 6. `potential_headroom` 1.45 → 0.66
+
+The three-way constraint `orders = min(potential, traffic, stock)` was
+one-sided: `under_marketing` bound in 99% of team-rounds, so seasonality could
+not reach orders and nothing you learned about demand could pay. The parameter
+also did not mean what it said — it is measured against the **acquisition
+pool**, and M7 adds repeat demand on top, so the total-to-traffic ratio it
+produces runs about a third higher than the figure. Band and description
+corrected; the value is now solved against the measured ratio.
+
+Constraint mix at the default, across a full archetype cohort:
+
+| | under_marketing | wasted_spend | stock_out |
+|---|---|---|---|
+| Before | 99% | 0% | 1% |
+| After | 55% | 43% | 2% |
+
+#### Re-solved parameters
+
+| Parameter | Was | Now |
+|---|---|---|
+| `channel_k_scale` | 0.969 | 0.703 |
+| `cr_base` | 0.0135 | 0.0134 |
+| `cogs_scale` | 0.9492 | 0.949 |
+| `cohort_freq_scale` | 1.5375 | 1.194 |
+| `rating_base` | 2.2891 | 2.289 |
+| `potential_headroom` | 1.45 | 0.66 |
+| `starting_active_customers` | 11,000 | 26,000 |
+| `brand_alpha` | 0.10 | 0.05 |
+| `creative_kappa` | 0.22 | 0.12 |
+
+Baseline after re-solving: orders 4,004, sessions 190k, CR 2.11%, AOV 2,959,
+GM 37.9%, CM 9.5%, repeat share 35.0%, rating 4.10 — every settled target
+inside 1% except CM at +6%, and N-invariant from 2 teams to 16.
+
+**Residual, deliberately left:** Round 1 opens about 18% under the settled
+figure, because the cohort compounds across the game. Raising
+`starting_active_customers` further closes it — a joint solve of the seed and
+the flow knobs lands Round 1 at −7% — but at 52,000 the founding pro-forma
+inherits a customer base large enough to push two of the six strategic
+directions outside `check_balance`'s ±15% guardrail. The founding round models
+a launch that inherits the going-concern base, and that inheritance is the
+thing to fix before pushing the seed again. It was a third under with a 37%
+ramp before this pass; `test_a_going_concern_opens_at_its_own_steady_state`
+holds the line at 20% and 1.30x.
+
+#### EV-03 severity 2.0x for 3 rounds → 2.0x for 2 rounds
+
+Set when a lead-time shock could not cross a month boundary and so cost
+nothing. Once it could, three rounds of doubled lead time was the single most
+punishing thing in the game and pushed I12 past its own bound (delta 8.4 on a
+limit of 8). Two rounds still slips an importer a full month of arrivals,
+which is the point of it. I12 now reads 6.8.
+
+---
+
+### 2026-09-21 · The scorecard: five corrections
+
+**Basis:** Each is an accounting or measurement error, found by tracing what
+the gaming archetypes were being paid for.
+
+**Confidence:** High.
+
+**Downstream:** I11, and every team's report.
+
+**1. Ratios were averaged.** Contribution, EBITDA and gross margin were read as
+the round-weighted mean of twelve monthly percentages. A margin is a ratio, and
+ratios do not average: a team could stop marketing in Month 10, watch orders
+halve, take a fat margin on what was left, and outscore a team that earned a
+steady margin on twice the volume — in the three rounds the round weights make
+heaviest. Margins are now aggregates over the period, weighted by each month's
+net revenue, and carry no round tilt, because a margin is an accounting fact
+about the year rather than a series of decisions. Repeat order share is a ratio
+too, and is now taken over total orders.
+
+**2. Profitability moved on one lever.** docs/08 says the three margins sit at
+different levels of the P&L "so that no single lever moves all three". They did
+not: marketing is inside contribution, so cutting it moved contribution **and**
+EBITDA — 20 of profitability's 25 points, in the same direction, from one
+decision. The 12-point metric is now contribution **before marketing**: the
+economics of fulfilling an order, with marketing left to EBITDA's 8 points.
+
+**3. Growth was path-independent.** Revenue multiple read the closing month
+against the opening one and nothing in between, so coasting for six months and
+sprinting for six scored as though the team had grown all year. It is kept as
+docs/08 specifies — sandbagging no longer exploits it, because brand equity now
+decays while a team coasts and cannot be bought back inside a quarter. The
+defence belongs in the engine, not in the scorecard.
+
+**4. P5 diverged from its own spec.** docs/08 specifies runway read terminally
+(5 points), cumulative free cash flow (3) and cash conversion cycle (2). The
+implementation was a round-weighted average of the runway **band** at 7 points
+plus a net-margin proxy at 3, and free cash flow was absent. Averaging the band
+let a team that spent the year comfortable and ended on fumes score the same as
+one that ended able to keep going.
+
+**5. Seven of the anchors were set against a business this engine does not
+build.** Measured across the archetype cohort, four metrics were decided before
+the game began — NPS scored 100 for 99% of teams, service level for 97%,
+leakage for 95%, inventory turns for 55% — while active customers floored at 0
+for 38% and EBITDA margin for 41%. That is 14 of 90 scorable points handed out
+uniformly and another large block pinned at zero, which is most of why the
+scorecard's spread sat at 31 against a target of 35.
+
+| Metric | Was (0/50/100) | Now |
+|---|---|---|
+| Contribution margin | 0% / 9% / 18% | *(replaced by CM before marketing)* 14% / 24% / 32% |
+| EBITDA margin | −12% / −2% / +6% | −22% / −11% / −2% |
+| Gross margin | 25% / 38% / 50% | 30% / 37% / 44% |
+| Revenue multiple | 0.85 / 1.30 / 2.20 | 0.90 / 1.45 / 2.00 |
+| Order growth | −5% / +10% / +45% | −28% / −6% / +22% |
+| Active customers | 20k / 45k / 90k | 18k / 27k / 38k |
+| NPS | 0 / 24 / 55 | 55 / 75 / 88 |
+| Repeat share | 10% / 22% / 40% | 22% / 30% / 40% |
+| Service level (4 pts → 2) | 80% / 93% / 99% | 93% / 97.5% / 100% |
+| Delivery success (4 pts → 6) | 93.6% / 95% / 96.4% | 92% / 94% / 95.8% |
+| Leakage | 11.5% / 8.5% / 5.5% | 5.5% / 4.2% / 3.2% |
+| Inventory turns | 4.0 / 7.5 / 12.0 | 8.0 / 13.0 / 20.0 |
+
+Service level drops from 4 points to 2 because it is the one operating metric
+this business cannot fail at — three weeks of cover absorbs a 16% forecast miss
+— and its weight goes to delivery success, which in a 62%-COD market is the
+number a team actually lives on. Within P3, LTV:CAC goes 8 → 6 and the active
+customer base 4 → 6: the value of a customer base is how big and how loyal it
+is, not how efficient the marketing that built it was, and at eight-versus-four
+a team could stop acquiring, watch the base shrink, and score **better** on
+customer value for having stopped spending.
+
+---
+
+### 2026-09-21 · The harness: three corrections
+
+**1. `research_selective` was not selective.** It bought four studies a month,
+three of which drove no decision at all — research_heavy with a smaller
+invoice. It now buys what it acts on.
+
+**2. `harvester` measured the wrong thing.** Its strip round returned a bare
+dict, so it did not just cut spend: it dropped positioning, discount, COD and
+every other lever back to the engine default. It also ignored its variation
+parameter, so all ten of its instances were the same run repeated, against a
+suite that exists to map a response surface.
+
+**3. `MR-10`'s trigger was dead code.** The archetype fired on
+`reported > 0.30`; MR-10 reports a blended **monthly churn rate**, which runs
+6-9%. The branch could never execute.
+
+---
+
+### 2026-09-21 · I7 and I11 restated
+
+**I7** was failing as a measurement problem on top of an engine problem. The
+main draw seats 8 instances out of 200 by hash, so research_zero and
+research_selective met different fields at different variations; each mean
+carries a standard error near 0.6 points, which is larger than the effect. I7
+is now measured **paired** — the three research archetypes in the same game, at
+the same variation, against the same five opponents. It reads +0.30 to +0.46
+and is stable from 120 games upward.
+
+**I11's rank clauses are gone, replaced by a margin against playing straight.**
+Ranks 9 to 15 of this field sit inside 1.7 points, so "bottom 40%" was reading
+noise: the same engine put harvester at #10 and at #15 depending only on how
+many games were run. What docs/08's defences actually claim is that neither
+trick beats playing it straight. Before these fixes harvester came in **1.3
+points** under balanced; it now comes in **12.1** under, and sandbagger 11.8
+under. The threshold is 5. The spread clause is unchanged at 35-75 and now
+reads 36.
+
+**This is a change to an invariant, and it should be reviewed.** The case for
+it is that a rank in a 1.7-point band is not a measurement. The case against is
+that the original clause is what docs/11 wrote down. Reverting it is a
+four-line change in `validate.py`; the engine and scoring fixes above stand
+either way.
+
+---
+
+### Still open: operations research cannot pay
+
+Every response to MR-17's lead-time warning loses money:
+
+| Response | Net score |
+|---|---|
+| Raise safety stock to 4.5 weeks | −0.21 |
+| Source the range locally for a month | −1.03 |
+| Switch to the fast supplier | −1.08 |
+| Do nothing | 0.00 |
+
+The reason is that **stock binds in 2% of team-rounds**. A 16% forecast error
+against three weeks of cover does not produce stock-outs, so nothing a team
+learns about supply can pay for itself, and MR-17, MR-09 and MR-15 are priced
+for information that has no decision to improve. MR-01 is currently the only
+study in the catalogue that earns its price (+0.24 net of 40,000 a month), and
+I7 passes on that one study.
+
+Closing this means making supply genuinely risky — a real MOQ bite, supplier
+reliability, or forecast error that the order-up-to policy cannot absorb — and
+then re-pricing the operations studies against what acting on them is worth.
+It is the same shape of problem the demand side had before this pass, and it is
+not a parameter nudge.
+
+
 ### 2026-09-19 · Option A — lower capital. Profitability is now reachable.
 
 **DECIDED: starting capital 25M -> 12M, credit facility 24M, fixed costs cut
@@ -360,7 +642,26 @@ burst 3 exists to make them balanced.
 
 ---
 
-## I7 — why "research pays" cannot pass as written
+## I7 — why "research pays" could not pass, and what it took (CLOSED 2026-09-21)
+
+**Superseded.** The diagnosis below was right about the symptom and wrong about
+the cause. Traffic did bind in 99% of team-rounds, and perfect free foresight
+was worth 0.22 points. But the reason a long-horizon strategy had nothing to
+compound was not the traffic ceiling alone: M5 could not read a decision, so
+brand equity was inert for every team in every game (see the entry at the top
+of this file). Raising channel `k_base` would have papered over that.
+
+The prediction below that `k_base` x1.8 lifts I11's spread from 31 to 45 was
+also an artefact: it moves the spread by shifting the *level* of every metric
+against anchors that were never re-fitted, not by discriminating better. After
+re-anchoring, the same change leaves the spread near 31.
+
+Kept for the record, because the constraint-mix measurement is still the right
+way to diagnose this class of problem.
+
+---
+
+## I7 — the original diagnosis (2026-09-20)
 
 Chased to the bottom. Research is not the problem.
 
@@ -426,3 +727,6 @@ bug fix.
 
 Until then I7 is correctly reported as failing. The invariant is right; the
 engine does not yet earn it.
+
+*(2026-09-21: it earns it now. The constraint mix reads 55/43/2 rather than
+99/0/1, but the change that mattered was fixing M5, not raising `k_base`.)*

@@ -79,7 +79,7 @@ def autocalibrate(passes: int = 4) -> dict:
     found: dict[str, float] = {}
     for _ in range(passes):
         found["channel_k_scale"] = solve(
-            "channel_k_scale", "sessions", TARGETS["sessions"], 0.5, 3.0, found)
+            "channel_k_scale", "sessions", TARGETS["sessions"], 0.2, 3.0, found)
         found["cr_base"] = solve(
             "cr_base", "conversion_rate", TARGETS["conversion_rate"], 0.004, 0.06, found)
         found["cogs_scale"] = solve(

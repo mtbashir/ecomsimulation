@@ -6,6 +6,8 @@ visibility of it, which is the honest modelling of what forecasting does.
 """
 from __future__ import annotations
 
+import math
+
 from .. import rng
 
 SUPPLIER_DEFAULT = "B"
@@ -28,6 +30,7 @@ def run(world, params, resolved, ctx) -> None:
         ctx.setdefault("supplier", {})[tid] = supplier
 
         _publish_forecast(team, world, params, ctx)
+        _learn_lead_time(team, events)
         _place_orders(team, world, params, ctx, d, supplier, events, round_days)
 
         units_available = sum(team.inventory.values())
@@ -125,6 +128,18 @@ def _publish_forecast(team, world, params, ctx) -> None:
     ctx.setdefault("forecast_sd", {})[team.team_id] = sd
 
 
+def _learn_lead_time(team, events) -> None:
+    """Move the buyer's assumption toward what deliveries are actually doing.
+
+    Half the gap a month: a slip that lands in month 5 is half absorbed by
+    month 6 and mostly gone by month 7, which is roughly how long it takes a
+    real buyer to stop treating a late shipment as a one-off. Forewarning is
+    worth something precisely because this lag exists.
+    """
+    actual = events.get("lead_time_mult", 1.0)
+    team.lead_time_belief += 0.5 * (actual - team.lead_time_belief)
+
+
 def _place_orders(team, world, params, ctx, d, supplier, events, round_days) -> None:
     """Place the team's order, or fall back to the order-up-to policy.
 
@@ -148,8 +163,13 @@ def _place_orders(team, world, params, ctx, d, supplier, events, round_days) -> 
 
     safety_weeks = float(d.get("7.5", 2.0) or 2.0)
     round_weeks = 4.33 * params["round_months"]
+    # Plan against the lead time the team BELIEVES, not the one the event is
+    # about to impose. Reading the shock multiplier here made the policy
+    # clairvoyant: the month a supplier slipped, the order already covered the
+    # slip, so a lead-time shock cost nothing and no warning about one could be
+    # worth buying. A buyer finds out late, which is the whole point of MR-17.
     lead_weeks = (float(supplier["lead_time_days"]) * team.lead_time_multiplier
-                  * events.get("lead_time_mult", 1.0) / 7)
+                  * team.lead_time_belief / 7)
     # Half a round of cycle stock, not a full one: an order goes out every
     # round, so the position only has to bridge half the review period plus
     # the lead time. A full round of cycle stock on top ties up roughly two
@@ -183,7 +203,11 @@ def _commit_po(team, world, params, ctx, supplier, events, units, round_days) ->
     noise = 1 + rng.normal(world.run_id, world.round, team.team_id,
                            "leadtime", 0.0, params["lead_time_noise_sd"])
     lead_days *= max(0.4, noise)
-    arrives = world.round + max(1, round(lead_days / round_days))
+    # Ceiling, not rounding. Rounding let a 44-day shipment land inside a
+    # 30-day month, so doubling a supplier's lead time changed nothing and the
+    # whole lead-time dimension - sourcing, supplier choice, the EV-03 shock -
+    # was invisible. A PO that takes longer than the month misses the month.
+    arrives = world.round + max(1, math.ceil(lead_days / round_days))
 
     skus = team.active_skus or [s["code"] for s in params.skus]
     total_w = sum(float(params.sku(c)["revenue_weight"]) for c in skus) or 1.0

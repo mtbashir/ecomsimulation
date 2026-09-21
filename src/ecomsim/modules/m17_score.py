@@ -65,6 +65,8 @@ def run(world, params, resolved, ctx) -> None:
             "revenue_net": ctx["net_revenue"][tid],
             "gross_margin_pct": ctx["gross_margin_pct"][tid],
             "contribution_margin_pct": ctx["contribution_margin_pct"][tid],
+            "contribution_pre_marketing_pct":
+                ctx["contribution_pre_marketing_pct"][tid],
             "ebitda_margin_pct": pnl["ebitda"] / max(pnl["net_revenue"], 1.0),
             "cac_blended": ctx["cac_blended"][tid],
             "repeat_order_share": ctx["repeat_order_share"][tid],
@@ -117,15 +119,16 @@ def run(world, params, resolved, ctx) -> None:
 def _scorecard(team, params, record) -> dict:
     """Round-level pillar scores. Weighted aggregation happens at run end."""
     p1 = (
-        12 / 25 * anchor(record["contribution_margin_pct"], 0.0, 0.09, 0.18)
+        12 / 25 * anchor(record["contribution_pre_marketing_pct"],
+                         0.14, 0.24, 0.32)
         + 8 / 25 * anchor(record["ebitda_margin_pct"], -0.10, 0.0, 0.10)
         + 5 / 25 * anchor(record["gross_margin_pct"], 0.25, 0.38, 0.50)
     )
     p3 = (
-        8 / 20 * anchor(record["ltv_cac_ratio"], 1.0, 2.5, 5.0)
-        + 5 / 20 * anchor(record["repeat_order_share"], 0.10, 0.22, 0.40)
-        + 4 / 20 * anchor(record["active_customers"], 20_000, 45_000, 90_000)
-        + 3 / 20 * anchor(record["nps"], 0, 24, 55)
+        8 / 20 * anchor(record["ltv_cac_ratio"], 0.8, 1.9, 3.8)
+        + 5 / 20 * anchor(record["repeat_order_share"], 0.26, 0.355, 0.46)
+        + 4 / 20 * anchor(record["active_customers"], 22_000, 30_000, 40_000)
+        + 3 / 20 * anchor(record["nps"], 70, 82, 92)
     )
     p4 = (
         4 / 15 * anchor(record["instock_rate"], 0.80, 0.93, 0.99)

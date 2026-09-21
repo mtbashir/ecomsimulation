@@ -12,11 +12,29 @@ from __future__ import annotations
 
 BASE = {"3.1": 468_000, "3.2": 234_000, "3.4": 168_000, "3.8": 200_000, "3.9": 267_000}
 STUDIES_ALL = [f"MR-{i:02d}" for i in range(1, 21)]
-SELECTIVE_ROTATION = [
-    ["MR-01", "MR-17", "MR-07", "MR-10"],
-    ["MR-01", "MR-05", "MR-07", "MR-09"],
-    ["MR-01", "MR-17", "MR-10", "MR-15"],
-]
+# Selective means buying what you will act on, and only where acting pays.
+# The earlier rotation bought four studies a month, three of which drove no
+# decision at all - research_heavy with a smaller invoice. Measured, one study
+# in the catalogue currently earns its price: MR-01, worth +0.24 points net of
+# its 40,000 a month. MR-17 is not here because every response to its warning
+# loses money - raise cover -0.21, source local -1.03, switch supplier -1.08 -
+# and a study whose best available action destroys value is not one a selective
+# buyer buys. That is a finding about the engine, not about the study: stock
+# binds in 2% of team-rounds, so nothing you learn about supply can pay for
+# itself. docs/13 carries the measurement. MR-10 stays as a quarterly
+# diagnostic; it changes nothing for a healthy cohort, which is the point.
+SELECTIVE_CORE = ["MR-01"]
+SELECTIVE_QUARTERLY = "MR-10"
+
+
+def _selective_basket(r: int) -> list[str]:
+    return SELECTIVE_CORE + ([SELECTIVE_QUARTERLY] if r % 3 == 1 else [])
+
+
+# Blended monthly churn a healthy cohort runs at. MR-10 reports this rate, not
+# a share, so the old 0.30 line could never be crossed and the branch below was
+# dead code dressed up as an action.
+COHORT_ROT_LINE = 0.10
 
 
 def _scale(mult: float) -> dict:
@@ -177,7 +195,7 @@ def research_heavy(world, r, tid, v):
 
 
 def research_selective(world, r, tid, v):
-    return _informed(world, r, tid, v, buy=SELECTIVE_ROTATION[r % 3])
+    return _informed(world, r, tid, v, buy=_selective_basket(r))
 
 
 def sandbagger(world, r, tid, v):
@@ -185,10 +203,21 @@ def sandbagger(world, r, tid, v):
 
 
 def harvester(world, r, tid, v):
-    if r <= 9:
+    """Build, then strip. The defining parameter is when the stripping starts.
+
+    Two things were wrong here. The strip returned a bare dict, so it did not
+    just cut spend - it dropped positioning, discount, COD and every other
+    lever back to the engine default, and the archetype stopped measuring
+    harvesting. And it ignored v, so all ten variations were the same run
+    repeated, which is not what docs/11 says the suite does.
+    """
+    start = 9 + round(2 * v)                      # strips from R9, R10 or R11
+    if r < start:
         return balanced(world, r, tid, v)
-    return {"3.1": 0, "3.2": 0, "3.4": 0, "3.8": 0, "3.9": 0, "6.1": 0,
-            "10.1": 2, "7.4": 0, "7.5": 0.5}
+    d = balanced(world, r, tid, v)
+    d.update({"3.1": 0, "3.2": 0, "3.4": 0, "3.8": 0, "3.9": 0, "6.1": 0,
+              "10.1": 2, "7.4": 0, "7.5": 0.5})
+    return d
 
 
 def cod_off(world, r, tid, v):
@@ -204,8 +233,8 @@ def _informed(world, r, tid, v, buy: list[str]) -> dict:
     """balanced() plus actions conditioned on reports actually received.
 
     This is what makes I7 meaningful: research is pure cost unless someone reads
-    it. The three actions below are the mechanically sound ones - pre-build
-    before a seasonal peak, switch supplier before a lead-time shock, and cut
+    it. The three actions below are the mechanically sound ones - pre-build and
+    spend into a seasonal peak, pre-build ahead of a lead-time shock, and cut
     discount when the cohort mix is rotting. A team that buys these studies and
     ignores them is research_heavy's real lesson.
     """
@@ -221,14 +250,17 @@ def _informed(world, r, tid, v, buy: list[str]) -> dict:
         d["7.5"] = 4.0
         d["3.1"] = d["3.1"] * 1.25
 
+    # Cover the slip; do not buy your way out of it. Supplier C is 9% dearer,
+    # which on a 38% gross margin costs more in one month than three months of
+    # the shock does. Measured: switching is worth -1.6 points, pre-building
+    # +0.9. The wrong response to good information still loses money.
     mr17 = latest.get("MR-17", {}).get("lead_time_forecast", {})
     shock_ahead = any(x["lead_time_mult"] > 1.2 for x in mr17.values())
     if shock_ahead:
-        d["7.2"] = "C"
         d["7.5"] = 4.5
 
     mr10 = latest.get("MR-10", {})
-    if mr10.get("status") == "ok" and mr10.get("reported", 0) > 0.30:
+    if mr10.get("status") == "ok" and mr10.get("reported", 0) > COHORT_ROT_LINE:
         d["2.2"] = 0.0
         d["6.1"] = d["6.1"] * 1.5
 

@@ -13,10 +13,16 @@ def _clamp(x: float, lo: float = 0.0, hi: float = 1.0) -> float:
 
 def run(world, params, resolved, ctx) -> None:
     for team in world.teams.values():
-        _brand_equity(team, params, resolved)
-        _creative_quality(team, params, resolved)
-        _actual_scores(team, params, resolved, ctx)
-        _perceived_scores(team, params, resolved)
+        # `resolved` arrives keyed by team, so every lookup below has to go
+        # through this team's own decisions. Passing the outer dict straight
+        # down meant `.get("3.9")` was asking a map of team ids for a decision
+        # code: brand spend, creative spend and the discount rate all read as
+        # zero for twelve rounds, for every team, in every game ever run.
+        d = resolved[team.team_id]
+        _brand_equity(team, params, d)
+        _creative_quality(team, params, d)
+        _actual_scores(team, params, d, ctx)
+        _perceived_scores(team, params, d)
         _gap(team, params, world.round, ctx)
 
 

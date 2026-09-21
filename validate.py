@@ -67,6 +67,45 @@ def play(game: int, pool: list, overrides: dict, rounds: int) -> list[dict]:
     return out
 
 
+def research_pairs(games: int, overrides: dict | None = None,
+                   rounds: int = 12) -> dict[str, float]:
+    """I7 measured as a PAIRED comparison, in the same games.
+
+    The main draw seats eight instances out of two hundred by hash, so
+    research_zero and research_selective meet different fields, at different
+    variations, in different games. Each archetype mean then carries a standard
+    error around 0.6 points - three times the effect I7 is looking for, which
+    made the invariant a coin toss rather than a measurement. Here the three
+    research archetypes sit in the same game at the same variation, against the
+    same five opponents, so the only thing that differs between them is what
+    they bought and what they did with it.
+    """
+    pool = instances()
+    others = [inst for inst in pool if not inst[0].startswith("research_")]
+    scores: dict[str, list[float]] = {a: [] for a in
+                                      ("research_zero", "research_selective",
+                                       "research_heavy")}
+    for game in range(games):
+        p = P.load(overrides or {})
+        world = bootstrap.new_world(p, run_id=f"t3-paired-{game}")
+        v = (game % VARIATIONS) / (VARIATIONS - 1)
+        tids = list(world.teams)
+        amap = {tid: (name, v) for tid, name in zip(tids, scores)}
+        for tid, inst in zip(tids[len(scores):], seat(game, others, len(tids) - len(scores))):
+            amap[tid] = inst
+
+        def strategy(w, r, tid):
+            name, var = amap[tid]
+            return ARCHETYPES[name](w, r, tid, var)
+
+        run_game(world, p, strategy=strategy, rounds=rounds)
+        for tid, (name, _) in amap.items():
+            if name in scores:
+                scores[name].append(
+                    scoring.final_score(world.teams[tid], p, world.teams)["total"])
+    return {name: st.mean(xs) for name, xs in scores.items()}
+
+
 def run(games: int, overrides: dict | None = None, rounds: int = 12):
     pool = instances()
     rows = []
@@ -84,7 +123,7 @@ def by_arch(rows):
     return d
 
 
-def invariants(rows, rows_no_events=None) -> list[tuple[str, bool, str, str]]:
+def invariants(rows, rows_no_events=None, paired=None) -> list[tuple[str, bool, str, str]]:
     A = by_arch(rows)
     mean = {a: st.mean(x["score"] for x in xs) for a, xs in A.items()}
     med = st.median(mean.values())
@@ -144,22 +183,34 @@ def invariants(rows, rows_no_events=None) -> list[tuple[str, bool, str, str]]:
 
     out.append(("I6  Share conserves", True, "checked in tests/test_pipeline.py", "M7 redistribution"))
 
-    rs, rz, rh = mean.get("research_selective", 0), mean.get("research_zero", 0), mean.get("research_heavy", 0)
-    out.append(("I7  Research pays", rs > rz and rs > rh,
-                f"selective {rs:.1f} vs zero {rz:.1f} vs heavy {rh:.1f}",
-                "study prices, then error bands, then signal strength of MR-01/17/07"))
+    if paired is not None:
+        rs = paired["research_selective"]
+        rz, rh = paired["research_zero"], paired["research_heavy"]
+        out.append(("I7  Research pays", rs > rz and rs > rh,
+                    f"paired: selective {rs:.2f} vs zero {rz:.2f} "
+                    f"(+{rs - rz:.2f}) vs heavy {rh:.2f}",
+                    "study prices, then error bands, then signal strength of MR-01/17/07"))
 
     out.append(("I8  Determinism", True, "checked in tests/test_determinism.py", "-"))
     out.append(("I9  Monotonicity", True, "checked in tests/test_monotonicity.py", "-"))
     out.append(("I10 No free lunch", True, "checked in tests/test_monotonicity.py", "-"))
 
+    # Sandbagging and harvesting are tested against playing it straight, not
+    # against a rank. Ranks 9 to 15 of this field sit inside 1.7 points while
+    # an archetype mean carries a standard error near 0.6, so "bottom 40%" was
+    # reading noise: the same engine put harvester at #10 and at #15 depending
+    # on how many games were run. What the defences in docs/08 actually claim
+    # is that neither trick beats playing straight, and the margin says whether
+    # they work. Before the M5 and scoring fixes harvester came in 1.3 points
+    # under balanced; a threshold of 5 separates working from not.
     spread = max(mean.values()) - min(mean.values())
-    rank_of = {a: i + 1 for i, a in enumerate(sorted(mean, key=lambda a: -mean[a]))}
-    n = len(mean)
-    sb, hv = rank_of.get("sandbagger", 0), rank_of.get("harvester", 0)
+    straight = mean.get("balanced", 0)
+    sb = straight - mean.get("sandbagger", 0)
+    hv = straight - mean.get("harvester", 0)
     out.append(("I11 Scorecard discrimination",
-                35 <= spread <= 75 and sb > 0.6 * n and hv > 0.6 * n,
-                f"spread {spread:.0f}; sandbagger #{sb}/{n}, harvester #{hv}/{n}",
+                35 <= spread <= 75 and sb >= 5.0 and hv >= 5.0,
+                f"spread {spread:.0f}; sandbagger {sb:+.1f} and harvester "
+                f"{hv:+.1f} against balanced (need 5 or more behind)",
                 "anchor scales (docs/08), round weights, pillar weights"))
 
     if rows_no_events is not None:
@@ -182,7 +233,7 @@ def _spearman(a, b):
     return 1 - 6 * d2 / (n * (n * n - 1)) if n > 2 else 1.0
 
 
-def report(rows, rows_off, params, elapsed):
+def report(rows, rows_off, params, elapsed, paired=None):
     A = by_arch(rows)
     mean = {a: st.mean(x["score"] for x in xs) for a, xs in A.items()}
     order = sorted(mean, key=lambda a: -mean[a])
@@ -190,7 +241,7 @@ def report(rows, rows_off, params, elapsed):
 
     print(f"\nVALIDATION RUN  config_hash={params.config_hash()}  "
           f"{games} games x 8 seats = {games*8} team-runs  {elapsed:.0f}s\n")
-    results = invariants(rows, rows_off)
+    results = invariants(rows, rows_off, paired)
     for name, ok, detail, check in results:
         print(f" {name:<32} {'PASS' if ok else 'FAIL'}  {detail}")
     fails = [r for r in results if not r[1]]
@@ -216,5 +267,6 @@ if __name__ == "__main__":
     t0 = time.perf_counter()
     rows = run(args.games, overrides)
     rows_off = run(max(20, args.games // 4), overrides | {"events_enabled": 0})
-    ok = report(rows, rows_off, P.load(overrides), time.perf_counter() - t0)
+    paired = research_pairs(max(150, args.games // 2), overrides)
+    ok = report(rows, rows_off, P.load(overrides), time.perf_counter() - t0, paired)
     sys.exit(0 if ok else 1)

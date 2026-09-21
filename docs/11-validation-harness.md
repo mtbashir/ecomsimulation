@@ -105,7 +105,7 @@ def discounter(state, round, params):
 | 14 | Q-Com measured (1 city) | Should be viable |
 | 15 | **Research-heavy** (buy everything) | I7 upper bound |
 | 16 | **Research-zero** | I7 lower bound |
-| 17 | **Research-selective** (3–6/round) | I7 — should beat both |
+| 17 | **Research-selective** (buys only what it acts on) | I7 — should beat both |
 | 18 | **Sandbagger** — coast R1–6, sprint R7–12 | Round weighting (I11) |
 | 19 | **Harvester** — build R1–9, strip R10–12 | Terminal stock metrics (I11) |
 | 20 | COD-off / prepaid-push | RTO parameter sanity |
@@ -174,6 +174,19 @@ AND score(research_selective) > score(research_heavy)
 If `research_zero` wins, the studies carry insufficient real signal. Either way
 the Markstrat mechanism has failed and the menu needs rework, not the parameters.
 
+**Measured paired**, in the same games (changed 2026-09-21). The main draw
+seats 8 instances out of 200 by hash, so the three research archetypes would
+otherwise meet different fields at different variations, and each mean carries
+a standard error near 0.6 points — larger than the effect being looked for. The
+paired run puts all three in one game at one variation against the same five
+opponents, so the only difference between them is what they bought and what
+they did with it. It reads +0.3 to +0.5 and is stable from 120 games up.
+
+It currently passes on **one study**. MR-01 earns its 40,000 a month; every
+response to MR-17's warning loses money, because stock binds in 2% of
+team-rounds and nothing learned about supply has a decision worth improving.
+The open item is in `13-calibration-log.md`.
+
 ### I8 · Determinism
 ```
 hash(run(state, decisions, config, seed)) is identical across 3 executions
@@ -207,12 +220,21 @@ strategy waiting to be discovered by a student in Round 3.
 ### I11 · Scorecard discrimination
 ```
 35 ≤ (max_score − min_score) ≤ 75
-AND rank(sandbagger) in bottom 40%
-AND rank(harvester) in bottom 40%
+AND mean(balanced) − mean(sandbagger) ≥ 5
+AND mean(balanced) − mean(harvester) ≥ 5
 ```
 Too narrow a spread and the scorecard cannot discriminate. Too wide and one
 early mistake decides the run. The sandbagger and harvester checks verify the
 round-weighting and terminal-stock defences from `08-scoring.md` actually work.
+
+**The last two clauses used to read "rank in the bottom 40%", and that was
+measuring noise** (changed 2026-09-21; see `13-calibration-log.md`). Ranks 9 to
+15 of this field sit inside 1.7 points while an archetype mean carries a
+standard error near 0.6, so the same engine placed harvester at #10 and at #15
+depending only on how many games were run. What the defences claim is that
+neither trick beats playing it straight; the margin against `balanced` says
+whether they work, and it is stable. Before the M5 and scoring fixes harvester
+came in 1.3 points under balanced; it now comes in 12.1 under.
 
 ### I12 · Event neutrality
 ```

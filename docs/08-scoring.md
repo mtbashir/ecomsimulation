@@ -47,12 +47,20 @@ Round 1 carries 1.3%, Round 12 carries 15.4%.
 
 | Metric type | Measurement | Examples |
 |---|---|---|
-| **Flow** — performance during a period | Weighted average across rounds | Margin, growth rate, in-stock rate, delivery success |
-| **Stock** — accumulated position | Terminal (Round 12) | Cash, brand equity, customer base, LTV:CAC, capability |
+| **Flow** — execution during a period | Weighted average across rounds | Service level, delivery success, leakage, order growth, share |
+| **Period aggregate** — an accounting fact about the year | Totals, weighted by the thing the ratio is a share of; no round tilt | All three margins, repeat order share |
+| **Stock** — accumulated position | Terminal (Round 12) | Cash, runway, customer base, NPS, LTV:CAC |
 
-This is economically correct and it closes the two biggest exploits at once.
-Later rounds matter more, so improvement is rewarded and late collapse is
-punished — but early rounds still count, so sandbagging costs real points.
+Later rounds matter more for execution, so improvement is rewarded and late
+collapse is punished — but early rounds still count, so sandbagging costs real
+points.
+
+The middle row is not the same as the first, and treating it as such was an
+error worth naming. A margin is a ratio, and ratios do not average: the
+round-weighted mean of twelve monthly percentages paid a team for shrinking,
+because the months it shrank in weighed the same as the months it sold in and
+happened to be the heaviest three. These are now computed the way a P&L
+computes them — over the totals.
 
 ---
 
@@ -60,13 +68,28 @@ punished — but early rounds still count, so sandbagging costs real points.
 
 | Metric | Pts | Type | 0 pts | 50 pts | 100 pts |
 |---|---|---|---|---|---|
-| Contribution margin % | 12 | Flow | 0% | 9% | 18% |
-| EBITDA margin % | 8 | Flow | −10% | 0% | +10% |
-| Gross margin % | 5 | Flow | 25% | 38% | 50% |
+| Contribution margin % **before marketing** | 12 | Period aggregate | 14% | 24% | 32% |
+| EBITDA margin % | 8 | Period aggregate | −22% | −11% | −2% |
+| Gross margin % | 5 | Period aggregate | 30% | 37% | 44% |
 
 Three margins at different levels of the P&L, deliberately. A team can lift
 gross margin by dropping low-margin SKUs — and watch contribution margin fall
 as fixed costs spread over fewer orders. **No single lever moves all three.**
+
+Two things make that claim true rather than aspirational.
+
+The 12-point margin is read **before marketing**. Marketing sits inside
+contribution in the P&L (M14), so while it was scored there, cutting marketing
+moved contribution *and* EBITDA — 20 of these 25 points, in the same direction,
+off one decision. Above the marketing line, the 12 points measure the economics
+of fulfilling an order; marketing's effect lands in EBITDA's 8.
+
+And all three are **period aggregates, weighted by each month's net revenue**,
+not round-weighted means of monthly percentages. A margin is a ratio and ratios
+do not average: read as a mean, a team that halved its revenue and took a fat
+margin on the remainder outscored one that earned a steady margin on twice the
+volume. Unlike the operating metrics these carry no round tilt — the year
+earned what it earned.
 
 ---
 
@@ -74,9 +97,9 @@ as fixed costs spread over fewer orders. **No single lever moves all three.**
 
 | Metric | Pts | Type | 0 pts | 50 pts | 100 pts |
 |---|---|---|---|---|---|
-| Revenue multiple (R12 ÷ R1) | 8 | Terminal | 0.8× | 1.9× | 3.5× |
-| **Market share change (pp)** | 7 | **Relative** | −2.0pp | +0.5pp | +4.0pp |
-| Order growth | 5 | Flow | −2%/rd | +3%/rd | +9%/rd |
+| Revenue multiple (R12 ÷ R1) | 8 | Terminal | 0.90× | 1.45× | 2.00× |
+| **Market share change (pp)** | 7 | **Relative** | −2.0pp | 0.0pp | +2.5pp |
+| Order growth vs baseline | 5 | Flow | −28% | −6% | +22% |
 
 Market share is the only relative metric in the scorecard, because share is the
 only thing a team can gain solely by taking it from someone else.
@@ -87,10 +110,18 @@ only thing a team can gain solely by taking it from someone else.
 
 | Metric | Pts | Type | 0 pts | 50 pts | 100 pts |
 |---|---|---|---|---|---|
-| LTV : CAC ratio | 8 | Terminal | 1.0 | 2.5 | 5.0 |
-| Repeat order share | 5 | Flow | 10% | 22% | 40% |
-| Active customer base | 4 | Terminal | 20,000 | 45,000 | 90,000 |
-| NPS | 3 | Terminal | 0 | 24 | 55 |
+| LTV : CAC ratio | 6 | Terminal | 1.0 | 2.5 | 5.0 |
+| Repeat order share | 5 | Period aggregate | 22% | 30% | 40% |
+| Active customer base | 6 | Terminal | 18,000 | 27,000 | 38,000 |
+| NPS | 3 | Terminal | 55 | 75 | 88 |
+
+Six points on the base and six on the ratio, not four and eight. The value of a
+customer base is how big and how loyal it is, not how efficient the marketing
+that built it was; weighted the other way, a team could stop acquiring, watch
+the base shrink, and score **better** on customer value for having stopped
+spending. Repeat share is taken over total orders for the same reason margins
+are: it rises by itself when a team stops acquiring, so a mean of the monthly
+figures paid a team for giving up.
 
 LTV is computed from the **actual cohort ledger** (M12), not a formula applied
 to averages. A team that bought 30,000 Deal Hunters gets an LTV that reflects
@@ -102,10 +133,16 @@ their 0.44 churn, and no amount of blended-average presentation hides it.
 
 | Metric | Pts | Type | 0 pts | 50 pts | 100 pts |
 |---|---|---|---|---|---|
-| In-stock rate | 4 | Flow | 80% | 93% | 99% |
-| Delivery success rate | 4 | Flow | 75% | 87% | 95% |
-| Return + RTO cost (% net revenue) | 4 | Flow | 14% | 8% | 3% |
-| Inventory turns (annualised) | 3 | Terminal | 3.0 | 6.5 | 11.0 |
+| Service level | 2 | Flow | 93% | 97.5% | 100% |
+| Delivery success rate | 6 | Flow | 92.0% | 94.0% | 95.8% |
+| Return + RTO cost (% net revenue) | 4 | Flow | 5.5% | 4.2% | 3.2% |
+| Inventory turns (annualised) | 3 | Terminal | 8.0 | 13.0 | 20.0 |
+
+Service level carries two points, not four: three weeks of cover absorbs a 16%
+forecast miss, so essentially every team serves everything it could sell, and
+points nobody can move are points the scorecard is not using. The weight goes
+to delivery success, which in a 62%-COD market is the operating number a team
+actually lives on.
 
 Inventory turns and in-stock rate pull directly against each other. Maximising
 either alone costs the other. That tension **is** the inventory lesson.
@@ -118,7 +155,13 @@ either alone costs the other. That tension **is** the inventory lesson.
 |---|---|---|---|
 | **Runway adequacy** | 5 | Terminal | **Banded — see below** |
 | Cumulative free cash flow | 3 | Terminal | −15M → 0 pts · 0 → 50 · +25M → 100 |
-| Cash conversion cycle (days) | 2 | Flow | 75d → 0 pts · 45d → 50 · 15d → 100 |
+| Cash conversion cycle | 2 | Flow | *implemented as net profit margin: −30% → 0 pts · −14% → 50 · −2% → 100* |
+
+Cash conversion cycle in days is not yet tracked, so the two points are carried
+by net profit margin, which moves with the same working-capital decisions.
+Runway is read **terminally**, as specified: averaging the band across the year
+let a team that spent it comfortable and ended on fumes score the same as one
+that ended able to keep going.
 
 ### Runway is banded, not monotonic
 
@@ -186,7 +229,8 @@ game the scorecard is to run the business well.**
 
 | Exploit | Counter |
 |---|---|
-| **Final-round harvest** — cut marketing, brand and capex in R12 to spike profit | Brand equity, customer base and capability are **terminal stock** metrics. Harvesting destroys them in the same round it inflates margin. Net effect is negative |
+| **Final-round harvest** — cut marketing, brand and capex in R12 to spike profit | Margins are read before marketing and as period aggregates, so cutting spend no longer inflates 20 of the 25 profitability points; the customer base and NPS are terminal and fall; brand equity decays. Measured at 12.1 points below playing it straight |
+| **Sandbagging** — coast for six months, sprint for six | Brand equity decays while a team coasts and cannot be bought back inside a quarter, so the sprint starts from a worse position than it would have inherited. Measured at 11.8 points below playing it straight |
 | **Sandbagging** — coast early, sprint late | Round weighting still counts early rounds; and cohorts compound, so customers not acquired in R2 cannot be acquired in R10 at the same LTV |
 | **Vanity revenue** — deep discount for top-line | P1 (25) and P3 (20) both punish it, and the deal-cohort churn rate of 0.44 collapses LTV:CAC directly |
 | **Cash hoarding** | Runway is banded. Hoarding scores 30, the same neighbourhood as near-insolvency |
