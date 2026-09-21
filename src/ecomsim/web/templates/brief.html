@@ -8,6 +8,68 @@ running it for {{ endowment.rounds }} trading months against everyone else in
 this room. Read this once; it is here whenever you need it again.</p>
 </div>
 
+<section id="setup" style="border-left:3px solid var(--brand)">
+<h2>Set up your team</h2>
+<p class="cap">Three names, because they do three different jobs. Your team is
+who is playing. Your company is the firm. Your brand is what the market sees
+&mdash; which is why the market share report is by brand, not by company.</p>
+
+<form method="post" action="{{ url_for('setup') }}">
+  <div class="row" style="margin-bottom:16px">
+    <div><label class="f" for="tn">Team name</label>
+      <p class="help">What your instructor sees on the roster.</p>
+      <input id="tn" name="team_name" type="text" value="{{ team_name }}"
+             maxlength="60" placeholder="Team 1"></div>
+    <div><label class="f" for="cn">Company name</label>
+      <p class="help">The firm that owns the brand.</p>
+      <input id="cn" name="company_name" type="text" value="{{ company_name }}"
+             maxlength="60" placeholder="Sehat Holdings"></div>
+    <div><label class="f" for="bn">Brand name</label>
+      <p class="help">What customers see. Reports and the leaderboard use this.</p>
+      <input id="bn" name="brand_name" type="text" value="{{ brand_name }}"
+             maxlength="60" placeholder="Sehat"></div>
+  </div>
+
+  <label class="f">What the board has asked of you</label>
+  <p class="help">Pick the mandate you are playing to. The model does not score
+  this &mdash; your instructor does, by holding your decisions against what you
+  said you were trying to do.</p>
+  <div class="checks" style="margin-bottom:16px">
+  {% for code, label, note in objectives %}
+    <label class="check"><input type="radio" name="objective" value="{{ code }}"
+      {% if objective == code %}checked{% endif %}>
+      <span><strong>{{ label }}</strong><br>
+        <span class="note">{{ note }}</span></span></label>
+  {% endfor %}
+  </div>
+
+  <label class="f">Appearance</label>
+  <p class="help">How the portal looks, on this device. Everyone on your team
+  can pick their own.</p>
+  <div class="swatches" style="margin-bottom:16px">
+    <button type="button" class="sw sw-consulytics" data-set-theme="consulytics"
+            title="Consulytics" aria-label="Consulytics theme"></button>
+    <button type="button" class="sw sw-light" data-set-theme="light"
+            title="Light" aria-label="Light theme"></button>
+    <button type="button" class="sw sw-slate" data-set-theme="slate"
+            title="Slate" aria-label="Slate theme"></button>
+    <button type="button" class="sw sw-dark" data-set-theme="dark"
+            title="Dark" aria-label="Dark theme"></button>
+  </div>
+
+  <button type="submit">Save setup</button>
+</form>
+</section>
+
+<section>
+<h2>The handbook</h2>
+<p class="cap">Every decision in the portal cites a handbook reference &mdash;
+hover one to see what the lever does. The handbook itself has the full
+description of all of them, with the ranges and the trade-offs.</p>
+<a class="btn ghost" href="{{ handbook.url }}" target="_blank"
+   rel="noopener">Open the {{ handbook.title|lower }}</a>
+</section>
+
 <section>
 <h2>What every team starts with</h2>
 <p class="note">Identical for all teams. You are differentiated by what you do,

@@ -144,7 +144,7 @@ def test_implausible_values_are_refused(game):
     db.set_game(db.connect(path), open_round=1)
     team = _client(app, "team_01", pw["team_01"])
     for field, value, message in [
-        ("2.2", "150%", b"between 0"),
+        ("9.2", "150%", b"between 0"),
         ("3.1", "-50000", b"cannot be negative"),
         ("3.1", "900000000", b"looks like a typo"),
         ("3.1", "lots", b"not a number"),
@@ -163,6 +163,8 @@ def test_every_open_decision_explains_itself(game):
     team = _client(app, "team_01", pw["team_01"])
     page = team.get("/submit").data.decode()
     for spec in service.open_decisions(con, 1):
+        if spec.code == "2.2":
+            continue          # folded into the range grid; no tile of its own
         assert spec.help, f"{spec.code} has no help text"
         assert escape(spec.name) in page, spec.code
         assert escape(spec.help[:40]) in page, f"{spec.code} help not rendered"
@@ -187,8 +189,8 @@ def test_a_percentage_field_takes_a_percentage(game):
     con = db.connect(path)
     db.set_game(con, open_round=1)
     team = _client(app, "team_01", pw["team_01"])
-    team.post("/submit", data={"2.2": "15"}, follow_redirects=True)
-    assert db.submission(con, 1, "team_01")["2.2"] == pytest.approx(0.15)
+    team.post("/submit", data={"9.2": "15"}, follow_redirects=True)
+    assert db.submission(con, 1, "team_01")["9.2"] == pytest.approx(0.15)
 
 
 def test_a_choice_outside_the_list_is_refused(game):

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="dark"><head><meta charset="utf-8">
+<html lang="en" data-theme="consulytics"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block title %}{{ game['name'] }}{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -8,15 +8,33 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 
-/* One structure, three surfaces. Everything below is written against roles,
-   so a theme is a token swap and never a re-layout. */
-:root,[data-theme="dark"]{
+/* One structure, four surfaces. Everything below is written against roles,
+   so a theme is a token swap and never a re-layout.
+
+   Consulytics is the default. The brand red is #FF0000; #ED0000 is the step
+   that carries white button text at 4.56:1, so the brand appears at full
+   strength on the rule and the logo, and one step down where text sits on it.
+   Data marks never wear it - the chart series stay blue, orange and aqua, and
+   status red stays reserved for status. */
+:root,[data-theme="consulytics"]{
+  --page:#f5f5f6;--panel:#ffffff;--panel-2:#f3f3f5;--line:#e4e4e7;
+  --ink:#131316;--dim:#55555f;--mute:#86868f;--rail:#ffffff;
+  --brand:#ff0000;
+  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--mark:#2a78d6;
+  --good:#0ca30c;--bad:#c62828;--warn:#fab219;
+  --good-ink:#0a7d0a;--bad-ink:#b3231e;--warn-ink:#8a6414;
+  --tint:#fdeceb;--accent:#ed0000;--track:#e8e8ec;
+  --shadow:0 1px 2px rgba(19,19,22,.05);
+  color-scheme:light;
+}
+[data-theme="dark"]{
   --page:#0d0d0c;--panel:#1a1a19;--panel-2:#222220;--line:#2c2c2a;
   --ink:#fff;--dim:#c3c2b7;--mute:#898781;--rail:#1a1a19;
   --s1:#3987e5;--s2:#d95926;--s3:#199e70;
   --good:#0ca30c;--bad:#d03b3b;--warn:#fab219;
   --good-ink:#5fd35f;--bad-ink:#ef8a8a;--warn-ink:#e0a92a;
   --tint:#1e2a3a;--accent:#3987e5;--track:#2c2c2a;--shadow:none;
+  --brand:#ff3b30;--mark:#3987e5;
   color-scheme:dark;
 }
 [data-theme="slate"]{
@@ -26,6 +44,7 @@
   --good:#0ca30c;--bad:#d03b3b;--warn:#fab219;
   --good-ink:#5fd35f;--bad-ink:#ef8a8a;--warn-ink:#e0a92a;
   --tint:#23324a;--accent:#3987e5;--track:#353942;--shadow:none;
+  --brand:#ff3b30;--mark:#3987e5;
   color-scheme:dark;
 }
 [data-theme="light"]{
@@ -35,6 +54,7 @@
   --good:#0ca30c;--bad:#d03b3b;--warn:#fab219;
   --good-ink:#0a7d0a;--bad-ink:#b73030;--warn-ink:#8a6414;
   --tint:#eaf2fd;--accent:#2a78d6;--track:#e8eaee;
+  --brand:#ed0000;--mark:#2a78d6;
   --shadow:0 1px 2px rgba(15,17,21,.05);
   color-scheme:light;
 }
@@ -79,6 +99,7 @@ text-transform:uppercase;font-weight:600;margin-bottom:8px}
 .sw{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);
 cursor:pointer;padding:0}
 .sw[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:1.5px}
+.sw-consulytics{background:linear-gradient(135deg,#fff 52%,#ff0000 52%)}
 .sw-dark{background:#0d0d0c}.sw-slate{background:#22242a}.sw-light{background:#f4f5f7}
 
 main{padding:20px 26px 46px;max-width:1280px}
@@ -183,6 +204,30 @@ overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .t-body{padding:0 15px 15px 18px;border-top:1px solid var(--line);padding-top:13px}
 .t-body .help{margin-bottom:10px}
 .t-body table.catalogue{margin-top:4px}
+.disc-input{max-width:56px;text-align:right;border-radius:7px 0 0 7px;padding:6px 7px}
+.bprice-input{max-width:92px;text-align:right;padding:6px 8px}
+.bun-row{opacity:.5}.bun-row.on{opacity:1}
+.bun-row td:first-child{width:52px}
+.save-cell,.bmargin-cell,.net-cell{font-variant-numeric:tabular-nums;
+white-space:nowrap}
+.bmargin-cell{font-weight:650}
+.bmargin-cell.thin{color:var(--warn-ink)}.bmargin-cell.loss{color:var(--bad-ink)}
+.save-cell.deep{color:var(--warn-ink)}
+
+/* --- Handbook reference, on hover --------------------------------------- */
+.ref{position:relative;cursor:help;border-bottom:1px dotted var(--mute);
+padding-bottom:1px}
+.refcard{position:absolute;left:0;bottom:calc(100% + 8px);z-index:40;width:320px;
+display:none;flex-direction:column;gap:7px;padding:12px 13px;border-radius:9px;
+background:var(--panel);border:1px solid var(--line);
+box-shadow:0 8px 24px rgba(0,0,0,.28);cursor:auto}
+.ref:hover .refcard,.ref:focus .refcard,.ref:focus-within .refcard{display:flex}
+.refcard b{font-size:12.5px;color:var(--ink);letter-spacing:0}
+.refcard span{font-size:12.5px;color:var(--dim);line-height:1.45}
+.refcard span.g{color:var(--mute);font-size:11.5px}
+.refcard a{color:var(--accent);font-size:12.5px;font-weight:600;
+text-decoration:none}
+.refcard a:hover{text-decoration:underline}
 .t-body .catalogue td{vertical-align:middle}
 .src-cell{width:190px}.src-cell select{width:100%;min-width:0}
 .catalogue td:first-child{width:34%}
@@ -241,7 +286,7 @@ select{max-width:520px}
 .field .help,.help{font-size:13px;color:var(--dim);margin:0 0 8px;max-width:62ch}
 .field .hint,.hint{font-size:11.5px;color:var(--mute);margin-top:5px}
 .field input:not([type]),.field input[type=text]{max-width:520px}
-.code-ref{font-size:11px;color:var(--mute);margin-top:5px;opacity:.7}
+.code-ref{font-size:11px;color:var(--mute);margin-top:5px}
 .with-prefix,.with-suffix{display:flex;align-items:stretch;max-width:320px}
 .with-prefix .prefix,.with-suffix .suffix{display:flex;align-items:center;padding:0 10px;
 border:1px solid var(--line);background:var(--panel-2);color:var(--dim);
@@ -294,13 +339,30 @@ min-height:100vh;padding:40px 18px}
 .signin{width:100%;max-width:392px}
 .signin-logo{width:230px;max-width:70%;height:auto;display:block;margin:0 auto 26px}
 .signin-foot{display:flex;justify-content:center;margin-top:22px}
+/* Laptops, not just phones. A 1280 or 1366 screen has to hold a sidebar and
+   a five-up row of figures without either being squeezed. */
+@media(max-width:1500px){main{padding:18px 20px 40px}}
+@media(max-width:1380px){
+.app{grid-template-columns:198px 1fr}
+.k5{grid-template-columns:repeat(3,1fr)}
+.tiles{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+h1{font-size:23px} .k .val{font-size:22px}}
+@media(max-width:1180px){
+.app{grid-template-columns:182px 1fr}
+.k4,.k5{grid-template-columns:repeat(2,1fr)}
+.c31,.c21{grid-template-columns:1fr}
+.blocks,.grid{grid-template-columns:repeat(2,1fr)}
+main{padding:16px 16px 36px}}
 @media(max-width:900px){.app{grid-template-columns:1fr}
 .topbar{margin-bottom:6px}.brandmark{padding:0 10px 0 0}
 .brandmark img{max-width:120px}
 aside{flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 12px}
 .org{border:0;margin:0;padding:0 12px 0 0}.grp{display:none}
 nav{display:flex}
-.k4,.k5,.c21,.c11,.c31{grid-template-columns:1fr}main{padding:16px 14px 40px}}
+.k4,.k5,.c21,.c11,.c31{grid-template-columns:1fr}main{padding:16px 14px 40px}
+.blocks,.grid{grid-template-columns:1fr}
+.tiles{grid-template-columns:1fr}
+.steps{font-size:12px}.join{margin:0 6px}}
 </style></head>
 <body>
 {% if user %}
@@ -366,14 +428,6 @@ nav{display:flex}
 <main>
 <div class="topbar">
   <span class="who">{{ game['name'] }}</span>
-  <div class="swatches">
-    <button class="sw sw-dark" data-set-theme="dark" title="Dark"
-            aria-label="Dark theme"></button>
-    <button class="sw sw-slate" data-set-theme="slate" title="Slate"
-            aria-label="Slate theme"></button>
-    <button class="sw sw-light" data-set-theme="light" title="Light"
-            aria-label="Light theme"></button>
-  </div>
   <a class="out" href="{{ url_for('logout') }}">Sign out ({{ user }})</a>
 </div>
 {% else %}
@@ -386,18 +440,7 @@ nav{display:flex}
 {% for cat, m in messages %}<div class="msg {{ cat }}">{{ m }}</div>{% endfor %}
 {% endwith %}
 {% block body %}{% endblock %}
-{% if not user %}
-<div class="signin-foot">
-  <div class="swatches">
-    <button class="sw sw-dark" data-set-theme="dark" title="Dark"
-            aria-label="Dark theme"></button>
-    <button class="sw sw-slate" data-set-theme="slate" title="Slate"
-            aria-label="Slate theme"></button>
-    <button class="sw sw-light" data-set-theme="light" title="Light"
-            aria-label="Light theme"></button>
-  </div>
-</div></div>
-{% endif %}
+{% if not user %}</div>{% endif %}
 </main>{% if user %}</div>{% endif %}
 <script>
 // Theme is a per-viewer convenience, so it lives in the browser. Reads and
@@ -410,8 +453,11 @@ nav{display:flex}
       b.setAttribute("aria-pressed", b.dataset.setTheme === t);
     });
   }
-  var saved = "dark";
-  try { saved = localStorage.getItem(KEY) || "dark"; } catch (e) {}
+  // Fall back to whatever the document was served with, not to a name
+  // hard-coded here - otherwise this quietly overrides the default theme.
+  var initial = document.documentElement.getAttribute("data-theme") || "consulytics";
+  var saved = initial;
+  try { saved = localStorage.getItem(KEY) || initial; } catch (e) {}
   apply(saved);
   document.querySelectorAll("[data-set-theme]").forEach(function (b) {
     b.addEventListener("click", function () {

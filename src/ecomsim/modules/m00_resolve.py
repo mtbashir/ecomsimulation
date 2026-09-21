@@ -48,7 +48,7 @@ def run(world, params, resolved, ctx) -> None:
         d = ctx["resolved"][tid]
         _administration(team, d)
 
-        discount = _clamp(float(d.get("2.2", 0) or 0), 0.0, 0.50)
+        discount = _clamp(_discount(team, params, d), 0.0, 0.50)
         ctx.setdefault("discount", {})[tid] = discount
 
         list_price = _basket_list_price(team, params, d)
@@ -98,6 +98,34 @@ def run(world, params, resolved, ctx) -> None:
     for tid, price in net_prices.items():
         ctx.setdefault("net_unit_price", {})[tid] = price
         ctx.setdefault("price_index", {})[tid] = price / max(market_avg, 1.0)
+
+
+def monthly_discounts(d) -> dict:
+    """Discount the team set on each product this month."""
+    grid = d.get("1.1")
+    if not isinstance(grid, dict):
+        return {}
+    return {code: float(cell["discount"]) for code, cell in grid.items()
+            if isinstance(cell, dict) and cell.get("discount") is not None}
+
+
+def _discount(team, params, d) -> float:
+    """The discount the business is actually running.
+
+    Discounting is set per product, so the rate that matters is the average
+    across what sells - weighted by each line's share of volume, not a simple
+    mean, because a deep cut on a line nobody buys is not a promotion. A team
+    that has set nothing per product falls back to the single site-wide lever,
+    which is what the file runner and the archetypes use.
+    """
+    per_product = monthly_discounts(d)
+    if not per_product:
+        return float(d.get("2.2", 0) or 0)
+    skus = [params.sku(c) for c in team.active_skus] or params.skus
+    total_w = sum(float(s["revenue_weight"]) for s in skus) or 1.0
+    site_wide = float(d.get("2.2", 0) or 0)
+    return sum(per_product.get(s["code"], site_wide) * float(s["revenue_weight"])
+               for s in skus) / total_w
 
 
 def monthly_prices(d) -> dict:

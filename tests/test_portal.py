@@ -631,7 +631,8 @@ def test_adding_a_team_grows_the_market_it_trades_in(game):
     assert len(db.load_world(con).teams) == 6, "everyone on the roster trades"
 
 
-def test_a_team_names_itself_and_its_company(game):
+def test_a_team_names_itself_its_company_and_its_brand(game):
+    """Three names doing three jobs, and the mandate they are playing to."""
     app, pw, path = game
     con = db.connect(path)
     params = service.load_params(con)
@@ -639,12 +640,27 @@ def test_a_team_names_itself_and_its_company(game):
                      service.founding_to_dict(F.Founding.default(params)),
                      "sys", submitted=True)
     team = _team(app, pw)
-    team.post("/rename", data={"team_name": "The Cartel", "company": "Sehat"},
-              follow_redirects=True)
+    team.post("/setup", data={"team_name": "The Cartel",
+                              "company_name": "Sehat Holdings",
+                              "brand_name": "Sehat",
+                              "objective": "loyal_base"}, follow_redirects=True)
 
+    config = db.founding(con, "team_01")["config"]
     assert db.account(con, "team_01")["display_name"] == "The Cartel"
-    assert db.founding(con, "team_01")["config"]["brand_name"] == "Sehat"
+    assert config["company_name"] == "Sehat Holdings"
+    assert config["brand_name"] == "Sehat"
+    assert config["objective"] == "loyal_base"
     assert "Sehat" in team.get("/").data.decode(), "the brand leads the sidebar"
+
+
+def test_an_objective_the_board_never_set_is_refused(game):
+    app, pw, path = game
+    con = db.connect(path)
+    team = _team(app, pw)
+    team.post("/setup", data={"objective": "win at all costs"},
+              follow_redirects=True)
+    assert (db.founding(con, "team_01") or {}).get("config", {}) \
+        .get("objective", "") == ""
 
 
 def test_a_rename_reaches_the_report_without_rewriting_the_result(game):
@@ -658,13 +674,13 @@ def test_a_rename_reaches_the_report_without_rewriting_the_result(game):
     service.process_round(con)
     assert "Old Name" in service.team_report(con, "team_01", 1)
 
-    db.rename_company(con, "team_01", "New Name")
+    db.set_identity(con, "team_01", {"brand_name": "New Name"})
     assert "New Name" in service.team_report(con, "team_01", 1)
     assert db.load_world(con).teams["team_01"].brand_name == "Old Name", (
         "the stored result is not rewritten")
 
 
-def test_the_logo_and_theme_picker_are_on_every_page(game):
+def test_the_logo_is_on_every_page_and_the_picker_only_in_setup(game):
     app, pw, path = game
     db.set_game(db.connect(path), open_round=1)
     team = _team(app, pw)
@@ -673,4 +689,105 @@ def test_the_logo_and_theme_picker_are_on_every_page(game):
                           (team, "/brief"), (team, "/submit")]:
         body = client.get(path_).data.decode()
         assert "consulytics.png" in body, path_
-        assert 'data-set-theme="light"' in body, path_
+
+    assert 'data-set-theme="consulytics"' in team.get("/brief").data.decode()
+    # The switcher script ships everywhere; the buttons only exist in setup.
+    for path_ in ("/", "/company", "/submit"):
+        assert 'data-set-theme="' not in team.get(path_).data.decode(), path_
+
+
+def test_the_default_theme_is_the_brand_one(game):
+    app, pw, _p = game
+    body = app.test_client().get("/login").data.decode()
+    assert 'data-theme="consulytics"' in body
+
+
+# --- Pricing by product, bundles, and the handbook -----------------------------------
+
+def test_discount_is_the_average_of_what_actually_sells(game):
+    """A deep cut on a line nobody buys is not a promotion."""
+    app, pw, path = game
+    con = _trading(app, path)
+    params = service.load_params(con)
+    shelf = service.monthly_catalogue(con, "team_01", {})
+    by_weight = sorted(shelf, key=lambda r: r["weight"])
+
+    def discount_on(rows, pct):
+        grid = {r["code"]: {"discount": pct} for r in rows}
+        world = db.load_world(con)
+        team = world.teams["team_01"]
+        from ecomsim.modules.m00_resolve import _discount
+        return _discount(team, params, {"1.1": grid})
+
+    small = discount_on(by_weight[:3], 0.50)
+    big = discount_on(by_weight[-3:], 0.50)
+    assert big > small * 1.3, (
+        f"cutting the big lines has to cost more: {big:.1%} vs {small:.1%}")
+    assert discount_on(shelf, 0.20) == pytest.approx(0.20), (
+        "the same cut everywhere is that cut")
+
+
+def test_a_team_that_sets_no_per_product_discount_keeps_the_site_wide_one(game):
+    """The file runner and the archetypes still drive the single lever."""
+    app, pw, path = game
+    con = _trading(app, path)
+    params = service.load_params(con)
+    from ecomsim.modules.m00_resolve import _discount
+    team = db.load_world(con).teams["team_01"]
+    assert _discount(team, params, {"2.2": 0.18}) == pytest.approx(0.18)
+
+
+def test_a_discount_past_sixty_per_cent_is_refused(game):
+    app, pw, path = game
+    con = _trading(app, path)
+    team = _team(app, pw)
+    shelf = service.monthly_catalogue(con, "team_01", {})
+    data = {f"price_{r['code']}": f"{r['standing']:.0f}" for r in shelf}
+    data.update({f"sourcing_{r['code']}": r["sourcing"] for r in shelf})
+    data[f"discount_{shelf[0]['code']}"] = "80"
+    r = team.post("/submit", data=data, follow_redirects=True)
+    assert b"not a promotion" in r.data
+
+
+def test_bundles_are_priced_and_still_counted_by_the_engine(game):
+    app, pw, path = game
+    con = _trading(app, path)
+    team = _team(app, pw)
+    rows = service.bundle_rows(con, "team_01", {})
+    assert rows and rows[0]["cost"] == pytest.approx(
+        service.monthly_catalogue(con, "team_01", {})[0]["cost"] * 3)
+
+    picked = [r["code"] for r in rows[:2]]
+    data = {f"bundle_{c}": "1" for c in picked}
+    data.update({f"bundleprice_{c}": "2500" for c in picked})
+    team.post("/submit", data=data, follow_redirects=True)
+
+    saved = db.submission(con, 2, "team_01")["1.2"]
+    assert set(saved) == set(picked)
+    assert saved[picked[0]]["price"] == pytest.approx(2500)
+
+    before = db.load_world(con).teams["team_01"].history[-1]["aov_net"]
+    service.process_round(con)
+    after = db.load_world(con).teams["team_01"].history[-1]["aov_net"]
+    assert after > before, "offering packs lifts basket size"
+
+
+def test_positioning_is_asked_before_pricing(game):
+    app, pw, path = game
+    _trading(app, path)
+    page = _team(app, pw).get("/submit").data.decode()
+    assert page.index("Product quality positioning") < page.index("Range, prices"), (
+        "what you claim to be comes before what you charge")
+
+
+def test_every_decision_carries_a_handbook_entry_you_can_open(game):
+    app, pw, path = game
+    con = _trading(app, path)
+    page = _team(app, pw).get("/submit").data.decode()
+    assert "Open the handbook" in page
+    for spec in service.open_decisions(con, 2):
+        if spec.code == "2.2":
+            continue
+        entry = service.handbook_entry(spec)
+        assert entry["help"], spec.code
+        assert entry["url"].endswith(spec.code.replace(".", "")), spec.code

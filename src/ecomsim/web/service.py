@@ -122,6 +122,18 @@ def default_shares(params, name: str) -> dict[str, float]:
 def coerce(code: str, raw):
     """Turn a form value into what the engine expects."""
     spec = REGISTRY[code]
+    if spec.kind == "bundles":
+        # {sku: {"price": float}} - the packs the team is offering.
+        if not isinstance(raw, dict):
+            return None
+        out = {}
+        for sku, cell in raw.items():
+            price = str(cell.get("price") or "").replace(",", "").strip()
+            try:
+                out[sku] = {"price": float(price)} if price else {}
+            except ValueError:
+                raise ValueError(f"{sku}: {price!r} is not a price")
+        return out or None
     if spec.kind == "grid":
         # {sku: {"price": float, "sourcing": str}} - only the lines the team
         # actually filled in, so a blank grid falls through to the founding
@@ -137,6 +149,12 @@ def coerce(code: str, raw):
                     entry["price"] = float(price)
                 except ValueError:
                     raise ValueError(f"{sku}: {price!r} is not a price")
+            disc = str(cell.get("discount") or "").replace("%", "").strip()
+            if disc:
+                try:
+                    entry["discount"] = float(disc) / 100
+                except ValueError:
+                    raise ValueError(f"{sku}: {disc!r} is not a discount")
             if cell.get("sourcing"):
                 entry["sourcing"] = str(cell["sourcing"])
             if entry:
@@ -179,6 +197,10 @@ def validate(code: str, value) -> str | None:
         return None
     if spec.kind == "grid":
         for sku, cell in value.items():
+            disc = cell.get("discount")
+            if disc is not None and not 0 <= disc <= 0.6:
+                return (f"{spec.name}: {sku} at {disc * 100:,.0f}% discount - "
+                        f"anything past 60% is not a promotion, it is a mistake")
             price = cell.get("price")
             if price is None:
                 continue
@@ -415,6 +437,27 @@ def apply_foundings(con, world, params) -> None:
                            else row["display_name"])
 
 
+# Where the handbook lives. A decision tile cites a reference; this is what a
+# team follows when the one-line help is not enough.
+HANDBOOK = {
+    "url": "https://github.com/mtbashir/ecomsimulation/blob/main/docs/"
+           "01-decision-list.md",
+    "title": "Decision handbook",
+}
+
+
+def handbook_entry(spec) -> dict:
+    """What a hovered reference shows: what the lever is, and where it sits."""
+    return {
+        "code": spec.code,
+        "name": spec.name,
+        "help": spec.help,
+        "guide": spec.guide,
+        "group": spec.group,
+        "url": f"{HANDBOOK['url']}#{spec.code.replace('.', '')}",
+    }
+
+
 def monthly_catalogue(con, team_id: str, current: dict) -> list[dict]:
     """The team's shelf as it stands this month: price, sourcing, cost, margin.
 
@@ -431,11 +474,12 @@ def monthly_catalogue(con, team_id: str, current: dict) -> list[dict]:
         f = founding_from_dict(record["config"], params)
         active, tier = f.assortment, f.tier
     elif world is not None and team_id in world.teams:
-        active = world.teams[team_id].active_skus
-        tier = "mainstream"
-        f = None
+        active, tier, f = world.teams[team_id].active_skus, "mainstream", None
     else:
-        return []
+        # A going-concern game, or a team that never opened the setup form.
+        # The shelf is the catalogue at the middle tier - the same position the
+        # engine gives a team that decided nothing.
+        active, tier, f = [sku["code"] for sku in params.skus], "mainstream", None
 
     supplier = float(next(sp for sp in params.suppliers
                           if sp["code"] == "B")["cost_index"])
@@ -448,16 +492,65 @@ def monthly_catalogue(con, team_id: str, current: dict) -> list[dict]:
         standing = ((f.prices or {}).get(code) if f else None) \
             or founding_mod.reference_price(sku, tier)
         price = float((grid.get(code) or {}).get("price") or standing)
+        discount = float((grid.get(code) or {}).get("discount") or 0.0)
+        net = price * (1 - discount)
         rows.append({
             "code": code, "name": sku["name"], "category": sku["category"],
             "sourcing": sourcing, "cost": cost, "price": price,
+            "discount": discount, "net": net,
+            "weight": float(sku["revenue_weight"]),
             "standing": standing,
             "reference": founding_mod.reference_price(sku, tier),
             "cost_local": founding_mod.unit_cost(sku, "local", tier, params, supplier),
             "cost_import": founding_mod.unit_cost(sku, "import", tier, params, supplier),
             "cost_mixed": founding_mod.unit_cost(sku, "mixed", tier, params, supplier),
-            "margin": (price - cost) / price if price > 0 else 0.0,
+            "margin": (net - cost) / net if net > 0 else 0.0,
             "changed": code in grid,
+        })
+    return rows
+
+
+def shelf_totals(rows: list[dict]) -> dict:
+    """What the shelf adds up to, weighted by each line's share of volume."""
+    weight = sum(r["weight"] for r in rows) or 1.0
+    net = sum(r["net"] * r["weight"] for r in rows)
+    cost = sum(r["cost"] * r["weight"] for r in rows)
+    return {
+        "lines": len(rows),
+        "avg_price": sum(r["price"] * r["weight"] for r in rows) / weight,
+        "avg_net": net / weight,
+        "avg_cost": cost / weight,
+        "discount": sum(r["discount"] * r["weight"] for r in rows) / weight,
+        "gross_margin": (net - cost) / net if net > 0 else 0.0,
+    }
+
+
+BUNDLE_UNITS = 3          # a bundle is a three-pack of one product
+
+
+def bundle_rows(con, team_id: str, current: dict) -> list[dict]:
+    """The pack a team can build from each line it sells.
+
+    COGS is three units landed; the reference is three singles at today's
+    price. What the team charges against that reference is the pack saving.
+    """
+    shelf = monthly_catalogue(con, team_id, current)
+    chosen = current.get("1.2") or {}
+    if isinstance(chosen, list):        # records written before packs were priced
+        chosen = {code: {} for code in chosen}
+    rows = []
+    for line in shelf:
+        cost = line["cost"] * BUNDLE_UNITS
+        reference = line["net"] * BUNDLE_UNITS
+        cell = chosen.get(line["code"])
+        price = float((cell or {}).get("price") or round(reference * 0.9))
+        rows.append({
+            "code": line["code"],
+            "name": f"{line['name']} · {BUNDLE_UNITS}-pack",
+            "cost": cost, "reference": reference, "price": price,
+            "saving": (reference - price) / reference if reference else 0.0,
+            "margin": (price - cost) / price if price > 0 else 0.0,
+            "offered": line["code"] in chosen,
         })
     return rows
 
@@ -469,6 +562,9 @@ def decision_summary(spec, value, catalogue_rows=None) -> str:
     if spec.kind == "grid":
         changed = len(value)
         return f"{changed} line{'' if changed == 1 else 's'} changed"
+    if spec.kind == "bundles":
+        offered = len(value)
+        return f"{offered} pack{'' if offered == 1 else 's'} offered"
     if spec.kind == "shares":
         return " · ".join(f"{k} {v * 100:.0f}%" for k, v in value.items())
     if spec.kind == "multi":

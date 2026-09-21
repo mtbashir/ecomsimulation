@@ -236,16 +236,16 @@ def rename_team(con, team_id: str, display_name: str, actor: str = "admin") -> N
         log(con, actor, "teams.rename", f"{team_id}: {display_name}")
 
 
-def rename_company(con, team_id: str, brand: str, actor: str = "admin") -> None:
-    """Change the brand on the founding record.
+def set_identity(con, team_id: str, fields: dict, actor: str = "admin") -> None:
+    """Change the names and the objective on the founding record.
 
     The world blob keeps whatever it was built with, so everything that shows a
-    brand reads it from here instead - a rename lands everywhere at once and no
+    name reads it from here instead - a rename lands everywhere at once and no
     stored result is rewritten.
     """
     record = founding(con, team_id)
     config = record["config"] if record else {}
-    config["brand_name"] = brand
+    config.update({k: v for k, v in fields.items() if v})
     with con:
         con.execute(
             "INSERT INTO founding (team_id, config, submitted_at, submitted_by) "
@@ -253,7 +253,8 @@ def rename_company(con, team_id: str, brand: str, actor: str = "admin") -> None:
             "config = excluded.config",
             (team_id, json.dumps(config, sort_keys=True),
              (record or {}).get("submitted_at"), actor))
-        log(con, actor, "teams.rebrand", f"{team_id}: {brand}")
+        log(con, actor, "teams.identity",
+            f"{team_id}: {', '.join(f'{k}={v}' for k, v in fields.items() if v)}")
 
 
 def mark_briefing_seen(con, username: str) -> None:

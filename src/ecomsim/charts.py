@@ -64,7 +64,7 @@ def sparkline(values: list[float], width: int = 104, height: int = 28,
         f'<path d="{path}" fill="none" stroke="var(--trend)" stroke-width="2" '
         f'stroke-linecap="round" stroke-linejoin="round"/>'
         # 2px surface ring keeps the current-point marker off the line it sits on.
-        f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4.5" fill="var(--accent)" '
+        f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4.5" fill="var(--mark)" '
         f'stroke="var(--surface)" stroke-width="2"/></svg>')
 
 

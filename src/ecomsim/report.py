@@ -328,7 +328,7 @@ def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None
             f'well.</p></section>')
 
     html = f"""<!doctype html>
-<html lang="en" data-theme="dark"><head><meta charset="utf-8">
+<html lang="en" data-theme="consulytics"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{escape(name)} &mdash; Month {round_}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -336,18 +336,22 @@ def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 *{{box-sizing:border-box;margin:0;padding:0}}
-:root,[data-theme="dark"]{{--page:#0d0d0c;--surface:#1a1a19;--panel-2:#222220;
+:root,[data-theme="consulytics"]{{--page:#f5f5f6;--surface:#ffffff;--panel-2:#f3f3f5;
+--grid:#e4e4e7;--line:#e4e4e7;--ink:#131316;--dim:#55555f;--muted:#86868f;
+--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--mark:#2a78d6;--good:#0a7d0a;--bad:#b3231e;
+--warn:#8a6414;--accent:#ed0000;--critical:#c62828;color-scheme:light}}
+[data-theme="dark"]{{--page:#0d0d0c;--surface:#1a1a19;--panel-2:#222220;
 --grid:#2c2c2a;--line:#2c2c2a;--ink:#fff;--dim:#c3c2b7;--muted:#898781;
 --s1:#3987e5;--s2:#d95926;--s3:#199e70;--good:#5fd35f;--bad:#ef8a8a;--warn:#e0a92a;
---accent:#3987e5;--critical:#d03b3b;color-scheme:dark}}
+--accent:#3987e5;--mark:#3987e5;--critical:#d03b3b;color-scheme:dark}}
 [data-theme="slate"]{{--page:#15171b;--surface:#22242a;--panel-2:#2a2d34;
 --grid:#353942;--line:#353942;--ink:#f2f4f7;--dim:#b9bfc9;--muted:#858c99;
 --s1:#3987e5;--s2:#d95926;--s3:#199e70;--good:#5fd35f;--bad:#ef8a8a;--warn:#e0a92a;
---accent:#3987e5;--critical:#d03b3b;color-scheme:dark}}
+--accent:#3987e5;--mark:#3987e5;--critical:#d03b3b;color-scheme:dark}}
 [data-theme="light"]{{--page:#f4f5f7;--surface:#fcfcfb;--panel-2:#f2f3f5;
 --grid:#e8eaee;--line:#e3e5e9;--ink:#0f1115;--dim:#545962;--muted:#878c96;
 --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--good:#0a7d0a;--bad:#b73030;--warn:#8a6414;
---accent:#2a78d6;--critical:#d03b3b;color-scheme:light}}
+--accent:#2a78d6;--mark:#2a78d6;--critical:#d03b3b;color-scheme:light}}
 body{{background:var(--page);color:var(--ink);padding:26px 18px 50px;
 font:14px/1.55 Inter,-apple-system,Segoe UI,Roboto,sans-serif}}
 .wrap{{max-width:1180px;margin:0 auto}}
@@ -407,9 +411,13 @@ text-transform:uppercase;font-weight:600;margin-right:4px}}
 .sw{{width:24px;height:24px;border-radius:7px;border:1px solid var(--line);cursor:pointer;
 padding:0}}
 .sw[aria-pressed="true"]{{outline:2px solid var(--accent);outline-offset:1.5px}}
+.sw-consulytics{{background:linear-gradient(135deg,#fff 52%,#ff0000 52%)}}
 .sw-dark{{background:#0d0d0c}}.sw-slate{{background:#22242a}}.sw-light{{background:#f4f5f7}}
 {CSS_TOKENS}
-@media(max-width:980px){{.grid{{grid-template-columns:1fr}}}}
+@media(max-width:1380px){{.wrap{{max-width:100%}}}}
+@media(max-width:1180px){{.grid{{grid-template-columns:repeat(2,1fr)}}}}
+@media(max-width:820px){{.grid{{grid-template-columns:1fr}}
+.verdict{{flex-direction:column;gap:12px}}.verdict .big{{margin-left:0;text-align:left}}}}
 </style></head><body class="viz"><div class="wrap">
 <h1>{escape(name)}</h1>
 <p class="sub">Month {round_} &middot; {team.team_id} &middot; where the month was won and lost</p>
@@ -423,14 +431,18 @@ padding:0}}
 <div class="grid">{"".join(cards)}</div>
 {scorecard_section}
 <div class="themebar"><span>Appearance</span>
+  <button class="sw sw-consulytics" data-set-theme="consulytics"
+          title="Consulytics"></button>
   <button class="sw sw-dark" data-set-theme="dark" title="Dark"></button>
   <button class="sw sw-slate" data-set-theme="slate" title="Slate"></button>
   <button class="sw sw-light" data-set-theme="light" title="Light"></button>
 </div>
 </div><script>
 (function () {{
-  var KEY = "ecomsim-theme", saved = "dark";
-  try {{ saved = localStorage.getItem(KEY) || "dark"; }} catch (e) {{}}
+  var KEY = "ecomsim-theme";
+  var initial = document.documentElement.getAttribute("data-theme") || "consulytics";
+  var saved = initial;
+  try {{ saved = localStorage.getItem(KEY) || initial; }} catch (e) {{}}
   function apply(t) {{
     document.documentElement.setAttribute("data-theme", t);
     document.querySelectorAll("[data-set-theme]").forEach(function (b) {{

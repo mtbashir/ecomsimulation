@@ -45,6 +45,7 @@
     <table class="catalogue">
     <thead><tr><th>Product</th><th>Source from</th><th class="r">COGS</th>
       <th class="r">Market</th><th class="r">Your price</th>
+      <th class="r">Discount</th><th class="r">Sells at</th>
       <th class="r">Margin</th></tr></thead>
     <tbody>
     {% for row in shelf %}
@@ -65,11 +66,51 @@
       <td class="num note">{{ '{:,.0f}'.format(row.reference) }}</td>
       <td class="r"><input type="text" inputmode="decimal" class="price-input"
           name="price_{{ row.code }}" value="{{ '{:,.0f}'.format(row.price) }}"></td>
+      <td class="r"><div class="with-suffix" style="max-width:88px">
+        <input type="text" inputmode="decimal" class="disc-input"
+               name="discount_{{ row.code }}"
+               data-weight="{{ '%.4f'|format(row.weight) }}"
+               value="{{ '%0.4g'|format(row.discount * 100) }}">
+        <span class="share-pct">%</span></div></td>
+      <td class="num net-cell">{{ '{:,.0f}'.format(row.net) }}</td>
       <td class="num margin-cell">{{ '{:.0%}'.format(row.margin) }}</td></tr>
     {% endfor %}
     </tbody></table>
-    <div class="hint">COGS follows the sourcing choice and is what the P&amp;L will
-    charge. Which products you sell was settled at founding.</div>
+    <div class="hint">Across the range, weighted by how much of each line sells:
+    average discount <b class="tot-disc">{{ '{:.1%}'.format(totals.discount) }}</b>,
+    sells at PKR <b class="tot-net">{{ '{:,.0f}'.format(totals.avg_net) }}</b>,
+    gross margin <b class="tot-gm">{{ '{:.1%}'.format(totals.gross_margin) }}</b>.
+    A deep cut on a line nobody buys is not a promotion, and the weighting says
+    so. COGS follows the sourcing choice and is what the P&amp;L charges. Which
+    products you sell was settled at founding.</div>
+
+  {% elif s.kind == 'bundles' %}
+    <table class="catalogue">
+    <thead><tr><th>Offer</th><th>Bundle</th><th class="r">COGS</th>
+      <th class="r">Three singles</th><th class="r">Pack price</th>
+      <th class="r">Saving</th><th class="r">Margin</th></tr></thead>
+    <tbody>
+    {% for row in bundles %}
+    <tr class="bun-row {{ 'on' if row.offered }}">
+      <td><input type="checkbox" name="bundle_{{ row.code }}" value="1"
+           {% if row.offered %}checked{% endif %}></td>
+      <td><strong>{{ row.name }}</strong></td>
+      <td class="num">{{ '{:,.0f}'.format(row.cost) }}</td>
+      <td class="num note">{{ '{:,.0f}'.format(row.reference) }}</td>
+      <td class="r"><input type="text" inputmode="decimal" class="bprice-input"
+          name="bundleprice_{{ row.code }}"
+          data-cost="{{ '%.2f'|format(row.cost) }}"
+          data-ref="{{ '%.2f'|format(row.reference) }}"
+          value="{{ '{:,.0f}'.format(row.price) }}"></td>
+      <td class="num save-cell">{{ '{:.0%}'.format(row.saving) }}</td>
+      <td class="num bmargin-cell">{{ '{:.0%}'.format(row.margin) }}</td></tr>
+    {% endfor %}
+    </tbody></table>
+    <div class="hint">A bundle is a three-pack of one of your own products, so
+    its cost is three units landed and "three singles" is what a customer would
+    pay buying them one at a time. <b>What the model reads is how many packs you
+    offer</b> &mdash; that is what lifts basket size, and the gain flattens past
+    three. The pack price is the economics of the offer you are making.</div>
 
   {% elif s.kind == 'shares' %}
     {% set chosen = val if val is mapping else default_shares.get(s.code, {}) %}
@@ -159,7 +200,18 @@
        and previous[s.code] is not string and previous[s.code] is not mapping
        else previous[s.code] }}</div>
   {% endif %}
-  <div class="code-ref">Handbook reference {{ s.code }}</div>
+  {% set hb = handbook.get(s.code) %}
+  <div class="code-ref">
+    <span class="ref" tabindex="0">Handbook reference {{ s.code }}
+      <span class="refcard" role="tooltip">
+        <b>{{ s.code }} &middot; {{ hb.name if hb else s.name }}</b>
+        <span>{{ hb.help if hb else s.help }}</span>
+        {% if hb and hb.guide %}<span class="g">{{ hb.guide }}</span>{% endif %}
+        <a href="{{ hb.url if hb else handbook_url }}" target="_blank"
+           rel="noopener">Open the handbook &rarr;</a>
+      </span>
+    </span>
+  </div>
   </div>
 </details>
 {% endfor %}
@@ -177,24 +229,89 @@
 // Margin follows the sourcing and the price as you type. The server recomputes
 // on save either way, so the page is correct with this blocked - just slower.
 (function () {
-  document.querySelectorAll(".cat-row").forEach(function (row) {
+  var num = function (el) { return parseFloat((el.value || "").replace(/,/g, "")); };
+  var DASH = "—";
+
+  // --- the range: cost follows sourcing, margin follows the discounted price
+  var rows = [].slice.call(document.querySelectorAll(".cat-row"));
+  function costOf(src) {
+    return parseFloat(src.dataset[src.value === "import" ? "import"
+                                 : src.value === "local" ? "local" : "mixed"]);
+  }
+  function totals() {
+    var w = 0, net = 0, cost = 0, disc = 0;
+    rows.forEach(function (row) {
+      var d = row.querySelector(".disc-input");
+      if (!d) return;
+      var weight = parseFloat(d.dataset.weight) || 0;
+      var price = num(row.querySelector(".price-input")) || 0;
+      var pct = Math.min(Math.max(num(d) || 0, 0), 100) / 100;
+      w += weight;
+      net += price * (1 - pct) * weight;
+      cost += costOf(row.querySelector(".src-input")) * weight;
+      disc += pct * weight;
+    });
+    if (!w) return;
+    var set = function (sel, text) {
+      var el = document.querySelector(sel); if (el) el.textContent = text;
+    };
+    set(".tot-disc", (disc / w * 100).toFixed(1) + "%");
+    set(".tot-net", Math.round(net / w).toLocaleString());
+    set(".tot-gm", net > 0 ? ((net - cost) / net * 100).toFixed(1) + "%" : DASH);
+  }
+  rows.forEach(function (row) {
     var box = row.querySelector(".price-input");
     var src = row.querySelector(".src-input");
+    var dsc = row.querySelector(".disc-input");
     if (!box || !src) return;
     function paint() {
-      var cost = parseFloat(src.dataset[src.value === "import" ? "import"
-                                        : src.value === "local" ? "local" : "mixed"]);
-      var price = parseFloat(box.value.replace(/,/g, ""));
+      var cost = costOf(src);
+      var pct = Math.min(Math.max(dsc ? num(dsc) || 0 : 0, 0), 100) / 100;
+      var net = num(box) * (1 - pct);
       row.querySelector(".cost-cell").textContent = Math.round(cost).toLocaleString();
+      var netCell = row.querySelector(".net-cell");
       var cell = row.querySelector(".margin-cell");
-      if (!(price > 0)) { cell.textContent = "—"; return; }
+      if (!(net > 0)) {
+        if (netCell) netCell.textContent = DASH;
+        cell.textContent = DASH; totals(); return;
+      }
+      if (netCell) netCell.textContent = Math.round(net).toLocaleString();
+      var m = (net - cost) / net;
+      cell.textContent = Math.round(m * 100) + "%";
+      cell.classList.toggle("thin", m < 0.25);
+      cell.classList.toggle("loss", m < 0);
+      totals();
+    }
+    box.addEventListener("input", paint);
+    src.addEventListener("change", paint);
+    if (dsc) dsc.addEventListener("input", paint);
+    paint();
+  });
+
+  // --- bundles: saving against three singles, margin against three units
+  document.querySelectorAll(".bun-row").forEach(function (row) {
+    var box = row.querySelector(".bprice-input");
+    var tick = row.querySelector("input[type=checkbox]");
+    if (!box) return;
+    function paint() {
+      var cost = parseFloat(box.dataset.cost);
+      var ref = parseFloat(box.dataset.ref);
+      var price = num(box);
+      var save = row.querySelector(".save-cell");
+      var cell = row.querySelector(".bmargin-cell");
+      if (!(price > 0)) { save.textContent = cell.textContent = DASH; return; }
+      var s = ref > 0 ? (ref - price) / ref : 0;
       var m = (price - cost) / price;
+      save.textContent = Math.round(s * 100) + "%";
+      save.classList.toggle("deep", s > 0.25);
       cell.textContent = Math.round(m * 100) + "%";
       cell.classList.toggle("thin", m < 0.25);
       cell.classList.toggle("loss", m < 0);
     }
     box.addEventListener("input", paint);
-    src.addEventListener("change", paint);
+    if (tick) tick.addEventListener("change", function () {
+      row.classList.toggle("on", tick.checked);
+    });
     paint();
   });
 })();

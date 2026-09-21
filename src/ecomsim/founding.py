@@ -94,6 +94,25 @@ def unit_cost(sku: dict, sourcing: str, tier: str, params=None,
             * cost_multiplier(sourcing, tier))
 
 
+# What the board has asked of this team. Stated, not scored by the model - it
+# is the thing a debrief holds the team's actual decisions against.
+OBJECTIVES = [
+    ("profitable_growth", "Profitable growth",
+     "Grow, but not at the cost of margin. The board wants a business that "
+     "pays for itself by the end of the year."),
+    ("market_leadership", "Market leadership",
+     "Take share. The board will accept thinner margin and a longer wait for "
+     "profit to be the largest player in the category."),
+    ("loyal_base", "A base that comes back",
+     "Repeat purchase and lifetime value over volume. The board would rather "
+     "have 30,000 customers who return than 80,000 who do not."),
+    ("cash_discipline", "Cash discipline",
+     "Survive and self-fund. The board wants the credit facility untouched and "
+     "the business standing on its own cash."),
+]
+OBJECTIVE_LABELS = {code: label for code, label, _note in OBJECTIVES}
+
+
 class FoundingError(ValueError):
     """A founding configuration that cannot be submitted."""
 
@@ -101,7 +120,9 @@ class FoundingError(ValueError):
 @dataclass
 class Founding:
     """The fourteen Round 0 decisions."""
-    brand_name: str = "Unnamed"                       # D0.1
+    brand_name: str = "Unnamed"                       # D0.1 - the consumer brand
+    company_name: str = ""                            # D0.1 - the firm behind it
+    objective: str = ""                               # D0.1 - the board's mandate
     positioning_statement: str = ""                   # D0.1
     categories: list[str] = field(default_factory=lambda: ["skincare", "haircare"])  # D0.2
     segment_priority: list[str] = field(default_factory=list)                        # D0.3

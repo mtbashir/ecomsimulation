@@ -398,24 +398,28 @@ def register_routes(app: Flask) -> None:
             db.mark_briefing_seen(g.db, session["user"])
             return redirect(url_for("home"))
         me = db.account(g.db, session["user"])
+        config = (db.founding(g.db, session["team_id"]) or {}).get("config", {})
+        brand = config.get("brand_name")
         return render_template(
             "brief.html", rules=briefing.RULES, market=briefing.MARKET,
             pillars=briefing.PILLARS, endowment=service.endowment(g.db),
             setting_up=(game["start_mode"] == "founding" and game["round"] == 0),
-            first_time=(me is not None and me["briefing_seen_at"] is None))
+            first_time=(me is not None and me["briefing_seen_at"] is None),
+            objectives=founding.OBJECTIVES,
+            team_name=me["display_name"] if me else "",
+            company_name=config.get("company_name", ""),
+            brand_name=brand if brand and brand != "Unnamed" else "",
+            objective=config.get("objective", ""),
+            handbook=service.HANDBOOK)
 
     @app.route("/company")
     @login_required("team")
     def company():
         """What you have: stock, cash, catalogue, people, capabilities."""
         tid = session["team_id"]
-        record = db.founding(g.db, tid)
-        brand = (record or {}).get("config", {}).get("brand_name")
         return render_template(
             "company.html", position=service.company_position(g.db, tid),
-            endowment=service.endowment(g.db), game=db.game(g.db),
-            team_name=(db.account(g.db, session["user"]) or {})["display_name"],
-            company_name=brand if brand and brand != "Unnamed" else "")
+            endowment=service.endowment(g.db), game=db.game(g.db))
 
     @app.route("/found", methods=["GET", "POST"])
     @login_required("team")
@@ -498,6 +502,14 @@ def register_routes(app: Flask) -> None:
 
         tid = session["team_id"]
         specs = service.open_decisions(g.db, rnd)
+        # Discounting is set per product in the range grid now, so the single
+        # site-wide lever no longer gets a tile of its own. The engine still
+        # reads it - it is what the file runner and the archetypes use.
+        specs = [s for s in specs if s.code != "2.2"]
+        # Positioning comes before pricing: what you claim to be decides what
+        # your prices are allowed to say.
+        specs.sort(key=lambda s: (int(s.group[1:]), s.code != "1.5",
+                                  tuple(int(p) for p in s.code.split("."))))
         current = db.submission(g.db, rnd, tid) or {}
         previous = db.submission(g.db, rnd - 1, tid) or {}
         params = service.load_params(g.db)
@@ -511,13 +523,25 @@ def register_routes(app: Flask) -> None:
         if request.method == "POST":
             values, errors = {}, []
             for spec in specs:
-                if spec.kind == "grid":
+                if spec.kind == "bundles":
+                    raw = {}
+                    for row in service.bundle_rows(g.db, tid, current):
+                        code = row["code"]
+                        if not request.form.get(f"bundle_{code}"):
+                            continue
+                        price = (request.form.get(f"bundleprice_{code}") or "").strip()
+                        raw[code] = {"price": price} if price else {}
+                    raw = raw or None
+                elif spec.kind == "grid":
                     raw = {}
                     for row in service.monthly_catalogue(g.db, tid, current):
                         code = row["code"]
                         price = (request.form.get(f"price_{code}") or "").strip()
                         source = (request.form.get(f"sourcing_{code}") or "").strip()
+                        disc = (request.form.get(f"discount_{code}") or "").strip()
                         cell = {}
+                        if disc and _differs(disc, row["discount"] * 100):
+                            cell["discount"] = disc
                         # Only a real change counts. Re-submitting the standing
                         # price should not read as a decision the team took.
                         if price and _differs(price, row["standing"]):
@@ -579,6 +603,10 @@ def register_routes(app: Flask) -> None:
                           s, previous, catalogues.get(s.code, []))
                       for s in specs if s.kind == "select"},
             shelf=shelf, summaries=summaries, taken=taken,
+            totals=service.shelf_totals(shelf),
+            bundles=service.bundle_rows(g.db, tid, current),
+            handbook={s.code: service.handbook_entry(s) for s in specs},
+            handbook_url=service.HANDBOOK["url"],
             group_order=sorted(by_group, key=lambda gr: int(gr[1:])))
 
     @app.route("/results/<int:round_>")
@@ -754,21 +782,33 @@ def register_routes(app: Flask) -> None:
             brands={tid: (rec.get("config") or {}).get("brand_name")
                     for tid, rec in foundings.items()})
 
-    @app.post("/rename")
+    @app.post("/setup")
     @login_required("team")
-    def rename():
-        """A team names itself and its company."""
+    def setup():
+        """A team names itself, its company and its brand, and states its remit.
+
+        Three names because they do three jobs: the team is who is playing, the
+        company is the firm, and the brand is what the market sees - which is
+        why market share is reported by brand.
+        """
         tid = session["team_id"]
-        team_name = (request.form.get("team_name") or "").strip()
-        company = (request.form.get("company") or "").strip()
+        team_name = (request.form.get("team_name") or "").strip()[:60]
+        fields = {
+            "company_name": (request.form.get("company_name") or "").strip()[:60],
+            "brand_name": (request.form.get("brand_name") or "").strip()[:60],
+            "objective": (request.form.get("objective") or "").strip(),
+        }
+        if fields["objective"] not in founding.OBJECTIVE_LABELS:
+            fields["objective"] = ""
         if team_name:
-            db.rename_team(g.db, tid, team_name[:60], session["user"])
-            session["name"] = team_name[:60]
-        if company:
-            db.rename_company(g.db, tid, company[:60], session["user"])
-        flash("Saved." if (team_name or company) else "Nothing to change.",
-              "ok" if (team_name or company) else "error")
-        return redirect(url_for("company"))
+            db.rename_team(g.db, tid, team_name, session["user"])
+            session["name"] = team_name
+        if any(fields.values()):
+            db.set_identity(g.db, tid, fields, session["user"])
+        flash("Saved." if (team_name or any(fields.values()))
+              else "Nothing to change.",
+              "ok" if (team_name or any(fields.values())) else "error")
+        return redirect(url_for("brief"))
 
     @app.route("/admin/report/<team>/<int:round_>")
     @login_required("admin")

@@ -82,11 +82,12 @@ REGISTRY: dict[str, DecisionSpec] = {
                 ("premium", "Premium", "Best perceived quality, highest cost"),
             )),
         DecisionSpec(
-            "1.2", "G1", "Products sold as bundles", "multi", [],
+            "1.2", "G1", "Bundles", "bundles", [],
             frozenset({"standard", "advanced", "expert"}),
-            help="Tick the products you also offer as multi-item bundles. "
-                 "Bundling lifts average order value; the gain flattens once "
-                 "you are bundling three or more lines.",
+            help="Three-packs of your own products, priced as a pack. Offering "
+                 "bundles lifts average order value; the gain flattens once you "
+                 "are bundling three or more lines. Price the pack below three "
+                 "singles and you are trading margin for basket size.",
             catalogue="skus"),
 
         # --- Pricing ---------------------------------------------------------
