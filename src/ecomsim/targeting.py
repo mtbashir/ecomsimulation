@@ -121,9 +121,19 @@ def clean(value, sold: list[str] | None = None, normalise: bool = True) -> list[
                               if i in (raw.get("interests") or [])][:MAX_INTERESTS]
             c["language"] = raw.get("language") if raw.get("language") in LANGUAGES else ""
             c["format"] = raw.get("format") if raw.get("format") in FORMATS else ""
+        if raw.get("test") in ("A", "B"):
+            c["test"] = raw["test"]
         if c["share"] > 0 or not normalise:
             out.append(c)
             per[ch] = per.get(ch, 0) + 1
+    # A test is exactly one A against one B on the same channel. Anything else
+    # is not a test, whatever the flags say.
+    for ch in per:
+        flags = sorted(c.get("test", "") for c in out if c["channel"] == ch)
+        if [f for f in flags if f] != ["A", "B"]:
+            for c in out:
+                if c["channel"] == ch:
+                    c.pop("test", None)
     if not normalise:
         return out
     for ch in per:
@@ -433,7 +443,24 @@ def debrief(params, sku: str) -> dict:
 
 # --- The month's numbers, per campaign ------------------------------------------------
 
-def performance(team, params, ctx, resolved: dict) -> list[dict]:
+SETTINGS = {
+    "social": ("skus", "objective", "ages", "gender", "geo", "interests",
+               "language", "format"),
+    "search": ("skus", "keywords", "match"),
+}
+SETTING_NAMES = {"skus": "products", "objective": "objective", "ages": "age",
+                 "gender": "gender", "geo": "cities", "interests": "interests",
+                 "language": "language", "format": "format",
+                 "keywords": "keywords", "match": "match type"}
+
+
+def settings_of(c: dict) -> dict:
+    keys = SETTINGS["search" if c["channel"] == "google_search" else "social"]
+    return {k: c.get(k) for k in keys}
+
+
+def performance(team, params, ctx, resolved: dict, run_id: str = "",
+                round_: int = 0) -> list[dict]:
     """The standard performance-marketing table for one team's month.
 
     Every paid channel with spend gets rows - a channel with no campaigns set
@@ -487,5 +514,121 @@ def performance(team, params, ctx, resolved: dict) -> list[dict]:
                 "cac": c["spend"] / acquired if acquired else 0.0,
                 "quality": c["quality"], "lift": c["traffic"] - 1,
                 "findings": findings(c, params, block) if block else [],
+                "test": c.get("test", ""), "settings": settings_of(c),
+                "new_share": new_share, "aov": aov,
             })
+    _split_tests(rows, run_id, round_, team.team_id)
     return rows
+
+
+def _split_tests(rows: list[dict], run_id: str, round_: int, team_id: str) -> None:
+    """Orders in a test pair are a draw, not an average.
+
+    Each order goes to A or B the way real conversions fall: around each
+    campaign's true rate, with the scatter a sample of that size carries. The
+    pair's total is untouched, so the month's paid orders still add up and
+    nothing outside the report moves. What changes is that a small test can
+    now come out the wrong way round - which is the lesson.
+    """
+    from . import rng
+    for ch in CHANNELS:
+        pair = {r["test"]: r for r in rows if r["channel"] == ch and r["test"]}
+        if set(pair) != {"A", "B"}:
+            continue
+        a, b = pair["A"], pair["B"]
+        n = a["orders"] + b["orders"]
+        if n <= 0:
+            continue
+        p = a["orders"] / n
+        draw = rng.normal(run_id, round_, team_id, "abtest", 0.0, 1.0, ch)
+        got_a = min(n, max(0.0, n * p + draw * math.sqrt(n * p * (1 - p))))
+        for r, o in ((a, got_a), (b, n - got_a)):
+            r["orders"] = o
+            r["cvr"] = o / r["clicks"] if r["clicks"] else 0.0
+            r["revenue"] = o * r["aov"]
+            r["roas"] = r["revenue"] / r["spend"] if r["spend"] else 0.0
+            acquired = o * r["new_share"]
+            r["cac"] = r["spend"] / acquired if acquired else 0.0
+
+
+def ab_tests(history: list[dict]) -> list[dict]:
+    """The verdict on each channel's running test, pooling every consecutive
+    month in which A and B ran unchanged. Changing either side restarts it."""
+    out = []
+    if not history:
+        return out
+    for ch in CHANNELS:
+        now = {r["test"]: r for r in history[-1].get("campaigns") or []
+               if r["channel"] == ch and r.get("test")}
+        if set(now) != {"A", "B"}:
+            continue
+        sig = (now["A"]["settings"], now["B"]["settings"])
+        pooled = {"A": [0.0, 0.0, 0.0], "B": [0.0, 0.0, 0.0]}   # spend, clicks, orders
+        months = 0
+        for rec in reversed(history):
+            then = {r["test"]: r for r in rec.get("campaigns") or []
+                    if r["channel"] == ch and r.get("test")}
+            if set(then) != {"A", "B"} or (then["A"]["settings"], then["B"]["settings"]) != sig:
+                break
+            months += 1
+            for k in ("A", "B"):
+                pooled[k][0] += then[k]["spend"]
+                pooled[k][1] += then[k]["clicks"]
+                pooled[k][2] += then[k]["orders"]
+        out.append(_verdict(ch, now, pooled, months))
+    return out
+
+
+def _verdict(ch: str, now: dict, pooled: dict, months: int) -> dict:
+    (sa, ca, oa), (sb, cb, ob) = pooled["A"], pooled["B"]
+    n = oa + ob
+    # Conditional on the orders the pair won, A's share should equal its
+    # share of the spend if the two work equally hard. How far it sits from
+    # that, in standard errors, is the whole test.
+    p0 = sa / (sa + sb) if sa + sb else 0.5
+    z = (oa - n * p0) / math.sqrt(n * p0 * (1 - p0)) if n and 0 < p0 < 1 else 0.0
+    confidence = math.erf(abs(z) / math.sqrt(2))
+    # A sample never proves anything to 100%; saying so would teach the wrong
+    # thing about what a test can know.
+    sure = "over 99%" if confidence > 0.99 else f"{confidence:.0%}"
+    rate_a, rate_b = (oa / sa if sa else 0.0), (ob / sb if sb else 0.0)
+    lead, trail = ("A", "B") if rate_a >= rate_b else ("B", "A")
+    hi, lo = max(rate_a, rate_b), min(rate_a, rate_b)
+    edge = hi / lo - 1 if lo else 0.0
+    names = {k: now[k]["name"] for k in ("A", "B")}
+    diffs = [SETTING_NAMES[k] for k in now["A"]["settings"]
+             if now["A"]["settings"][k] != now["B"]["settings"][k]]
+    span = f"{months} month{'s' if months != 1 else ''}"
+
+    if not diffs:
+        verdict = (f"A and B are set up identically, so this tests nothing but "
+                   f"chance. Any gap below is luck - which is worth seeing once.")
+        call = "none"
+    elif confidence >= 0.95:
+        verdict = (f"{lead} wins: {edge:.0%} more orders per rupee than {trail}, "
+                   f"{sure} confident after {span} and {n:,.0f} orders. "
+                   f"Move the budget to “{names[lead]}”, then test your "
+                   f"next idea against it.")
+        call = lead
+    elif confidence >= 0.80:
+        verdict = (f"{lead} is ahead by {edge:.0%}, but only {sure} "
+                   f"confident - not enough to call it. Leave both unchanged "
+                   f"another month and the extra orders will settle it.")
+        call = "leaning"
+    else:
+        verdict = (f"No difference you can trust yet: {edge:.0%} is inside the "
+                   f"noise of {n:,.0f} orders. Either the two really are about "
+                   f"as good, or the test needs more orders - a larger share of "
+                   f"the budget, or another month unchanged.")
+        call = "open"
+    if len(diffs) > 1:
+        verdict += (f" A and B differ in {len(diffs)} settings ({', '.join(diffs)}), "
+                    f"so whichever wins, you will not know which change did it. "
+                    f"Test one thing at a time.")
+    return {"channel": ch, "channel_name": CHANNEL_NAMES[ch], "names": names,
+            "months": months, "orders": {"A": oa, "B": ob},
+            "spend": {"A": sa, "B": sb}, "clicks": {"A": ca, "B": cb},
+            "per_1000": {"A": rate_a * 1000, "B": rate_b * 1000},
+            "cvr": {"A": oa / ca if ca else 0.0, "B": ob / cb if cb else 0.0},
+            "confidence": confidence, "sure": sure, "edge": edge, "lead": lead,
+            "call": call, "diffs": diffs, "verdict": verdict}

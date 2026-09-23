@@ -263,7 +263,8 @@ def _campaigns(record: dict) -> str:
         cls = "flat" if abs(lift) < 0.005 else ("up" if lift > 0 else "down")
         body.append(
             f'<tr><th><span class="chn">{escape(r["channel_name"])}</span> '
-            f'{escape(r["name"])}</th>'
+            + (f'<span class="abt">{r["test"]}</span> ' if r.get("test") else '')
+            + f'{escape(r["name"])}</th>'
             f'<td class="v">{r["spend"]:,.0f}</td><td class="v">{r["impressions"]:,.0f}</td>'
             f'<td class="v">{r["cpm"]:,.0f}</td><td class="v">{r["clicks"]:,.0f}</td>'
             f'<td class="v">{r["ctr"]:.2%}</td><td class="v">{r["cpc"]:,.1f}</td>'
@@ -285,6 +286,27 @@ def _campaigns(record: dict) -> str:
         'one broad campaign would have. Orders are attributed from real sessions and '
         'the month\'s real conversion, so the rows add up to your paid orders, not '
         'to what a platform dashboard would claim.</p></section>')
+
+
+def _tests(record: dict) -> str:
+    out = []
+    for t in record.get("ab_tests") or []:
+        rows = "".join(
+            f'<tr><th><span class="abt">{k}</span> {escape(t["names"][k])}</th>'
+            f'<td class="v">{t["spend"][k]:,.0f}</td><td class="v">{t["clicks"][k]:,.0f}</td>'
+            f'<td class="v">{t["orders"][k]:,.0f}</td><td class="v">{t["cvr"][k]:.2%}</td>'
+            f'<td class="v">{t["per_1000"][k]:.2f}</td></tr>' for k in ("A", "B"))
+        out.append(
+            f'<section class="abx"><h2>A/B test on {escape(t["channel_name"])} &middot; '
+            f'{t.get("sure", format(t["confidence"], ".0%"))} confident after {t["months"]} month'
+            f'{"s" if t["months"] != 1 else ""}</h2>'
+            f'<p class="cap" style="max-width:90ch">{escape(t["verdict"])}</p>'
+            f'<table class="perf"><tr><th>Campaign</th><th class="v">Spend</th>'
+            f'<th class="v">Clicks</th><th class="v">Orders</th><th class="v">CVR</th>'
+            f'<th class="v">Orders per PKR 1,000</th></tr>{rows}</table>'
+            f'<p class="fn">Pooled over every month both sides ran unchanged. 95% '
+            f'confidence is the usual bar for calling a winner.</p></section>')
+    return "".join(out)
 
 
 def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None) -> Path:
@@ -443,6 +465,9 @@ vertical-align:super}}
 .perf tr:first-child th{{color:var(--muted);font-size:11px;font-weight:600}}
 .perf th .chn{{display:inline-block;padding:1px 7px;border-radius:5px;
 background:var(--panel-2);color:var(--dim);font-size:11px;font-weight:600;margin-right:4px}}
+.abt{{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;
+background:var(--ink);color:var(--surface);font-size:10.5px;font-weight:700;margin-right:3px}}
+.abx{{margin-top:12px;border-left:3px solid var(--s1)}}
 .perf tr.why td{{border-top:0;height:auto;padding:0 8px 7px 18px;white-space:normal;
 color:var(--dim);font-size:12.5px}}
 .score th{{color:var(--ink);font-weight:400}}
@@ -477,6 +502,7 @@ padding:0}}
 <h2 class="sec">Every measure, month {round_}{against}</h2>
 <div class="grid">{"".join(cards)}</div>
 {_campaigns(record)}
+{_tests(record)}
 {scorecard_section}
 <div class="themebar"><span>Appearance</span>
   <button class="sw sw-consulytics" data-set-theme="consulytics"

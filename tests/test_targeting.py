@@ -247,3 +247,93 @@ def test_debrief_reads_the_table(p):
     d = T.debrief(p, "SKU-08")
     assert d["age"].startswith("35-44") and "Tier 2" in d["where"]
     assert d["mistake"]
+
+
+# --- A/B tests ---------------------------------------------------------------------
+
+def _ab(a, b, share_a=0.5, channel="meta"):
+    return [dict(a, channel=channel, name="A", test="A", share=share_a),
+            dict(b, channel=channel, name="B", test="B", share=1 - share_a)]
+
+
+def _ab_game(a, b, rounds=6, share_a=0.5, run_id="ab"):
+    p = P.load()
+    world = bootstrap.new_world(p, run_id=run_id)
+    run_game(world, p, rounds=rounds, strategy=lambda w, r, t:
+             {"3.10": _ab(a, b, share_a)} if t == "team_01" and r >= 3 else {})
+    return world.teams["team_01"]
+
+
+def test_a_test_is_exactly_one_a_against_one_b():
+    assert [c.get("test") for c in T.clean(_ab({}, {}))] == ["A", "B"]
+    lone = T.clean([{"channel": "meta", "test": "A"}, {"channel": "meta"}])
+    assert all("test" not in c for c in lone)
+    twins = T.clean([{"channel": "meta", "test": "A"}, {"channel": "meta", "test": "A"}])
+    assert all("test" not in c for c in twins)
+    split = T.clean([{"channel": "meta", "test": "A"}, {"channel": "tiktok", "test": "B"}])
+    assert all("test" not in c for c in split), "a test compares within one channel"
+
+
+def test_marking_a_test_changes_nothing_but_the_report():
+    """The flag only adds sampling noise to how the pair's orders are
+    reported. The business, the cash and every other team are untouched."""
+    p = P.load()
+    a, b = {"gender": "female"}, {}
+    plain = lambda w, r, t: ({"3.10": [dict(c, test="") for c in _ab(a, b)]}
+                             if t == "team_01" and r >= 3 else {})
+    tested = lambda w, r, t: {"3.10": _ab(a, b)} if t == "team_01" and r >= 3 else {}
+    x, y = _play(plain, rounds=5), _play(tested, rounds=5)
+    for tid in x.teams:
+        hx, hy = x.teams[tid].history[-1], y.teams[tid].history[-1]
+        assert hy["revenue_net"] == hx["revenue_net"]
+        assert hy["cash_balance"] == hx["cash_balance"]
+    rows_x = {r["name"]: r for r in x.teams["team_01"].history[-1]["campaigns"]}
+    rows_y = {r["name"]: r for r in y.teams["team_01"].history[-1]["campaigns"]}
+    assert (rows_y["A"]["orders"] + rows_y["B"]["orders"]
+            == pytest.approx(rows_x["A"]["orders"] + rows_x["B"]["orders"]))
+    assert rows_y["A"]["orders"] != pytest.approx(rows_x["A"]["orders"], rel=1e-6), \
+        "a test's orders are a draw, not the average"
+
+
+def test_the_draw_is_deterministic():
+    a = _ab_game({"gender": "female"}, {}, rounds=4)
+    b = _ab_game({"gender": "female"}, {}, rounds=4)
+    assert a.history[-1]["ab_tests"] == b.history[-1]["ab_tests"]
+
+
+def test_unchanged_months_pool_and_an_edit_restarts_the_count():
+    p = P.load()
+    world = bootstrap.new_world(p, run_id="pool")
+    def strat(w, r, t):
+        if t != "team_01" or r < 3:
+            return {}
+        b = {} if r < 5 else {"language": "urdu"}
+        return {"3.10": _ab({"gender": "female"}, b)}
+    run_game(world, p, strategy=strat, rounds=6)
+    months = [rec["ab_tests"][0]["months"] for rec in world.teams["team_01"].history[2:]]
+    assert months == [1, 2, 1, 2]
+
+
+def test_an_identical_pair_is_called_a_test_of_chance():
+    t = _ab_game({"objective": "conversions"}, {"objective": "conversions"}).history[-1]
+    verdict = t["ab_tests"][0]
+    assert verdict["call"] == "none" and verdict["diffs"] == []
+    assert "tests nothing but chance" in verdict["verdict"]
+
+
+def test_changing_several_things_at_once_is_called_out():
+    t = _ab_game({"gender": "female", "language": "urdu", "format": "feed"}, {})
+    verdict = t.history[-1]["ab_tests"][0]
+    assert verdict["diffs"] == ["gender", "language", "format"]
+    assert "Test one thing at a time" in verdict["verdict"]
+
+
+def test_a_big_real_difference_is_found_and_a_sliver_of_budget_is_not_enough():
+    right = {"gender": "female", "ages": ["25-34", "35-44"], "objective": "conversions"}
+    wrong = {"gender": "male", "ages": ["18-24"], "objective": "conversions"}
+    fair = _ab_game(right, wrong, rounds=5).history[-1]["ab_tests"][0]
+    assert fair["call"] == "A" and fair["confidence"] >= 0.95
+    tiny = _ab_game(right, {"gender": "female", "ages": ["25-34", "35-44"],
+                            "objective": "traffic"},
+                    rounds=4, share_a=0.05).history[-1]["ab_tests"][0]
+    assert tiny["call"] in ("open", "leaning")

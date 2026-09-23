@@ -20,6 +20,35 @@
   Campaigns keep running until you change them.
 </div>
 
+{% for t in desk.tests %}
+<section class="ab-card ab-{{ t.call }}">
+  <div class="ab-head">
+    <div><h2>A/B test on {{ t.channel_name }} &middot; {{ t.months }} month{{ 's' if t.months != 1 }}
+      of data</h2>
+      <p class="cap">{{ t.verdict }}</p></div>
+    <div class="ab-conf"><span class="note">Confidence</span>
+      <b class="num">{{ t.sure|replace('over ', '>') }}</b>
+      <span class="note">95% calls it</span></div>
+  </div>
+  <table class="ab">
+  <thead><tr><th></th><th>Campaign</th><th class="r">Spend</th><th class="r">Clicks</th>
+    <th class="r">Orders</th><th class="r">CVR</th><th class="r">Orders per PKR 1,000</th></tr></thead>
+  <tbody>
+  {% for k in ('A', 'B') %}
+  <tr class="{{ 'lead' if t.lead == k and t.call in ('A', 'B') }}">
+    <td><span class="ab-tag">{{ k }}</span></td><td><strong>{{ t.names[k] }}</strong></td>
+    <td class="num">{{ '{:,.0f}'.format(t.spend[k]) }}</td>
+    <td class="num">{{ '{:,.0f}'.format(t.clicks[k]) }}</td>
+    <td class="num">{{ '{:,.0f}'.format(t.orders[k]) }}</td>
+    <td class="num">{{ '{:.2%}'.format(t.cvr[k]) }}</td>
+    <td class="num">{{ '{:.2f}'.format(t.per_1000[k]) }}</td></tr>
+  {% endfor %}
+  </tbody></table>
+  {% if t.diffs %}<p class="hint">A and B differ in: {{ t.diffs|join(', ') }}.
+    Change either side and the test starts again.</p>{% endif %}
+</section>
+{% endfor %}
+
 {% if desk.last %}
 <section>
 <h2>How last month's campaigns did &middot; month {{ desk.last_round }}</h2>
@@ -36,7 +65,9 @@ are the most expensive traffic there is.</p>
 <tbody>
 {% for r in desk.last %}
 <tr>
-  <td><span class="pill">{{ r.channel_name }}</span> <strong>{{ r.name }}</strong></td>
+  <td><span class="pill">{{ r.channel_name }}</span>
+    {% if r.test %}<span class="ab-tag">{{ r.test }}</span>{% endif %}
+    <strong>{{ r.name }}</strong></td>
   <td class="num">{{ '{:,.0f}'.format(r.spend) }}</td>
   <td class="num">{{ '{:,.0f}'.format(r.impressions) }}</td>
   <td class="num">{{ '{:,.0f}'.format(r.cpm) }}</td>
@@ -89,7 +120,8 @@ campaign.{% endif %}</p>
         <input type="checkbox" name="use_{{ k }}" value="1"
                {% if slot.used %}checked{% endif %}
                {% if not desk.can_edit %}disabled{% endif %}>
-        Campaign {{ loop.index }}</label>
+        Campaign {{ loop.index }}{% if ch.ab and loop.index <= 2 %}
+        <span class="ab-tag">{{ 'AB'[loop.index0] }}</span>{% endif %}</label>
       <span class="c-sum">{% if slot.used %}{{ c.name }} &middot;
         {{ '{:.0%}'.format(c.share) }} of the budget{% else %}not running{% endif %}</span>
     </summary>
@@ -177,6 +209,12 @@ campaign.{% endif %}</p>
   </details>
   {% endfor %}
   </div>
+  <label class="opt ab-switch"><input type="checkbox" name="ab_{{ ch.code }}" value="1"
+    {% if ch.ab %}checked{% endif %} {% if not desk.can_edit %}disabled{% endif %}>
+    Run campaign 1 (A) against campaign 2 (B) as an A/B test</label>
+  <p class="hint">Change one setting between them and keep both unchanged: results
+  pool month after month until you edit either side. Give each a real share of the
+  budget &mdash; a test on a sliver of spend never gathers enough orders to decide.</p>
 </section>
 {% endfor %}
 

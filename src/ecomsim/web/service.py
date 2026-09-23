@@ -1343,7 +1343,8 @@ def campaign_form(form, sold: list[str]) -> tuple[list[dict], list[str], list[di
                 continue
             c = {"channel": ch, "name": (form.get(f"name_{key}") or "").strip()
                  or f"{targeting.CHANNEL_NAMES[ch]} {i + 1}",
-                 "share": share_v / 100, "skus": form.getlist(f"skus_{key}")}
+                 "share": share_v / 100, "skus": form.getlist(f"skus_{key}"),
+                 "_slot": i}
             if ch == "google_search":
                 c |= {"keywords": form.get(f"keywords_{key}"),
                       "match": form.get(f"match_{key}")}
@@ -1360,6 +1361,17 @@ def campaign_form(form, sold: list[str]) -> tuple[list[dict], list[str], list[di
                       "language": form.get(f"language_{key}") or "",
                       "format": form.get(f"format_{key}") or ""}
             used.append(c)
+        if form.get(f"ab_{ch}"):
+            slots = {int(c["_slot"]) for c in used}
+            if {0, 1} <= slots:
+                for c in used:
+                    if c["_slot"] in (0, 1):
+                        c["test"] = "AB"[c["_slot"]]
+            else:
+                errors.append(f"{targeting.CHANNEL_NAMES[ch]}: an A/B test needs "
+                              f"campaigns 1 and 2 both running")
+        for c in used:
+            c.pop("_slot", None)
         total = sum(c["share"] for c in used) * 100
         if used and abs(total - 100) > 0.5:
             errors.append(f"{targeting.CHANNEL_NAMES[ch]}: the campaigns share "
@@ -1398,7 +1410,8 @@ def campaign_desk(con, team_id: str, draft: list[dict] | None = None) -> dict:
                          "decision": code, "decision_name": REGISTRY[code].name,
                          "budget": _budget(con, team_id, at or 1, code),
                          "slots": slots, "social": ch in targeting.SOCIAL,
-                         "broad": not mine})
+                         "broad": not mine,
+                         "ab": any(c.get("test") for c in mine)})
 
     world = db.load_world(con)
     team = world.teams.get(team_id) if world else None
@@ -1411,6 +1424,7 @@ def campaign_desk(con, team_id: str, draft: list[dict] | None = None) -> dict:
         "channels": channels, "shelf": shelf,
         "categories": sorted({r["category"] for r in shelf}),
         "last": (last or {}).get("campaigns") or [], "last_round": game["round"],
+        "tests": (last or {}).get("ab_tests") or [],
         "choices": {"ages": list(targeting.AGES), "genders": targeting.GENDERS,
                     "tiers": targeting.TIER_NAMES, "interests": targeting.INTERESTS,
                     "objectives": targeting.OBJECTIVES,

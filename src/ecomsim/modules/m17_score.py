@@ -114,8 +114,10 @@ def run(world, params, resolved, ctx) -> None:
             "events": ctx.get("event_codes", []),
             "pnl": pnl | {"cogs": ctx["cogs"][tid]},
             "campaigns": targeting.performance(team, params, ctx,
-                                               ctx["resolved"][tid]),
+                                               ctx["resolved"][tid],
+                                               world.run_id, world.round),
         }
+        record["ab_tests"] = targeting.ab_tests(team.history + [record])
         team.history.append(record)
         ctx.setdefault("scorecard", {})[tid] = _scorecard(team, params, record)
 

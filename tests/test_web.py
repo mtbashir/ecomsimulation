@@ -525,3 +525,27 @@ def test_campaigns_survive_the_offline_escape_hatch(game, tmp_path):
     csv_file.write_text(service.export_decisions(con, 3), encoding="utf-8")
     back = read_decisions(csv_file)["team_01"]["3.10"]
     assert back == db.submission(con, 3, "team_01")["3.10"]
+
+
+def test_an_ab_test_is_set_from_the_campaign_page(game):
+    app, pw, path = game
+    con = db.connect(path)
+    admin, team = _to_campaigns(app, pw, path)
+    team.post("/campaigns", data=dict(HAIR_OIL, ab_meta="1"), follow_redirects=True)
+    saved = db.submission(con, 3, "team_01")["3.10"]
+    assert [c.get("test") for c in saved] == ["A", "B"]
+    admin.post("/admin/run", follow_redirects=True)
+    page = team.get("/campaigns").get_data(as_text=True)
+    assert "A/B test on Meta" in page and "Confidence" in page
+    report = team.get("/results/3").get_data(as_text=True)
+    assert "A/B test on Meta" in report
+
+
+def test_an_ab_test_needs_both_campaigns(game):
+    app, pw, path = game
+    _admin, team = _to_campaigns(app, pw, path)
+    lone = {k: v for k, v in HAIR_OIL.items() if not k.endswith("meta_1")}
+    lone.update(share_meta_0="100", ab_meta="1")
+    r = team.post("/campaigns", data=lone)
+    assert r.status_code == 400
+    assert "needs campaigns 1 and 2 both running" in r.get_data(as_text=True)
