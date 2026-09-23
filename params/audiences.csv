@@ -1,0 +1,21 @@
+code,core_age,second_age,female_share,geo,interest_1,interest_2,language,format,purchase,channel_1,channel_2,channel_3,segment_1,segment_2,mistake
+SKU-01,18-24,25-34,0.55,T1|T2,beauty,grooming,roman_urdu,reels,impulse,tiktok,meta,google_search,urban_convenience,value_seekers,Targeting women only: a large share of facewash buyers are young men
+SKU-02,25-34,35-44,0.75,T1|T2,beauty,fashion,english,feed,considered,meta,google_search,tiktok,urban_convenience,quality_loyalists,Going too young: moisturiser buyers are older than serum buyers
+SKU-03,25-34,18-24,0.90,T1,beauty,fashion,english,reels,considered,meta,tiktok,google_search,quality_loyalists,premium_gifting,Running it in Tier 2 because reach is cheap: premium converts in the big three cities
+SKU-04,18-24,25-34,0.65,T1,beauty,fitness,english,reels,considered,tiktok,meta,google_search,quality_loyalists,urban_convenience,Treating sunscreen as an older summer-only product
+SKU-05,18-24,,0.85,T1|T2,beauty,deals,roman_urdu,reels,impulse,tiktok,meta,,deal_hunters,value_seekers,Google Search: nobody searches for a face mask pack
+SKU-06,25-34,35-44,0.60,T1|T2,home,beauty,urdu,feed,replenishment,meta,google_search,,urban_convenience,value_seekers,Chasing 18-24 on TikTok: shampoo is a household purchase
+SKU-07,25-34,,0.80,T1,beauty,fashion,english,feed,considered,meta,tiktok,,urban_convenience,quality_loyalists,Targeting men alongside shampoo: conditioner skews strongly female
+SKU-08,35-44,25-34,0.70,T2|Rest,home,fitness,urdu,feed,replenishment,meta,tiktok,,value_seekers,deal_hunters,Big cities and English and a young audience: hair oil lives in Tier 2 and in Urdu
+SKU-09,25-34,18-24,0.85,T1,beauty,fashion,english,reels,impulse,tiktok,meta,,quality_loyalists,premium_gifting,Promoting it with hair oil as one haircare campaign
+SKU-10,25-34,,0.60,T1,beauty,fitness,english,carousel,considered,meta,google_search,,urban_convenience,premium_gifting,Pushing it at bargain hunters: body wash is a treat purchase
+SKU-11,35-44,45+,0.60,T2|Rest,home,deals,urdu,feed,replenishment,meta,google_search,,value_seekers,deal_hunters,Any spend on TikTok reels: wrong buyer and wrong intent
+SKU-12,25-34,,0.50,T1|T2,fitness,parenting,urdu,feed,addon,meta,,,value_seekers,urban_convenience,Running it as a hero campaign: sanitiser is a basket-builder
+SKU-13,18-24,25-34,0.30,T1|T2,grooming,sports,roman_urdu,reels,impulse,tiktok,meta,,urban_convenience,deal_hunters,Targeting women because the category is called hygiene
+SKU-14,35-44,25-34,0.60,T1|T2|Rest,home,parenting,urdu,feed,replenishment,meta,google_search,,value_seekers,deal_hunters,Beauty interests: toothpaste is a household stock-up item
+SKU-15,35-44,25-34,0.80,T1|T2,home,deals,urdu,feed,replenishment,meta,google_search,,value_seekers,urban_convenience,Targeting 18-24: they do not buy dish liquid
+SKU-16,35-44,25-34,0.80,T1,home,,urdu,feed,replenishment,meta,google_search,,urban_convenience,value_seekers,Rest-of-Pakistan reach: surface cleaner is an urban habit
+SKU-17,25-34,35-44,0.75,T1,home,parenting,urdu,carousel,considered,meta,google_search,,urban_convenience,quality_loyalists,Tier 2: switching from powder to a 2-litre liquid is a big-city habit
+SKU-18,25-34,,0.60,T1|T2,home,deals,roman_urdu,reels,impulse,tiktok,meta,,deal_hunters,value_seekers,Google Search: low intent and nobody searches for it
+SKU-19,25-34,,0.90,T1|T2,parenting,fitness,urdu,feed,considered,meta,google_search,,quality_loyalists,urban_convenience,Beauty interests instead of Parenting: the buyer is a mother not a skincare fan
+SKU-20,25-34,,0.85,T1|T2,parenting,home,urdu,carousel,replenishment,google_search,meta,,urban_convenience,value_seekers,TikTok: parents search for wipes when they run out

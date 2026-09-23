@@ -30,8 +30,18 @@ def run(world, params, resolved, ctx) -> None:
         # cohort ledger says they place.
         returning = ctx.get("sessions_returning", {}).get(tid, 0.0)
         cold = max(0.0, ctx["sessions"][tid] - returning)
-        traffic_capacity = (cold * cr
+        # Paid visitors from a well-aimed campaign convert better than a broad
+        # one's, and a badly aimed one's worse. Exactly 1.0 with no campaigns.
+        paid_mult = ctx.get("paid_cvr_mult", {}).get(tid, 1.0)
+        if paid_mult != 1.0:
+            paid_frac = ctx.get("paid_share_cold", {}).get(tid, 0.0)
+            cold_cr = cr * (1 + paid_frac * (paid_mult - 1))
+        else:
+            cold_cr = cr
+        ctx.setdefault("cold_cr", {})[tid] = cold_cr
+        traffic_capacity = (cold * cold_cr
                             + returning * cr * params["repeat_cr_multiplier"])
+        ctx.setdefault("traffic_capacity", {})[tid] = traffic_capacity
         stock_capacity = ctx.get("stock_capacity", {}).get(tid, float("inf"))
         potential = ctx["potential"][tid]
 

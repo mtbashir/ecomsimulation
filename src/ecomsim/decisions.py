@@ -33,7 +33,7 @@ class DecisionSpec:
     code: str
     group: str
     name: str
-    kind: str          # select | multi | shares | num | pct | curr | per_sku | text
+    kind: str          # select | multi | shares | num | pct | curr | per_sku | text | campaigns
     default_when_disabled: object
     presets: frozenset[str]  # presets in which this decision is enabled
     unlock_round: int = 1
@@ -143,6 +143,14 @@ REGISTRY: dict[str, DecisionSpec] = {
                  "to pay back, but it builds the awareness that makes every "
                  "later performance rupee cheaper.",
             guide="Typical PKR 150,000-400,000"),
+        DecisionSpec(
+            "3.10", "G3", "Campaign setup", "campaigns", [],
+            frozenset({"standard", "advanced", "expert"}), unlock_round=3,
+            help="How your Meta, TikTok and Google budgets are spent: which "
+                 "products each campaign promotes, and to whom - age, gender, "
+                 "cities, interests, language and format. The budgets stay "
+                 "what they are; the right audience makes each rupee buy more "
+                 "visits that order, the wrong one buys clicks that do not."),
         DecisionSpec(
             "3.6", "G3", "Affiliate & influencer commission", "pct", 0.0,
             frozenset({"standard", "advanced", "expert"}), unlock_round=2,

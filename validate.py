@@ -3,7 +3,7 @@
 
 20 archetypes x 10 variations = 200 strategy instances. Each game seats 8
 instances drawn deterministically, so every archetype is scored against a
-varied field. Twelve invariants; each failure names what to check first.
+varied field. Thirteen invariants; each failure names what to check first.
 
     python validate.py            # full run
     python validate.py --games 60 # quick
@@ -22,6 +22,7 @@ sys.path.insert(0, ".")
 from ecomsim import bootstrap, params as P, scoring  # noqa: E402
 from ecomsim.engine import run_game  # noqa: E402
 from strategies.archetypes import ARCHETYPES, MUST_FAIL  # noqa: E402
+from strategies import campaigns  # noqa: E402
 
 VARIATIONS = 10
 
@@ -106,6 +107,45 @@ def research_pairs(games: int, overrides: dict | None = None,
     return {name: st.mean(xs) for name, xs in scores.items()}
 
 
+TARGETING_SEATS = (("balanced", None), ("balanced", "careless"),
+                   ("balanced", "sharp"), ("discounter", "sharp"))
+
+
+def targeting_pairs(games: int, overrides: dict | None = None,
+                    rounds: int = 12) -> dict[str, float]:
+    """I13 measured the way I7 is: the same strategy, the same variation and
+    the same five opponents, differing only in how its ad budgets were aimed.
+    The fourth seat asks the other half of the question - whether sharp
+    targeting can rescue a strategy that is wrong underneath. It must not."""
+    pool = instances()
+    scores: dict[str, list[float]] = {f"{a}+{c or 'none'}": [] for a, c in TARGETING_SEATS}
+    for game in range(games):
+        p = P.load(overrides or {})
+        world = bootstrap.new_world(p, run_id=f"t3-targeting-{game}")
+        v = (game % VARIATIONS) / (VARIATIONS - 1)
+        tids = list(world.teams)
+        amap = {tid: (a, c, v) for tid, (a, c) in zip(tids, TARGETING_SEATS)}
+        rest = tids[len(TARGETING_SEATS):]
+        for tid, (name, var) in zip(rest, seat(game, pool, len(rest))):
+            amap[tid] = (name, None, var)
+
+        def strategy(w, r, tid):
+            name, how, var = amap[tid]
+            d = ARCHETYPES[name](w, r, tid, var)
+            if how:
+                d = dict(d)
+                d["3.10"] = getattr(campaigns, how)(p, w.teams[tid].active_skus)
+            return d
+
+        run_game(world, p, strategy=strategy, rounds=rounds)
+        for tid, (name, how, _) in amap.items():
+            key = f"{name}+{how or 'none'}"
+            if tid in tids[:len(TARGETING_SEATS)]:
+                scores[key].append(
+                    scoring.final_score(world.teams[tid], p, world.teams)["total"])
+    return {k: st.mean(xs) for k, xs in scores.items()}
+
+
 def run(games: int, overrides: dict | None = None, rounds: int = 12):
     pool = instances()
     rows = []
@@ -123,7 +163,8 @@ def by_arch(rows):
     return d
 
 
-def invariants(rows, rows_no_events=None, paired=None) -> list[tuple[str, bool, str, str]]:
+def invariants(rows, rows_no_events=None, paired=None,
+               aimed=None) -> list[tuple[str, bool, str, str]]:
     A = by_arch(rows)
     mean = {a: st.mean(x["score"] for x in xs) for a, xs in A.items()}
     med = st.median(mean.values())
@@ -222,6 +263,17 @@ def invariants(rows, rows_no_events=None, paired=None) -> list[tuple[str, bool, 
         out.append(("I12 Event neutrality", delta < 8 and rho > 0.6,
                     f"mean delta {delta:.1f} pts, rank rho {rho:.2f}",
                     "event_severity, Type C probabilities, Type B thresholds"))
+
+    if aimed is not None:
+        none, bad = aimed["balanced+none"], aimed["balanced+careless"]
+        good, rescue = aimed["balanced+sharp"], aimed["discounter+sharp"]
+        gap = good - bad
+        out.append(("I13 Targeting pays, not alone",
+                    good > none > bad and 3.0 <= gap <= 9.0 and rescue < none,
+                    f"paired: sharp {good - none:+.1f}, careless {bad - none:+.1f} "
+                    f"against broad (gap {gap:.1f}, need 3-9); sharp discounter "
+                    f"{rescue - none:+.1f}",
+                    "targeting_traffic_slope and targeting_cvr_slope, then the caps"))
     return out
 
 
@@ -233,7 +285,7 @@ def _spearman(a, b):
     return 1 - 6 * d2 / (n * (n * n - 1)) if n > 2 else 1.0
 
 
-def report(rows, rows_off, params, elapsed, paired=None):
+def report(rows, rows_off, params, elapsed, paired=None, aimed=None):
     A = by_arch(rows)
     mean = {a: st.mean(x["score"] for x in xs) for a, xs in A.items()}
     order = sorted(mean, key=lambda a: -mean[a])
@@ -241,7 +293,7 @@ def report(rows, rows_off, params, elapsed, paired=None):
 
     print(f"\nVALIDATION RUN  config_hash={params.config_hash()}  "
           f"{games} games x 8 seats = {games*8} team-runs  {elapsed:.0f}s\n")
-    results = invariants(rows, rows_off, paired)
+    results = invariants(rows, rows_off, paired, aimed)
     for name, ok, detail, check in results:
         print(f" {name:<32} {'PASS' if ok else 'FAIL'}  {detail}")
     fails = [r for r in results if not r[1]]
@@ -270,5 +322,7 @@ if __name__ == "__main__":
     rows_off = run(max(20, args.games // 4), overrides | {"events_enabled": 0},
                    args.rounds)
     paired = research_pairs(max(150, args.games // 2), overrides, args.rounds)
-    ok = report(rows, rows_off, P.load(overrides), time.perf_counter() - t0, paired)
+    aimed = targeting_pairs(max(150, args.games // 2), overrides, args.rounds)
+    ok = report(rows, rows_off, P.load(overrides), time.perf_counter() - t0,
+                paired, aimed)
     sys.exit(0 if ok else 1)

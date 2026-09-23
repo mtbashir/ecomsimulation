@@ -118,3 +118,14 @@ segment_focus_coef,M7,0.35,0.2,0.5,0.0,0.8,multiplier,HIGH,How hard a stated seg
 segment_focus_spill,M7,0.5,0.3,0.7,0.0,1.0,ratio,,Share of the focus tilt paid as a penalty in segments you did not choose
 segment_quality_coef,M12,1.0,0.5,1.5,0.0,3.0,multiplier,,How strongly the segment mix a cohort was won from modulates its repeat rate and churn
 segment_quality_span,M12,1.35,1.2,1.6,1.0,2.5,ratio,HIGH,Clamp on the cohort quality multiplier; above 2.0 one good month compounds away the race
+targeting_beta,M6,0.5,0.35,0.65,0.2,0.8,exponent,,How much of a campaign's buyer concentration turns into efficiency. Platforms already find buyers inside a broad audience so sharp targeting is worth the square root of its concentration not all of it
+targeting_traffic_slope,M6,0.12,0.08,0.20,0.0,0.30,coefficient,,Sessions per rupee move by this times the log of campaign quality. Zero switches campaign settings off entirely. At 0.12 sharp targeting beats careless by about 6 score points (I13)
+targeting_traffic_cap,M6,0.20,0.10,0.25,0.0,0.35,ratio,,Largest gain or loss campaign settings can make to paid sessions; broad targeting is exactly zero
+targeting_cvr_slope,M8,0.06,0.03,0.10,0.0,0.15,coefficient,,Conversion of paid visitors moves by this times the log of campaign quality - the wrong audience clicks but does not buy
+targeting_cvr_cap,M8,0.10,0.05,0.12,0.0,0.20,ratio,,Largest gain or loss campaign settings can make to paid conversion
+targeting_pool_min,M6,0.02,0.01,0.04,0.005,0.08,share,,Share of a platform's audience a campaign needs at the channel's typical budget before frequency fatigue sets in; scales with spend
+targeting_fatigue_exp,M6,0.5,0.3,0.8,0.1,1.0,exponent,,How hard a too-small audience is punished - the same people see the ad again and CPM climbs
+interest_pool_share,M6,0.18,0.12,0.25,0.08,0.40,share,,Share of a platform's users in one interest cluster
+retarget_pool,M6,0.008,0.004,0.015,0.002,0.03,share,,Share of the platform's audience that recently visited a typical store - the whole of a retargeting pool. Sized so about a third of a channel's typical budget is all it can use well
+retarget_boost,M6,2.5,1.8,3.2,1.0,5.0,ratio,,Buyer concentration of a retargeting audience against broad
+brand_search_boost,M6,3.0,2.0,4.0,1.0,6.0,ratio,,Buyer concentration of people searching for your brand name against generic search

@@ -53,6 +53,10 @@ class Params:
     suppliers: list[dict]
     studies: list[dict]
     skus: list[dict]
+    # Who buys each product, and who is on each ad platform. Fixed for the run:
+    # campaign settings are scored against them (targeting.py).
+    audiences: list[dict] = field(default_factory=list)
+    platforms: list[dict] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     # Every parameter read during a run, for the coverage test (T0).
@@ -79,6 +83,12 @@ class Params:
 
     def study(self, code: str) -> dict:
         return next(s for s in self.studies if s["code"] == code)
+
+    def audience(self, sku: str) -> dict | None:
+        return next((a for a in self.audiences if a["code"] == sku), None)
+
+    def platform(self, channel: str) -> dict | None:
+        return next((p for p in self.platforms if p["channel"] == channel), None)
 
     def config_hash(self) -> str:
         """Stable hash of the configuration, stamped on every validation run."""
@@ -159,6 +169,8 @@ def load(overrides: dict[str, float] | None = None,
         suppliers=_read_csv(params_dir / "suppliers.csv"),
         studies=_read_csv(params_dir / "studies.csv"),
         skus=_read_csv(params_dir / "skus.csv"),
+        audiences=_read_csv(params_dir / "audiences.csv"),
+        platforms=_read_csv(params_dir / "platforms.csv"),
         warnings=warnings,
     )
     _check_joint_constraints(params)

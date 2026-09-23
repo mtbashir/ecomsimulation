@@ -10,6 +10,8 @@ it is the only genuinely zero-sum one.
 """
 from __future__ import annotations
 
+from .. import targeting
+
 
 def anchor(value: float, zero: float, fifty: float, hundred: float) -> float:
     """Map a value onto 0-100 through published anchors, clamped."""
@@ -111,6 +113,8 @@ def run(world, params, resolved, ctx) -> None:
             "insolvent": ctx["insolvent"][tid],
             "events": ctx.get("event_codes", []),
             "pnl": pnl | {"cogs": ctx["cogs"][tid]},
+            "campaigns": targeting.performance(team, params, ctx,
+                                               ctx["resolved"][tid]),
         }
         team.history.append(record)
         ctx.setdefault("scorecard", {})[tid] = _scorecard(team, params, record)

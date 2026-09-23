@@ -6,6 +6,8 @@ dominates every other decision in the sim (docs/04).
 """
 from __future__ import annotations
 
+from .. import targeting
+
 CHANNEL_DECISIONS = {
     "meta": "3.1",
     "google_search": "3.2",
@@ -48,6 +50,18 @@ def run(world, params, resolved, ctx) -> None:
         paid = 0.0
         active_channels = 0
 
+        # Campaign settings under each budget (decision 3.10). A channel with
+        # none is absent from `scored` and runs at exactly 1.0, which is how a
+        # team that never opens the campaign screen plays the engine as it was.
+        campaigns = targeting.clean(team_resolved.get(targeting.DECISION) or [],
+                                    team.active_skus or None)
+        spend = {code: float(team_resolved.get(dec, 0) or 0)
+                 for code, dec in CHANNEL_DECISIONS.items()}
+        scored = targeting.channel_scores(campaigns, spend, params,
+                                          team.active_skus, team.brand_equity)
+        by_channel: dict[str, float] = {}
+        inflation_by: dict[str, float] = {}
+
         for code, dec in CHANNEL_DECISIONS.items():
             ch = params.channel(code)
             spend = float(team_resolved.get(dec, 0) or 0)
@@ -64,7 +78,12 @@ def run(world, params, resolved, ctx) -> None:
             )
             k = (float(ch["k_base"]) * params["channel_k_scale"]
                  / inflation * creative_lift)
-            paid += k * (team.adstock[code] / 1_000) ** sigma
+            if code in scored:
+                k *= scored[code]["traffic"]
+            got = k * (team.adstock[code] / 1_000) ** sigma
+            by_channel[code] = got
+            inflation_by[code] = inflation
+            paid += got
 
         organic = (
             params["organic_base"]
@@ -81,3 +100,20 @@ def run(world, params, resolved, ctx) -> None:
         sessions *= ctx.get("traffic_mult", {}).get(team.team_id, 1.0)
         sessions *= team.traffic_multiplier   # founding business model
         ctx.setdefault("sessions", {})[team.team_id] = sessions
+
+        # What M8 needs to convert paid visitors at their own rate, and what
+        # the report needs to show each campaign's numbers. Scaled so the
+        # channel figures add up to the paid sessions actually delivered.
+        pre = paid + organic + returning
+        scale = sessions / pre if pre > 0 else 0.0
+        ctx.setdefault("paid_sessions", {})[team.team_id] = {
+            c: v * scale for c, v in by_channel.items()}
+        ctx.setdefault("channel_inflation", {})[team.team_id] = inflation_by
+        ctx.setdefault("targeting", {})[team.team_id] = scored
+        cvr = 1.0
+        if scored and paid > 0:
+            cvr = sum(by_channel[c] * (scored[c]["cvr"] if c in scored else 1.0)
+                      for c in by_channel) / paid
+        ctx.setdefault("paid_cvr_mult", {})[team.team_id] = cvr
+        ctx.setdefault("paid_share_cold", {})[team.team_id] = (
+            paid / (paid + organic) if paid + organic > 0 else 0.0)
