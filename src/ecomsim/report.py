@@ -248,6 +248,45 @@ TREND_KEYS = {"revenue_net", "orders", "conversion_rate", "cac_blended",
               "repeat_order_share", "cash_balance", "active_customers"}
 
 
+def _campaigns(record: dict) -> str:
+    """The month's paid media, campaign by campaign, with the reasons.
+
+    Every paid channel appears whether or not the team set campaigns, so the
+    performance-marketing numbers are there to learn from from month 1.
+    """
+    rows = record.get("campaigns") or []
+    if not rows:
+        return ""
+    body = []
+    for r in rows:
+        lift = r["lift"]
+        cls = "flat" if abs(lift) < 0.005 else ("up" if lift > 0 else "down")
+        body.append(
+            f'<tr><th><span class="chn">{escape(r["channel_name"])}</span> '
+            f'{escape(r["name"])}</th>'
+            f'<td class="v">{r["spend"]:,.0f}</td><td class="v">{r["impressions"]:,.0f}</td>'
+            f'<td class="v">{r["cpm"]:,.0f}</td><td class="v">{r["clicks"]:,.0f}</td>'
+            f'<td class="v">{r["ctr"]:.2%}</td><td class="v">{r["cpc"]:,.1f}</td>'
+            f'<td class="v">{r["orders"]:,.0f}</td><td class="v">{r["cvr"]:.2%}</td>'
+            f'<td class="v">{r["roas"]:.1f}</td><td class="v">{r["cac"]:,.0f}</td>'
+            f'<td class="v"><span class="d {cls}">{lift:+.0%}</span></td></tr>')
+        for f in r.get("findings") or []:
+            body.append(f'<tr class="why"><td colspan="12">{escape(f)}</td></tr>')
+    return (
+        '<h2 class="sec">Paid media, campaign by campaign</h2>'
+        '<section class="camps"><div class="sx"><table class="perf">'
+        '<tr><th>Campaign</th><th class="v">Spend</th><th class="v">Impressions</th>'
+        '<th class="v">CPM</th><th class="v">Clicks</th><th class="v">CTR</th>'
+        '<th class="v">CPC</th><th class="v">Orders</th><th class="v">CVR</th>'
+        '<th class="v">ROAS</th><th class="v">CAC</th><th class="v">vs broad</th></tr>'
+        f'{"".join(body)}</table></div>'
+        '<p class="fn">Clicks are store visits; CVR is orders per click; CAC is spend '
+        'per new customer. <em>vs broad</em> is how much harder each rupee worked than '
+        'one broad campaign would have. Orders are attributed from real sessions and '
+        'the month\'s real conversion, so the rows add up to your paid orders, not '
+        'to what a platform dashboard would claim.</p></section>')
+
+
 def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None) -> Path:
     record = team.history[round_ - 1]
     prior = team.history[round_ - 2] if round_ > 1 else None
@@ -398,6 +437,14 @@ vertical-align:super}}
 .fn{{margin-top:auto;padding-top:10px;color:var(--muted);font-size:11px;min-height:14px}}
 .ev{{margin:11px 0 0;color:var(--dim);font-size:13px}}
 .score{{table-layout:auto}}
+.sx{{overflow-x:auto}}
+.perf{{table-layout:auto}}
+.perf th,.perf td{{padding:0 8px}}
+.perf tr:first-child th{{color:var(--muted);font-size:11px;font-weight:600}}
+.perf th .chn{{display:inline-block;padding:1px 7px;border-radius:5px;
+background:var(--panel-2);color:var(--dim);font-size:11px;font-weight:600;margin-right:4px}}
+.perf tr.why td{{border-top:0;height:auto;padding:0 8px 7px 18px;white-space:normal;
+color:var(--dim);font-size:12.5px}}
 .score th{{color:var(--ink);font-weight:400}}
 .score tr:first-child th{{color:var(--muted);font-size:11px;letter-spacing:.05em;
 text-transform:uppercase;font-weight:600}}
@@ -429,6 +476,7 @@ padding:0}}
 {run_chart}
 <h2 class="sec">Every measure, month {round_}{against}</h2>
 <div class="grid">{"".join(cards)}</div>
+{_campaigns(record)}
 {scorecard_section}
 <div class="themebar"><span>Appearance</span>
   <button class="sw sw-consulytics" data-set-theme="consulytics"

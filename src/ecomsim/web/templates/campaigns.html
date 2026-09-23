@@ -1,0 +1,228 @@
+{% extends "base.html" %}{% block title %}Campaigns{% endblock %}
+{% block body %}
+{% set ch_ = desk.choices %}
+<div class="crumbs">Campaigns &middot; {% if desk.open_round %}month {{ desk.open_round }}
+  open{% else %}submissions closed{% endif %}</div>
+<div class="head">
+  <div><h1>Who your ad budgets reach</h1>
+    <p>Your Meta, TikTok and Google budgets are set on the decision form. This
+    page decides how each one is spent: which products a campaign promotes and
+    who sees it. The same rupees buy more visits that order when they reach the
+    people who buy what you advertise.</p></div>
+</div>
+
+<div class="card note-card">
+  <strong>Broad is the baseline.</strong> A channel with no campaigns runs one
+  broad campaign &mdash; every product, everyone, everywhere &mdash; and that is
+  exactly how your budgets have worked so far. Aim well and each rupee works
+  harder than broad; aim at the wrong people and it works less hard. Each month's
+  report shows every campaign's numbers and says why it did or did not work.
+  Campaigns keep running until you change them.
+</div>
+
+{% if desk.last %}
+<section>
+<h2>How last month's campaigns did &middot; month {{ desk.last_round }}</h2>
+<p class="cap">Clicks are visits to your store. CTR is clicks per impression;
+CVR is orders per click; ROAS is revenue per rupee of spend; CAC is spend per new
+customer. Read CVR and CAC before CTR: cheap clicks from people who do not buy
+are the most expensive traffic there is.</p>
+<div class="scroll-x">
+<table class="perf">
+<thead><tr><th>Campaign</th><th class="r">Spend</th><th class="r">Impressions</th>
+  <th class="r">CPM</th><th class="r">Clicks</th><th class="r">CTR</th>
+  <th class="r">CPC</th><th class="r">Orders</th><th class="r">CVR</th>
+  <th class="r">ROAS</th><th class="r">CAC</th><th class="r">vs broad</th></tr></thead>
+<tbody>
+{% for r in desk.last %}
+<tr>
+  <td><span class="pill">{{ r.channel_name }}</span> <strong>{{ r.name }}</strong></td>
+  <td class="num">{{ '{:,.0f}'.format(r.spend) }}</td>
+  <td class="num">{{ '{:,.0f}'.format(r.impressions) }}</td>
+  <td class="num">{{ '{:,.0f}'.format(r.cpm) }}</td>
+  <td class="num">{{ '{:,.0f}'.format(r.clicks) }}</td>
+  <td class="num">{{ '{:.2%}'.format(r.ctr) }}</td>
+  <td class="num">{{ '{:,.1f}'.format(r.cpc) }}</td>
+  <td class="num">{{ '{:,.0f}'.format(r.orders) }}</td>
+  <td class="num">{{ '{:.2%}'.format(r.cvr) }}</td>
+  <td class="num">{{ '{:.1f}'.format(r.roas) }}</td>
+  <td class="num">{{ '{:,.0f}'.format(r.cac) }}</td>
+  <td class="num {{ 'up' if r.lift > 0.005 else 'dn' if r.lift < -0.005 else 'flat' }}">
+    {{ '{:+.0%}'.format(r.lift) }}</td>
+</tr>
+{% if r.findings %}
+<tr class="why"><td colspan="12">
+  {% for f in r.findings %}<p>{{ f }}</p>{% endfor %}</td></tr>
+{% endif %}
+{% endfor %}
+</tbody></table>
+</div>
+</section>
+{% endif %}
+
+{% if not desk.can_edit %}
+<section>
+<h2>Campaign setup is not open{% if desk.open_round %} this month{% endif %}</h2>
+<p class="cap">{% if not desk.open_round %}Submissions are closed. The instructor
+opens the next month.{% else %}Your instructor opens campaign setup when the
+course reaches digital marketing. Until then every budget runs one broad
+campaign.{% endif %}</p>
+</section>
+{% endif %}
+
+<form method="post">
+{% for ch in desk.channels %}
+<section class="camp-ch">
+  <div class="camp-head">
+    <div><h2>{{ ch.name }}</h2>
+      <p class="cap">Budget PKR {{ '{:,.0f}'.format(ch.budget) }} this month &middot;
+      set under <em>{{ ch.decision_name }}</em> on the decision form.
+      {% if ch.broad %}Running one broad campaign.{% endif %}</p></div>
+    <div class="camp-total note" data-channel="{{ ch.code }}"></div>
+  </div>
+  <div class="camp-slots">
+  {% for slot in ch.slots %}
+  {% set c = slot.c %}{% set k = slot.key %}
+  <details class="camp {{ 'on' if slot.used }}" {% if slot.used %}open{% endif %}>
+    <summary>
+      <label class="use" onclick="event.stopPropagation()">
+        <input type="checkbox" name="use_{{ k }}" value="1"
+               {% if slot.used %}checked{% endif %}
+               {% if not desk.can_edit %}disabled{% endif %}>
+        Campaign {{ loop.index }}</label>
+      <span class="c-sum">{% if slot.used %}{{ c.name }} &middot;
+        {{ '{:.0%}'.format(c.share) }} of the budget{% else %}not running{% endif %}</span>
+    </summary>
+    <fieldset {% if not desk.can_edit %}disabled{% endif %}>
+    <div class="c-row">
+      <div><label class="f" for="name_{{ k }}">Name</label>
+        <input id="name_{{ k }}" name="name_{{ k }}" type="text" maxlength="40"
+               value="{{ c.name }}" placeholder="e.g. Hair oil, Tier 2 mothers"></div>
+      <div class="share"><label class="f" for="share_{{ k }}">Share of budget</label>
+        <div class="with-suffix"><input id="share_{{ k }}" name="share_{{ k }}"
+          type="text" inputmode="decimal"
+          value="{{ '%g'|format((c.share * 100)|round(1)) if slot.used else '' }}"
+          placeholder="{{ 100 if loop.first else '' }}">
+          <span class="suffix">%</span></div></div>
+    </div>
+
+    <label class="f">Products promoted</label>
+    <p class="hint">Leave all unticked to promote the whole range.</p>
+    <div class="c-skus">
+    {% for cat in desk.categories %}
+      <div class="cp-cat"><span class="cp-cat-name">{{ cat|replace('_', ' ')|title }}</span>
+      {% for row in desk.shelf if row.category == cat %}
+        <label class="opt"><input type="checkbox" name="skus_{{ k }}" value="{{ row.code }}"
+          {% if row.code in c.skus %}checked{% endif %}>{{ row.name }}</label>
+      {% endfor %}</div>
+    {% endfor %}
+    </div>
+
+    {% if ch.social %}
+    <div class="c-grid">
+      <div><label class="f" for="objective_{{ k }}">Objective</label>
+        <select id="objective_{{ k }}" name="objective_{{ k }}">
+        {% for v, lab in ch_.objectives.items() %}
+          <option value="{{ v }}" {% if c.objective == v %}selected{% endif %}>{{ lab }}</option>
+        {% endfor %}</select></div>
+      <div><label class="f">Gender</label>
+        <div class="opts">{% for v, lab in ch_.genders.items() %}
+          <label class="opt"><input type="radio" name="gender_{{ k }}" value="{{ v }}"
+            {% if c.gender == v %}checked{% endif %}>{{ lab }}</label>{% endfor %}</div></div>
+      <div><label class="f">Age</label>
+        <div class="opts">{% for v in ch_.ages %}
+          <label class="opt"><input type="checkbox" name="ages_{{ k }}" value="{{ v }}"
+            {% if v in c.ages %}checked{% endif %}>{{ v }}</label>{% endfor %}</div>
+        <p class="hint">None ticked means every age.</p></div>
+      <div><label class="f">Where</label>
+        <div class="opts">{% for v, lab in ch_.tiers.items() %}
+          <label class="opt"><input type="checkbox" name="geo_{{ k }}" value="{{ v }}"
+            {% if v in c.geo %}checked{% endif %}>{{ lab }}</label>{% endfor %}</div>
+        <p class="hint">Tier 2: Faisalabad, Multan, Hyderabad, Gujranwala, Peshawar,
+        Sialkot. None ticked means all of Pakistan.</p></div>
+      <div class="wide"><label class="f">Interests <span class="note">up to 3</span></label>
+        <div class="opts">{% for v, lab in ch_.interests.items() %}
+          <label class="opt"><input type="checkbox" name="interests_{{ k }}" value="{{ v }}"
+            {% if v in c.interests %}checked{% endif %}>{{ lab }}</label>{% endfor %}</div>
+        <p class="hint">None ticked means no interest targeting. Each interest you
+        add narrows who sees the ad.</p></div>
+      <div><label class="f" for="language_{{ k }}">Language</label>
+        <select id="language_{{ k }}" name="language_{{ k }}">
+        {% for v, lab in ch_.languages.items() %}
+          <option value="{{ v }}" {% if c.language == v %}selected{% endif %}>{{ lab }}</option>
+        {% endfor %}</select></div>
+      <div><label class="f" for="format_{{ k }}">Format</label>
+        <select id="format_{{ k }}" name="format_{{ k }}">
+        {% for v, lab in ch_.formats.items() %}
+          <option value="{{ v }}" {% if c.format == v %}selected{% endif %}>{{ lab }}</option>
+        {% endfor %}</select></div>
+    </div>
+    {% else %}
+    <div class="c-grid">
+      <div><label class="f" for="keywords_{{ k }}">Keywords</label>
+        <select id="keywords_{{ k }}" name="keywords_{{ k }}">
+        {% for v, lab in ch_.keywords.items() %}
+          <option value="{{ v }}" {% if c.keywords == v %}selected{% endif %}>{{ lab }}</option>
+        {% endfor %}</select></div>
+      <div><label class="f" for="match_{{ k }}">Match type</label>
+        <select id="match_{{ k }}" name="match_{{ k }}">
+        {% for v, lab in ch_.matches.items() %}
+          <option value="{{ v }}" {% if c.match == v %}selected{% endif %}>{{ lab }}</option>
+        {% endfor %}</select>
+        <p class="hint">Exact match shows only for the search itself: fewer
+        searches, closer intent.</p></div>
+    </div>
+    {% endif %}
+    </fieldset>
+  </details>
+  {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+{% if desk.can_edit %}
+<div class="tally">
+  <div>Campaigns within a channel must share 100% of its budget.</div>
+  <div style="margin-left:auto;display:flex;gap:8px">
+    <button type="submit">Save campaigns for month {{ desk.open_round }}</button>
+    <button type="submit" name="action" value="broad" class="ghost"
+      onclick="return confirm('Go back to one broad campaign on every channel?')">
+      Reset to broad</button>
+    <a class="btn ghost" href="{{ url_for('submit') }}">Back to decisions</a></div>
+</div>
+{% endif %}
+</form>
+<script>
+// Ticking a campaign opens it, and each channel shows its running total so
+// "they must share 100%" is visible before the save rather than after.
+(function () {
+  function pct(v) { v = parseFloat(String(v).replace("%", "")); return isNaN(v) ? 0 : v; }
+  function total(ch) {
+    var sum = 0, n = 0;
+    document.querySelectorAll("input[name^='use_" + ch + "_']").forEach(function (u) {
+      if (!u.checked) return;
+      n++; sum += pct(document.getElementById("share_" + u.name.slice(4)).value);
+    });
+    var box = document.querySelector(".camp-total[data-channel='" + ch + "']");
+    if (!box) return;
+    box.textContent = n ? "Campaigns share " + Math.round(sum) + "% of the budget" : "";
+    box.classList.toggle("dn", n > 0 && Math.abs(sum - 100) > 0.5);
+  }
+  document.querySelectorAll("details.camp").forEach(function (d) {
+    var use = d.querySelector("input[name^='use_']");
+    var ch = use.name.slice(4).replace(/_\d+$/, "");
+    use.addEventListener("change", function () {
+      d.classList.toggle("on", use.checked);
+      if (use.checked) {
+        d.open = true;
+        var share = document.getElementById("share_" + use.name.slice(4));
+        if (!share.value) share.value = share.placeholder || "";
+      }
+      total(ch);
+    });
+    d.querySelector("input[name^='share_']").addEventListener("input", function () { total(ch); });
+    total(ch);
+  });
+})();
+</script>
+{% endblock %}

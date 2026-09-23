@@ -42,19 +42,19 @@ INTERESTS = {
     "entertainment": "Entertainment & gaming",
 }
 OBJECTIVES = {
-    "traffic": "Traffic - visits to the store",
-    "conversions": "Conversions - people likely to order",
-    "awareness": "Awareness - reach as many as possible",
-    "retargeting": "Retargeting - people who visited recently",
+    "traffic": "Traffic",
+    "conversions": "Conversions",
+    "awareness": "Awareness",
+    "retargeting": "Retargeting recent visitors",
 }
 LANGUAGES = {"": "Mixed", "urdu": "Urdu", "english": "English",
              "roman_urdu": "Roman Urdu"}
 FORMATS = {"": "Mixed", "feed": "Feed posts", "reels": "Reels & stories",
            "carousel": "Carousel"}
 KEYWORDS = {
-    "generic": "Generic - what the product is (\"baby wipes\")",
-    "brand": "Brand - your own store's name",
-    "competitor": "Competitor - rival stores' names",
+    "generic": "Generic - product terms",
+    "brand": "Your store's name",
+    "competitor": "Rival stores' names",
 }
 MATCHES = {"broad": "Broad match", "exact": "Exact match"}
 
@@ -88,9 +88,10 @@ def blank(channel: str) -> dict:
                    "geo": [], "interests": [], "language": "", "format": ""}
 
 
-def clean(value, sold: list[str] | None = None) -> list[dict]:
+def clean(value, sold: list[str] | None = None, normalise: bool = True) -> list[dict]:
     """Normalise a submitted campaign list. Anything unknown is dropped rather
-    than trusted, and each channel's shares are scaled to add to one."""
+    than trusted, and each channel's shares are scaled to add to one - unless
+    `normalise` is off, which is how a refused form is shown back as typed."""
     if not isinstance(value, list):
         return []
     out, per = [], {}
@@ -120,9 +121,11 @@ def clean(value, sold: list[str] | None = None) -> list[dict]:
                               if i in (raw.get("interests") or [])][:MAX_INTERESTS]
             c["language"] = raw.get("language") if raw.get("language") in LANGUAGES else ""
             c["format"] = raw.get("format") if raw.get("format") in FORMATS else ""
-        if c["share"] > 0:
+        if c["share"] > 0 or not normalise:
             out.append(c)
             per[ch] = per.get(ch, 0) + 1
+    if not normalise:
+        return out
     for ch in per:
         total = sum(c["share"] for c in out if c["channel"] == ch)
         for c in out:

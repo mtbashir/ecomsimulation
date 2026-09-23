@@ -367,6 +367,39 @@ color:var(--dim)}
 .pill.off,.chip.no{background:rgba(208,59,59,.16);color:var(--bad-ink)}
 .chip.warn{background:rgba(250,178,25,.16);color:var(--warn-ink)}
 
+/* --- Campaigns ---------------------------------------------------------- */
+.scroll-x{overflow-x:auto}
+table.perf td,table.perf th{white-space:nowrap}
+table.perf tr.why td{border-top:0;padding-top:0;white-space:normal;color:var(--dim);
+font-size:12.5px}
+table.perf tr.why p{margin:0 0 3px;padding-left:10px;border-left:2px solid var(--warn-ink)}
+.camp-slots{display:grid;gap:8px}
+.camp-head{display:flex;align-items:flex-start;gap:12px}
+.camp-total{margin-left:auto;font-size:12.5px;white-space:nowrap}
+details.camp{border:1px solid var(--line);border-radius:9px;background:var(--panel-2)}
+details.camp.on{border-color:color-mix(in srgb,var(--good) 55%,var(--line))}
+details.camp summary{display:flex;align-items:center;gap:14px;padding:10px 12px;
+cursor:pointer;list-style:none}
+details.camp summary::-webkit-details-marker{display:none}
+details.camp .use{display:flex;align-items:center;gap:8px;margin:0;font-weight:600;
+color:var(--ink);font-size:13.5px}
+details.camp .use input{width:auto;margin:0}
+details.camp .c-sum{color:var(--dim);font-size:12.5px}
+details.camp fieldset{border:0;margin:0;padding:4px 14px 14px;min-width:0}
+.c-row{display:grid;gap:12px;grid-template-columns:minmax(0,1fr) 170px;margin-bottom:12px}
+.c-skus{display:grid;gap:6px 14px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+margin:4px 0 14px}
+.cp-cat{display:flex;flex-direction:column;gap:3px}
+.cp-cat-name{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);
+font-weight:600;margin-bottom:1px}
+.c-grid{display:grid;gap:12px 18px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.c-grid .wide{grid-column:1/-1}
+.opts{display:flex;flex-wrap:wrap;gap:4px 12px}
+label.opt{display:inline-flex;align-items:center;gap:6px;margin:0;font-size:13px;
+color:var(--ink);cursor:pointer}
+label.opt input{width:auto;margin:0}
+@media (max-width:640px){.c-row{grid-template-columns:1fr}}
+
 /* --- Forms -------------------------------------------------------------- */
 label{display:block;font-size:13px;color:var(--dim);margin:0 0 3px}
 input:not([type]),input[type=text],input[type=password],input[type=number],
@@ -495,6 +528,8 @@ nav{display:flex}
       <span class="ico"></span>My company</a>
     <a href="{{ url_for('research') }}" class="{{ 'on' if nav_at == 'research' }}">
       <span class="ico"></span>Research</a>
+    <a href="{{ url_for('campaigns') }}" class="{{ 'on' if nav_at == 'campaigns' }}">
+      <span class="ico"></span>Campaigns</a>
   </nav>
   <div class="grp">Analyse</div>
   <nav>

@@ -430,3 +430,98 @@ def test_decisions_export_matches_the_file_runner_format(game):
     parsed = read_decisions(out)
     assert parsed["team_01"]["3.1"] == 900_000
     assert parsed["team_01"]["12.1"] == ["MR-01", "MR-17"]
+
+
+# --- Campaign setup (3.10) -------------------------------------------------------
+
+def _to_campaigns(app, pw, path, rounds=2):
+    admin = _client(app, "admin", "admin-pw")
+    for _ in range(rounds):
+        admin.post("/admin/run", follow_redirects=True)
+    admin.post("/admin/open", data={"round": rounds + 1})
+    return admin, _client(app, "team_01", pw["team_01"])
+
+
+HAIR_OIL = {"use_meta_0": "1", "name_meta_0": "Hair oil", "share_meta_0": "60",
+            "skus_meta_0": "SKU-08", "ages_meta_0": ["25-34", "35-44"],
+            "gender_meta_0": "female", "geo_meta_0": ["T2", "Rest"],
+            "interests_meta_0": "home", "language_meta_0": "urdu",
+            "format_meta_0": "feed", "objective_meta_0": "conversions",
+            "use_meta_1": "1", "name_meta_1": "Rest", "share_meta_1": "40",
+            "gender_meta_1": "all", "objective_meta_1": "traffic"}
+
+
+def test_campaigns_are_saved_as_a_decision_and_run(game):
+    app, pw, path = game
+    con = db.connect(path)
+    admin, team = _to_campaigns(app, pw, path)
+    page = team.post("/campaigns", data=HAIR_OIL, follow_redirects=True).get_data(as_text=True)
+    assert "Campaigns saved for month 3" in page
+    saved = db.submission(con, 3, "team_01")["3.10"]
+    assert [c["name"] for c in saved] == ["Hair oil", "Rest"]
+    assert saved[0]["share"] == pytest.approx(0.6) and saved[0]["gender"] == "female"
+    assert "Meta 2" in team.get("/submit").get_data(as_text=True)
+
+    admin.post("/admin/run", follow_redirects=True)
+    rows = db.load_world(con).teams["team_01"].history[-1]["campaigns"]
+    assert [r["name"] for r in rows if r["channel"] == "meta"] == ["Hair oil", "Rest"]
+    page = team.get("/campaigns").get_data(as_text=True)
+    assert "How last month&#39;s campaigns did" in page or "How last month's campaigns did" in page
+
+
+def test_campaigns_carry_forward_until_changed_and_broad_is_a_setting(game):
+    app, pw, path = game
+    con = db.connect(path)
+    admin, team = _to_campaigns(app, pw, path)
+    team.post("/campaigns", data=HAIR_OIL, follow_redirects=True)
+    admin.post("/admin/run", follow_redirects=True)
+    admin.post("/admin/open", data={"round": 4})
+    team.post("/submit", data={"3.1": "500000"}, follow_redirects=True)
+    assert "3.10" not in db.submission(con, 4, "team_01")
+    admin.post("/admin/run", follow_redirects=True)
+    rows = db.load_world(con).teams["team_01"].history[-1]["campaigns"]
+    assert "Hair oil" in [r["name"] for r in rows], "month 4 kept month 3's campaigns"
+
+    admin.post("/admin/open", data={"round": 5})
+    team.post("/campaigns", data={"action": "broad"}, follow_redirects=True)
+    assert db.submission(con, 5, "team_01")["3.10"] == []
+    admin.post("/admin/run", follow_redirects=True)
+    rows = db.load_world(con).teams["team_01"].history[-1]["campaigns"]
+    assert all(r["name"].startswith("Broad") for r in rows)
+
+
+def test_shares_must_add_to_a_hundred_and_the_form_survives_the_refusal(game):
+    app, pw, path = game
+    con = db.connect(path)
+    _admin, team = _to_campaigns(app, pw, path)
+    bad = dict(HAIR_OIL, share_meta_1="10")
+    r = team.post("/campaigns", data=bad)
+    page = r.get_data(as_text=True)
+    assert r.status_code == 400
+    assert "share 70% of the budget" in page
+    assert 'value="Hair oil"' in page, "what the team typed is shown back"
+    assert "3.10" not in (db.submission(con, 3, "team_01") or {})
+
+
+def test_campaigns_cannot_be_set_before_they_open(game):
+    app, pw, path = game
+    con = db.connect(path)
+    admin = _client(app, "admin", "admin-pw")
+    admin.post("/admin/open", data={"round": 1})
+    team = _client(app, "team_01", pw["team_01"])
+    page = team.get("/campaigns").get_data(as_text=True)
+    assert "Campaign setup is not open" in page
+    team.post("/campaigns", data=HAIR_OIL, follow_redirects=True)
+    assert "3.10" not in (db.submission(con, 1, "team_01") or {})
+
+
+def test_campaigns_survive_the_offline_escape_hatch(game, tmp_path):
+    from ecomsim.io_csv import read_decisions
+    app, pw, path = game
+    con = db.connect(path)
+    admin, team = _to_campaigns(app, pw, path)
+    team.post("/campaigns", data=HAIR_OIL, follow_redirects=True)
+    csv_file = tmp_path / "d.csv"
+    csv_file.write_text(service.export_decisions(con, 3), encoding="utf-8")
+    back = read_decisions(csv_file)["team_01"]["3.10"]
+    assert back == db.submission(con, 3, "team_01")["3.10"]

@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 
 from dataclasses import asdict
 
 from .. import (bootstrap, console, founding as founding_mod, params as P,
-                report, scoring)
+                report, scoring, targeting)
 from ..decisions import REGISTRY, Resolver
 from ..engine import run_round
 from ..io_csv import LIST_DECISIONS
@@ -570,6 +571,8 @@ def decision_summary(spec, value, catalogue_rows=None) -> str:
         return f"{offered} pack{'' if offered == 1 else 's'} offered"
     if spec.kind == "shares":
         return " · ".join(f"{k} {v * 100:.0f}%" for k, v in value.items())
+    if spec.kind == "campaigns":
+        return campaign_summary(value)
     if spec.code == "12.1":
         # Named, two studies of five fit on a tile face and the rest becomes an
         # ellipsis. A count says the same thing and leaves room for the help.
@@ -631,13 +634,16 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
                     team.brand_name = row["display_name"]
 
     submitted = db.submissions(con, nxt)
+    n_submitted = len(submitted)   # before standing campaigns are carried in
+    for team_id in world.teams:
+        _carry_campaigns(con, submitted, team_id, nxt)
     run_round(world, params, submitted, preset=g["preset"])
 
     db.save_round(con, nxt, world, params.config_hash())
     db.set_game(con, round=nxt, open_round=None)
     with con:
         db.log(con, actor, "round.run",
-               f"r{nxt}: {len(submitted)}/{len(world.teams)} submitted")
+               f"r{nxt}: {n_submitted}/{len(world.teams)} submitted")
 
     if out_dir is not None:
         for team in world.teams.values():
@@ -645,7 +651,30 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
             report.render(team, nxt, out_dir / f"round_{nxt}", card)
         console.render(world, params, out_dir / f"round_{nxt}")
 
-    return {"round": nxt, "submitted": len(submitted), "teams": len(world.teams)}
+    return {"round": nxt, "submitted": n_submitted, "teams": len(world.teams)}
+
+
+def standing_campaigns(con, team_id: str, round_: int):
+    """The campaign setup in force for `round_`: this month's if the team set
+    one, otherwise the last one it set. None means it never has.
+
+    Campaigns are a standing arrangement, the way an ads account is - they run
+    until someone changes them. Resetting to broad stores an empty list, which
+    is a setting too, so it carries forward as well.
+    """
+    for rnd in range(round_, 0, -1):
+        value = (db.submission(con, rnd, team_id) or {}).get(targeting.DECISION)
+        if value is not None:
+            return value
+    return None
+
+
+def _carry_campaigns(con, submitted: dict, team_id: str, round_: int) -> None:
+    if targeting.DECISION in submitted.get(team_id, {}):
+        return
+    standing = standing_campaigns(con, team_id, round_ - 1)
+    if standing is not None:
+        submitted.setdefault(team_id, {})[targeting.DECISION] = standing
 
 
 # The five figures a team leads with. (label, key, format, up_is_good)
@@ -949,9 +978,16 @@ def export_decisions(con, round_: int) -> str:
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["team_id", "decision", "value"])
-    for team_id, decisions in sorted(db.submissions(con, round_).items()):
+    submitted = db.submissions(con, round_)
+    # Campaigns run until changed, so the file carries the standing setup the
+    # app would run - otherwise an offline month silently goes back to broad.
+    for row in db.accounts(con, "team"):
+        _carry_campaigns(con, submitted, row["team_id"], round_)
+    for team_id, decisions in sorted(submitted.items()):
         for code, value in sorted(decisions.items()):
-            if isinstance(value, list):
+            if code == targeting.DECISION:
+                value = json.dumps(value)
+            elif isinstance(value, list):
                 value = ";".join(str(v) for v in value)
             w.writerow([team_id, code, value])
     return buf.getvalue()
@@ -1254,3 +1290,130 @@ def _research_spend(con, team_id: str, params, upto: int) -> float:
         for code in (db.submission(con, rnd, team_id) or {}).get("12.1", []) or []:
             total += price.get(code, 0.0)
     return total
+
+
+# --- Campaign setup (3.10) ---------------------------------------------------------
+#
+# The budgets stay on the decision form. This desk decides how each one is
+# spent, next to the numbers last month's campaigns produced, which is the only
+# place the choice makes sense - the same reasoning that put studies on the
+# research desk.
+
+SLOTS = targeting.MAX_PER_CHANNEL
+
+
+def campaign_summary(value) -> str:
+    if value is None:
+        return ""
+    if not value:
+        return "Broad on every channel"
+    counts: dict[str, int] = {}
+    for c in value:
+        counts[c["channel"]] = counts.get(c["channel"], 0) + 1
+    return " · ".join(f"{targeting.CHANNEL_NAMES[ch]} {n}"
+                      for ch, n in counts.items())
+
+
+def _budget(con, team_id: str, round_: int, code: str) -> float:
+    for rnd in range(round_, 0, -1):
+        value = (db.submission(con, rnd, team_id) or {}).get(code)
+        if value not in (None, ""):
+            return float(value)
+    return float(REGISTRY[code].default_when_disabled)
+
+
+def campaign_form(form, sold: list[str]) -> tuple[list[dict], list[str], list[dict]]:
+    """Read the desk's slots into a campaign list, and say what is wrong.
+
+    The third value is the form as typed, shares unscaled, so a refused save
+    can be shown back instead of wiping everything the team entered."""
+    raw, errors = [], []
+    for ch in targeting.CHANNELS:
+        used = []
+        for i in range(SLOTS):
+            key = f"{ch}_{i}"
+            if not form.get(f"use_{key}"):
+                continue
+            share = (form.get(f"share_{key}") or "").replace("%", "").strip()
+            try:
+                share_v = float(share) if share else 0.0
+            except ValueError:
+                errors.append(f"{targeting.CHANNEL_NAMES[ch]} campaign {i + 1}: "
+                              f"{share!r} is not a percentage")
+                continue
+            c = {"channel": ch, "name": (form.get(f"name_{key}") or "").strip()
+                 or f"{targeting.CHANNEL_NAMES[ch]} {i + 1}",
+                 "share": share_v / 100, "skus": form.getlist(f"skus_{key}")}
+            if ch == "google_search":
+                c |= {"keywords": form.get(f"keywords_{key}"),
+                      "match": form.get(f"match_{key}")}
+            else:
+                interests = form.getlist(f"interests_{key}")
+                if len(interests) > targeting.MAX_INTERESTS:
+                    errors.append(f"{c['name']}: pick at most "
+                                  f"{targeting.MAX_INTERESTS} interests")
+                c |= {"objective": form.get(f"objective_{key}"),
+                      "ages": form.getlist(f"ages_{key}"),
+                      "gender": form.get(f"gender_{key}"),
+                      "geo": form.getlist(f"geo_{key}"),
+                      "interests": interests,
+                      "language": form.get(f"language_{key}") or "",
+                      "format": form.get(f"format_{key}") or ""}
+            used.append(c)
+        total = sum(c["share"] for c in used) * 100
+        if used and abs(total - 100) > 0.5:
+            errors.append(f"{targeting.CHANNEL_NAMES[ch]}: the campaigns share "
+                          f"{total:.0f}% of the budget; they must share 100%")
+        raw.extend(used)
+    return (targeting.clean(raw, sold), errors,
+            targeting.clean(raw, sold, normalise=False))
+
+
+def campaign_desk(con, team_id: str, draft: list[dict] | None = None) -> dict:
+    """Everything the campaign page shows: the setup, the budgets it splits,
+    last month's numbers per campaign, and whether it can be changed now."""
+    params = load_params(con)
+    game = db.game(con)
+    open_round = game["open_round"]
+    can_edit = bool(open_round) and any(
+        s.code == targeting.DECISION for s in open_decisions(con, open_round))
+    at = open_round or game["round"]
+    current = standing_campaigns(con, team_id, at) if at else None
+    if draft is not None:
+        current = draft
+    this_month = (db.submission(con, open_round, team_id) or {}) if open_round else {}
+
+    shelf = monthly_catalogue(con, team_id, this_month)
+    sold = [r["code"] for r in shelf]
+    channels = []
+    for ch, code in targeting.CHANNELS.items():
+        mine = [c for c in (current or []) if c["channel"] == ch]
+        slots = []
+        for i in range(SLOTS):
+            c = mine[i] if i < len(mine) else None
+            slots.append({"key": f"{ch}_{i}", "used": c is not None,
+                          "c": c or targeting.blank(ch)
+                               | {"name": "", "share": 0.0}})
+        channels.append({"code": ch, "name": targeting.CHANNEL_NAMES[ch],
+                         "decision": code, "decision_name": REGISTRY[code].name,
+                         "budget": _budget(con, team_id, at or 1, code),
+                         "slots": slots, "social": ch in targeting.SOCIAL,
+                         "broad": not mine})
+
+    world = db.load_world(con)
+    team = world.teams.get(team_id) if world else None
+    last = team.history[-1] if team and team.history else None
+    return {
+        "open_round": open_round, "round": game["round"], "can_edit": can_edit,
+        "unlock_round": REGISTRY[targeting.DECISION].unlock_round,
+        "set_this_month": targeting.DECISION in this_month,
+        "ever_set": current is not None,
+        "channels": channels, "shelf": shelf,
+        "categories": sorted({r["category"] for r in shelf}),
+        "last": (last or {}).get("campaigns") or [], "last_round": game["round"],
+        "choices": {"ages": list(targeting.AGES), "genders": targeting.GENDERS,
+                    "tiers": targeting.TIER_NAMES, "interests": targeting.INTERESTS,
+                    "objectives": targeting.OBJECTIVES,
+                    "languages": targeting.LANGUAGES, "formats": targeting.FORMATS,
+                    "keywords": targeting.KEYWORDS, "matches": targeting.MATCHES},
+    }

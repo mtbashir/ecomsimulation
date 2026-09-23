@@ -9,6 +9,7 @@ engine ports unchanged.
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 
 from .decisions import REGISTRY
@@ -70,6 +71,17 @@ def read_decisions(path: str | Path) -> dict[str, dict]:
 
 def _coerce(code: str, raw: str):
     spec = REGISTRY[code]
+    if spec.kind == "campaigns":
+        # A list of campaigns has too much shape for a delimited cell, so it
+        # travels as JSON - which is also what the web export writes.
+        try:
+            value = json.loads(raw)
+        except ValueError:
+            raise SubmissionError(f"{code}: campaigns must be JSON, e.g. "
+                                  f'[{{"channel": "meta", "gender": "female"}}]')
+        if not isinstance(value, list):
+            raise SubmissionError(f"{code}: campaigns must be a JSON list")
+        return value
     if spec.kind == "shares":
         # "speed:0.3;value:0.4;wide:0.3" - a split, which is what the engine
         # reads. A bare list of codes here used to parse cleanly and then be

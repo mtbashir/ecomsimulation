@@ -59,6 +59,52 @@ def _near_misses(team, params) -> list[str]:
     return out
 
 
+def _targeting(ranked, params, name_of) -> str:
+    """How well each team aimed its ad budgets this month, and the answer key.
+
+    For the debrief: which teams read their buyers right, channel by channel,
+    and - folded away until the instructor wants it - who really buys each
+    product and the mistake the room usually makes."""
+    from . import targeting as T
+
+    rows = []
+    for t in ranked:
+        camps = t.history[-1].get("campaigns") or []
+        cells = []
+        for ch in T.CHANNELS:
+            mine = [c for c in camps if c["channel"] == ch]
+            spend = sum(c["spend"] for c in mine)
+            if not mine or spend <= 0:
+                cells.append("<td>&mdash;</td>")
+                continue
+            if len(mine) == 1 and mine[0]["name"].startswith("Broad"):
+                cells.append('<td class="mute">broad</td>')
+                continue
+            lift = sum(c["lift"] * c["spend"] for c in mine) / spend
+            cls = "up" if lift > 0.005 else "down" if lift < -0.005 else ""
+            cells.append(f'<td class="{cls}">{lift:+.0%} &middot; {len(mine)}</td>')
+        rows.append(f'<tr><td>{escape(name_of(t))}</td>{"".join(cells)}</tr>')
+    key = "".join(
+        f'<tr><td>{escape(str(d["name"]))}</td><td>{escape(d["age"])}</td>'
+        f'<td>{d["women"]:.0%}</td><td>{escape(d["where"])}</td>'
+        f'<td>{escape(d["interests"])}</td><td>{escape(d["language"])} &middot; '
+        f'{escape(d["format"])}</td><td>{escape(d["channels"])}</td>'
+        f'<td class="l">{escape(d["mistake"])}</td></tr>'
+        for d in (T.debrief(params, a["code"]) for a in params.audiences))
+    return (
+        '<section class="wide"><h2>Campaigns &middot; how each budget was aimed</h2>'
+        '<table class="t"><thead><tr><th>Team</th>'
+        + "".join(f"<th>{T.CHANNEL_NAMES[c]}</th>" for c in T.CHANNELS)
+        + '</tr></thead><tbody>' + "".join(rows) + '</tbody></table>'
+        '<p class="note">Each rupee against one broad campaign, weighted by spend, '
+        'then the number of campaigns. Broad is exactly zero.</p>'
+        '<details><summary>Answer key: who buys each product</summary>'
+        '<table class="t key"><thead><tr><th>Product</th><th>Age</th><th>Women</th>'
+        '<th>Where</th><th>Interests</th><th>Message</th><th>Channels</th>'
+        '<th>The usual mistake</th></tr></thead><tbody>' + key +
+        '</tbody></table></details></section>')
+
+
 def render(world, params, out_dir: str | Path) -> Path:
     round_ = world.round
     teams = list(world.teams.values())
@@ -144,6 +190,9 @@ table.t th,table.t td{{text-align:right;padding:5px 7px;
 border-bottom:1px solid #e1e0d9;font-variant-numeric:tabular-nums}}
 table.t th:first-child,table.t td:first-child{{text-align:left}}
 table.t thead th{{color:#52514e;font-weight:600}}
+table.t td.mute{{color:#898781}}
+table.t.key th,table.t.key td{{text-align:left;font-size:12px;vertical-align:top}}
+table.t.key td.l{{min-width:240px}}
 @media(prefers-color-scheme:dark){{
 body{{background:#0d0d0d;color:#fff}}
 section{{background:#1a1a19;border-color:rgba(255,255,255,.10)}}
@@ -156,7 +205,7 @@ table.t th,table.t td{{border-color:#2c2c2a}} table.t thead th{{color:#c3c2b7}}
 <h1>Round {round_}</h1>
 <p class="sub">Instructor console &middot; {len(teams)} teams &middot;
 config {params.config_hash()}</p>
-{board}{"".join(blocks)}
+{board}{_targeting(ranked, params, name_of)}{"".join(blocks)}
 </div></body></html>"""
 
     out = Path(out_dir) / f"console_r{round_}.html"

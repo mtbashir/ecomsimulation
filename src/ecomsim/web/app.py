@@ -18,6 +18,7 @@ from flask import (
 
 from .. import founding
 from .. import charts
+from .. import targeting
 from ..decisions import REGISTRY
 from ..params import BandViolation
 from . import briefing, db, service
@@ -418,6 +419,46 @@ def register_routes(app: Flask) -> None:
             game=db.game(g.db))
 
 
+    @app.get("/campaigns")
+    @login_required("team")
+    def campaigns():
+        """How the Meta, TikTok and Google budgets are spent, beside what last
+        month's campaigns actually did. The budgets themselves stay on the
+        decision form: this page never changes how much is spent."""
+        return render_template(
+            "campaigns.html", desk=service.campaign_desk(g.db, session["team_id"]))
+
+    @app.post("/campaigns")
+    @login_required("team")
+    def campaigns_save():
+        desk = service.campaign_desk(g.db, session["team_id"])
+        if not desk["can_edit"]:
+            flash("Campaign setup is not open this month.", "error")
+            return redirect(url_for("campaigns"))
+        rnd, tid = desk["open_round"], session["team_id"]
+        current = dict(db.submission(g.db, rnd, tid) or {})
+        if request.form.get("action") == "broad":
+            # An empty list, not a missing key: broad is a setting that carries
+            # forward, where a missing key would inherit last month's campaigns.
+            value, errors = [], []
+        else:
+            value, errors, typed = service.campaign_form(
+                request.form, [r["code"] for r in desk["shelf"]])
+        if errors:
+            for e in errors:
+                flash(e, "error")
+            return render_template("campaigns.html", desk=service.campaign_desk(
+                g.db, tid, draft=typed)), 400
+        current[targeting.DECISION] = value
+        db.submit(g.db, rnd, tid, current, session["user"])
+        with g.db:
+            db.log(g.db, session["user"], "campaigns",
+                   f"r{rnd}: {service.campaign_summary(value)}")
+        flash(f"Campaigns saved for month {rnd}: "
+              f"{service.campaign_summary(value)}. They run until you change them.",
+              "ok")
+        return redirect(url_for("campaigns"))
+
     @app.post("/research/commission")
     @login_required("team")
     def commission():
@@ -591,7 +632,7 @@ def register_routes(app: Flask) -> None:
         # 12.1 keeps its tile - it is a decision, and the red bar has to say
         # whether it was taken - but the tile is a link to the research desk,
         # so the form carries no field for it and must not be able to clear it.
-        ELSEWHERE = {"12.1"}
+        ELSEWHERE = {"12.1", targeting.DECISION}
         # Positioning comes before pricing: what you claim to be decides what
         # your prices are allowed to say.
         specs.sort(key=lambda s: (int(s.group[1:]), s.code != "1.5",
@@ -694,6 +735,12 @@ def register_routes(app: Flask) -> None:
                           s, previous, catalogues.get(s.code, []))
                       for s in specs if s.kind == "select"},
             shelf=shelf, summaries=summaries, taken=taken,
+            campaigns_open=any(s.code == targeting.DECISION for s in specs),
+            standing_campaigns=(
+                "carried forward: " + (service.campaign_summary(
+                    service.standing_campaigns(g.db, tid, rnd - 1)) or "")
+                if service.standing_campaigns(g.db, tid, rnd - 1) is not None
+                else ""),
             totals=service.shelf_totals(shelf),
             bundles=service.bundle_rows(g.db, tid, current),
             handbook={s.code: service.handbook_entry(s) for s in specs},
