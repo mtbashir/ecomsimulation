@@ -1,0 +1,290 @@
+{% extends "base.html" %}{% block title %}Performance marketing guide{% endblock %}
+{% block body %}
+<div class="crumbs">Handbook &middot; performance marketing</div>
+<div class="head">
+  <div><p class="eyebrow">Handbook</p>
+    <h1>Performance marketing, the way this game plays it</h1>
+    <p>How to read what your campaigns did, how to aim a budget at the people who
+    buy, and how to run a test that can actually tell you something. Read it
+    once before campaign setup opens, then keep it beside the monthly report.</p></div>
+  <div class="cta"><a class="btn ghost" href="{{ url_for('campaigns') }}">Open Campaigns</a></div>
+</div>
+
+<nav class="toc card">
+  <a href="#split">1 &middot; Budget and aim</a>
+  <a href="#funnel">2 &middot; The numbers</a>
+  <a href="#diagnose">3 &middot; Reading them together</a>
+  <a href="#audience">4 &middot; Building an audience</a>
+  <a href="#channels">5 &middot; Channels and objectives</a>
+  <a href="#size">6 &middot; Too narrow, too broad</a>
+  <a href="#test">7 &middot; A/B testing</a>
+  <a href="#routine">8 &middot; A monthly routine</a>
+</nav>
+
+<section id="split">
+<h2>1 &middot; Two decisions, not one</h2>
+<p class="cap">How much you spend and who it reaches are separate decisions, and
+the game keeps them apart.</p>
+<div class="g2">
+  <div><h3>The budget</h3>
+    <p>Set on the decision form: Meta, TikTok and Google Search. It decides how much
+    you spend and appears on your P&amp;L. More budget buys more reach, with
+    diminishing returns, and every team spending on the same channel pushes up
+    its cost.</p></div>
+  <div><h3>The aim</h3>
+    <p>Set on the Campaigns page. It splits each budget into up to three campaigns,
+    decides which products each one promotes, and to whom. It never changes what
+    you spend &mdash; only how hard each rupee works.</p></div>
+</div>
+<p class="callout"><strong>Broad is the baseline.</strong> A channel with no
+campaigns runs one broad campaign: every product, everyone, everywhere. The
+report's <em>vs broad</em> column measures each campaign against exactly that.
+The best aim is worth roughly {{ '{:.0%}'.format(g_.cap) }} more visits per
+rupee, plus visitors who convert better; the worst costs about the same the other
+way. That is a real lever, but it cannot rescue a bad price, an empty
+warehouse or a product nobody wants.</p>
+</section>
+
+<section id="funnel">
+<h2>2 &middot; The numbers, top of the funnel to the bottom</h2>
+<p class="cap">Every campaign's row in the report reads left to right, from
+people who saw the ad to customers who paid. Each figure is a ratio of the one
+before it.</p>
+<div class="funnel">
+  <div class="f-step" style="--w:100%"><b>Impressions</b><span>1,611,659</span></div>
+  <div class="f-step" style="--w:62%"><b>Clicks</b><span>42,043 &middot; CTR 2.61%</span></div>
+  <div class="f-step" style="--w:30%"><b>Orders</b><span>628 &middot; CVR 1.49%</span></div>
+  <div class="f-step" style="--w:18%"><b>New customers</b><span>about 625</span></div>
+</div>
+<p class="hint">A worked example: one Meta campaign spending PKR 234,000 in a month.</p>
+<table class="gloss">
+<thead><tr><th>Metric</th><th>How it is worked out</th><th>Example</th><th>What it tells you</th></tr></thead>
+<tbody>
+<tr><td><b>CPM</b></td><td>Spend &divide; impressions &times; 1,000</td><td class="num">PKR 145</td>
+  <td>What attention costs. It rises when rivals bid on the same channel, and when
+  your audience is so small the platform keeps showing the ad to the same people.</td></tr>
+<tr><td><b>CTR</b></td><td>Clicks &divide; impressions</td><td class="num">2.61%</td>
+  <td>Whether the ad made people curious. Mostly creative, format and fit with the
+  audience's interests.</td></tr>
+<tr><td><b>CPC</b></td><td>Spend &divide; clicks</td><td class="num">PKR 5.6</td>
+  <td>The price of a store visit. Cheap clicks are only good news if they turn into
+  orders.</td></tr>
+<tr><td><b>CVR</b></td><td>Orders &divide; clicks</td><td class="num">1.49%</td>
+  <td>Whether the right people came. The single best test of aim: the wrong
+  audience clicks and leaves.</td></tr>
+<tr><td><b>ROAS</b></td><td>Revenue &divide; spend</td><td class="num">7.9</td>
+  <td>Rupees of sales per rupee of ads. Sales, not profit: a ROAS of 3 on a 30%
+  margin loses money before delivery is paid for.</td></tr>
+<tr><td><b>CAC</b></td><td>Spend &divide; new customers</td><td class="num">PKR 373</td>
+  <td>What one new customer costs. Compare it with what a customer is worth over
+  the year (LTV on your dashboard); a CAC above that is buying losses.</td></tr>
+</tbody></table>
+<p class="callout warn"><strong>Our numbers are honest; platforms' are not.</strong>
+The report attributes orders from real visits and your real conversion rate, so
+the campaign rows add up to the orders you actually got. An ad platform's own
+dashboard claims credit for sales that would have happened anyway, so its ROAS
+always looks better than the truth. Your research desk can measure the gap.</p>
+
+{% if g_.mine and g_.mine.rows %}
+<details class="mine">
+<summary>Your own numbers from month {{ g_.mine.round }}</summary>
+<table class="gloss">
+<thead><tr><th>Campaign</th><th class="r">CPM</th><th class="r">CTR</th><th class="r">CPC</th>
+  <th class="r">CVR</th><th class="r">ROAS</th><th class="r">CAC</th><th class="r">vs broad</th></tr></thead>
+<tbody>{% for r in g_.mine.rows %}
+<tr><td>{{ r.channel_name }} &middot; {{ r.name }}</td>
+  <td class="num">{{ '{:,.0f}'.format(r.cpm) }}</td><td class="num">{{ '{:.2%}'.format(r.ctr) }}</td>
+  <td class="num">{{ '{:,.1f}'.format(r.cpc) }}</td><td class="num">{{ '{:.2%}'.format(r.cvr) }}</td>
+  <td class="num">{{ '{:.1f}'.format(r.roas) }}</td><td class="num">{{ '{:,.0f}'.format(r.cac) }}</td>
+  <td class="num">{{ '{:+.0%}'.format(r.lift) }}</td></tr>
+{% endfor %}</tbody></table>
+</details>
+{% endif %}
+</section>
+
+<section id="diagnose">
+<h2>3 &middot; Reading them together</h2>
+<p class="cap">No single number diagnoses a campaign. Read them in pairs, and
+start at the bottom of the funnel: CVR and CAC before CTR.</p>
+<table class="gloss diag">
+<thead><tr><th>What you see</th><th>What it usually means</th><th>What to try</th></tr></thead>
+<tbody>
+<tr><td>Good CTR, poor CVR</td><td>The ad is interesting to people who do not buy
+  the product. Classic wrong audience.</td>
+  <td>Check age, gender and cities against who buys what this campaign promotes.</td></tr>
+<tr><td>Poor CTR, fair CVR</td><td>The right people, not moved by what they see.</td>
+  <td>Language and format; invest in creative (on the decision form).</td></tr>
+<tr><td>CPM climbing month on month</td><td>Too many rivals on the channel, or an
+  audience too small for its budget.</td>
+  <td>Widen the audience, or move some budget to a less crowded channel.</td></tr>
+<tr><td>Good ROAS, CAC above what a customer is worth</td><td>Each order looks
+  paid for, but the customer it brings in will not spend enough over the year to
+  cover what it cost to find them. ROAS counts one order; LTV counts the customer.</td>
+  <td>Aim at buyers who come back, and spend on retention, before spending more here.</td></tr>
+<tr><td>One campaign strong, one weak, same channel</td><td>Products with different
+  buyers are sharing one audience &mdash; or two audiences are chasing one product.</td>
+  <td>Give each group of buyers its own campaign.</td></tr>
+<tr><td><em>vs broad</em> negative</td><td>This campaign's settings reach fewer
+  buyers than no targeting at all would.</td>
+  <td>Read the findings under it. Reset to broad while you work it out; broad is
+  never a mistake.</td></tr>
+</tbody></table>
+</section>
+
+<section id="audience">
+<h2>4 &middot; Building an audience</h2>
+<p class="cap">Each product has a real buyer. Nobody will tell you who it is:
+the job is to reason it out, set a campaign on that reasoning, and let the
+numbers tell you whether you were right.</p>
+<div class="g2">
+  <div><h3>Five questions for every product</h3>
+  <ol class="qs">
+    <li><b>Who pays for it?</b> Not who uses it. The person holding the phone at
+      checkout.</li>
+    <li><b>How old, and which gender?</b> Think of the actual buyer, not the category
+      label. "Hygiene" and "haircare" each contain products bought by very
+      different people.</li>
+    <li><b>Where do they live?</b> Premium habits concentrate in the big cities;
+      everyday essentials travel everywhere.</li>
+    <li><b>What do they follow?</b> Interests are what someone watches and reads,
+      not what they buy.</li>
+    <li><b>How do they buy it?</b> On impulse, after thinking, or because they ran
+      out? That decides the channel and the objective.</li>
+  </ol></div>
+  <div><h3>The settings, and what each one does</h3>
+  <ul class="kv">
+    <li><b>Products</b> Which lines this campaign advertises. Group products whose
+      buyers look alike; separate the ones whose buyers do not.</li>
+    <li><b>Age &middot; gender</b> Nothing ticked means everyone. Each tick
+      concentrates the ad on that group, and shrinks the audience.</li>
+    <li><b>Where</b> {{ g_.tiers['T1'] }}; {{ g_.tiers['T2'] }} (Faisalabad, Multan,
+      Hyderabad, Gujranwala, Peshawar, Sialkot); {{ g_.tiers['Rest'] }}.</li>
+    <li><b>Interests</b> Up to three of: {{ g_.interests|join(', ') }}. Each one
+      narrows the audience to people who follow it.</li>
+    <li><b>Language &middot; format</b> Urdu, English or Roman Urdu; feed posts,
+      reels and stories, or carousel. Match how your buyer reads and scrolls.</li>
+  </ul></div>
+</div>
+<h3 style="margin-top:14px">Who is on each platform in Pakistan</h3>
+<table class="gloss">
+<thead><tr><th>Platform</th><th class="r">Women</th><th class="r">Under 35</th>
+  <th class="r">Big three cities</th><th>Worth knowing</th></tr></thead>
+<tbody>{% for p in g_.pools %}
+<tr><td><b>{{ p.name }}</b></td><td class="num">{{ '{:.0%}'.format(p.women) }}</td>
+  <td class="num">{{ '{:.0%}'.format(p.under35) }}</td><td class="num">{{ '{:.0%}'.format(p.t1) }}</td>
+  <td>{{ p.note }}</td></tr>{% endfor %}</tbody></table>
+<p class="hint">Why this matters: a product bought mostly by women, advertised to
+everyone on Meta, spends most of its money on men. Targeting women concentrates
+the same rupees on the people who buy. The same logic runs the other way for a
+product men buy.</p>
+</section>
+
+<section id="channels">
+<h2>5 &middot; Channels and objectives</h2>
+<div class="g3">
+  <div><h3>Meta</h3><p>Facebook and Instagram. The largest audience and the most
+  settings. Works for most products once the aim is right.</p></div>
+  <div><h3>TikTok</h3><p>The youngest audience and the cheapest attention. Suits
+  products bought on impulse by young people; wastes money on household
+  essentials.</p></div>
+  <div><h3>Google Search</h3><p>Only reaches people already searching. Excellent
+  for things people run out of and look for; useless for things nobody thinks
+  to search for.</p></div>
+</div>
+<table class="gloss">
+<thead><tr><th>Objective</th><th>What the platform optimises for</th><th>Use it when</th></tr></thead>
+<tbody>
+<tr><td><b>Traffic</b></td><td>Visits. The baseline.</td><td>You are not sure yet.</td></tr>
+<tr><td><b>Conversions</b></td><td>People likely to order.</td>
+  <td>Almost always, once you know who buys. Strongest for impulse products.</td></tr>
+<tr><td><b>Awareness</b></td><td>Reach: as many people as possible, as cheaply as possible.</td>
+  <td>Rarely here. It buys eyeballs, not visits; brand-building spend on the
+  decision form does that job better.</td></tr>
+<tr><td><b>Retargeting</b></td><td>People who visited your store recently.</td>
+  <td>As a slice, never the whole budget. The pool of recent visitors is small:
+  beyond about {{ '{:.0%}'.format(g_.retarget_share) }} of a channel's usual
+  budget, the same people see the same ad until it stops working.</td></tr>
+</tbody></table>
+<p class="hint">On Google, <b>keywords</b> decide whose searches you appear for:
+generic product terms, your own store's name (a small pool of people who
+already know you), or rivals' names (expensive, low intent). <b>Exact match</b>
+shows only for the search itself: fewer searches, closer intent &mdash; good for
+things people run out of, worse for things they browse.</p>
+</section>
+
+<section id="size">
+<h2>6 &middot; Too narrow, too broad</h2>
+<p class="cap">Every setting you add concentrates the ad on likelier buyers and
+shrinks the pool it can reach. Both effects are real.</p>
+<div class="g2">
+  <div><h3>Too broad</h3><p>Most impressions reach people who will never buy. Nothing
+  breaks; the money just works at the baseline. Findings stay quiet, <em>vs broad</em>
+  sits near zero.</p></div>
+  <div><h3>Too narrow</h3><p>A small audience with a big budget sees the same ad again
+  and again. CPM climbs, response falls, and the findings will say so. Either
+  widen the audience or give that campaign a smaller share.</p></div>
+</div>
+<p class="callout">A campaign with two or three well-chosen settings usually beats
+one with every box ticked. Aim at the buyer; do not try to describe them to the
+last detail.</p>
+</section>
+
+<section id="test">
+<h2>7 &middot; A/B testing</h2>
+<p class="cap">Tick <em>Run campaign 1 (A) against campaign 2 (B)</em> under any
+channel. The test changes nothing about your business; it tells you which setup
+works harder, and how sure you can be.</p>
+<div class="g2">
+  <div><h3>Design it</h3>
+  <ol class="qs">
+    <li><b>Change one thing.</b> Same products, same everything, except the one
+      setting you are testing. Change four and you learn that B is better, not why.</li>
+    <li><b>Split the budget fairly.</b> 50/50 gathers evidence fastest. A test on a
+      sliver of spend almost never gathers enough orders to decide.</li>
+    <li><b>Leave it alone.</b> Results pool month after month while both sides stay
+      unchanged. Edit either one and the count starts again.</li>
+    <li><b>Test big ideas first.</b> A large difference shows up in a month; a small
+      one can take the rest of the year.</li>
+  </ol></div>
+  <div><h3>Read it</h3>
+  <p>The winner is judged on <b>orders per PKR 1,000</b>, which captures both cheaper
+  visits and better conversion. <b>Confidence</b> is how sure you can be that the gap
+  is real and not luck.</p>
+  <ul class="kv">
+    <li><b>95% or more</b> Call it. Move the budget to the winner, then test your next
+      idea against it.</li>
+    <li><b>80&ndash;95%</b> Leaning. Keep both unchanged another month.</li>
+    <li><b>Below 80%</b> Inside the noise. Either they really are about as good, or the
+      test needs more orders.</li>
+  </ul>
+  <p class="hint">Try an A/A test once: two identical campaigns. For a month or two
+  one will look better &mdash; sometimes convincingly. That is what luck looks
+  like, and it is why nobody should act on one month of a small test.</p></div>
+</div>
+<h3 style="margin-top:14px">How many orders a test needs</h3>
+<p class="cap">Orders from both sides together, to spot a real difference at 95%
+confidence four times out of five. Compare it with the orders your channel makes
+in a month.</p>
+<table class="gloss sizes">
+<thead><tr><th>Real difference in orders per rupee</th><th class="r">Budget split 50/50</th>
+  <th class="r">Budget split 10/90</th></tr></thead>
+<tbody>{% for s in g_.sizes %}
+<tr><td>{{ '{:.0%}'.format(s.edge) }}</td><td class="num">{{ '{:,}'.format(s.even) }}</td>
+  <td class="num">{{ '{:,}'.format(s.sliver) }}</td></tr>{% endfor %}</tbody></table>
+</section>
+
+<section id="routine">
+<h2>8 &middot; A monthly routine</h2>
+<ol class="qs routine">
+  <li><b>Open the report.</b> Paid media section: sort each channel's campaigns by CAC
+    and <em>vs broad</em>. Read every finding.</li>
+  <li><b>Check the test.</b> If it has been called, act on it. If not, leave it alone.</li>
+  <li><b>Fix one thing.</b> The worst campaign, using the diagnosis table above.
+    One change, so next month tells you whether it worked.</li>
+  <li><b>Check the budget.</b> A campaign working at +15% deserves more money; the
+    decision form is where you give it.</li>
+  <li><b>Write it down.</b> Your board memo should say what you changed and what you
+    expect to see. Next month, check whether you were right.</li>
+</ol>
+</section>
+{% endblock %}

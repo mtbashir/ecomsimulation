@@ -1431,3 +1431,36 @@ def campaign_desk(con, team_id: str, draft: list[dict] | None = None) -> dict:
                     "languages": targeting.LANGUAGES, "formats": targeting.FORMATS,
                     "keywords": targeting.KEYWORDS, "matches": targeting.MATCHES},
     }
+
+
+# --- Performance-marketing guide -----------------------------------------------------
+
+def marketing_guide(con, team_id: str | None) -> dict:
+    """What the guide shows beside its prose. The platform audiences and the
+    test sizes are read from the same tables and maths the engine uses, so the
+    page cannot drift from the game. Who buys each product is not here: that
+    is the thing the student is meant to work out."""
+    params = load_params(con)
+    pools = []
+    for ch in targeting.CHANNELS:
+        pool = params.platform(ch)
+        young = float(pool["age_18_24"]) + float(pool["age_25_34"])
+        pools.append({"name": targeting.CHANNEL_NAMES[ch],
+                      "women": float(pool["female"]), "under35": young,
+                      "t1": float(pool["geo_t1"]),
+                      "note": str(pool["note"])})
+    sizes = [{"edge": e, "even": targeting.orders_needed(e),
+              "sliver": targeting.orders_needed(e, 0.1)}
+             for e in (0.05, 0.10, 0.20, 0.30)]
+    mine = None
+    if team_id:
+        world = db.load_world(con)
+        team = world.teams.get(team_id) if world else None
+        if team and team.history:
+            mine = {"round": len(team.history),
+                    "rows": team.history[-1].get("campaigns") or []}
+    return {"pools": pools, "sizes": sizes, "mine": mine,
+            "retarget_share": round(params["retarget_pool"] / params["targeting_pool_min"], 2),
+            "cap": params["targeting_traffic_cap"],
+            "interests": list(targeting.INTERESTS.values()),
+            "tiers": targeting.TIER_NAMES}

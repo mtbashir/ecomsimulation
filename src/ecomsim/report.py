@@ -285,7 +285,8 @@ def _campaigns(record: dict) -> str:
         'per new customer. <em>vs broad</em> is how much harder each rupee worked than '
         'one broad campaign would have. Orders are attributed from real sessions and '
         'the month\'s real conversion, so the rows add up to your paid orders, not '
-        'to what a platform dashboard would claim.</p></section>')
+        'to what a platform dashboard would claim. '
+        '<a href="/guide/marketing" target="_top">How to read this table</a>.</p></section>')
 
 
 def _tests(record: dict) -> str:

@@ -632,3 +632,23 @@ def _verdict(ch: str, now: dict, pooled: dict, months: int) -> dict:
             "cvr": {"A": oa / ca if ca else 0.0, "B": ob / cb if cb else 0.0},
             "confidence": confidence, "sure": sure, "edge": edge, "lead": lead,
             "call": call, "diffs": diffs, "verdict": verdict}
+
+
+def orders_needed(edge: float, share_a: float = 0.5, confidence: float = 0.95,
+                  power: float = 0.80) -> int:
+    """Orders a test needs, both sides together, to call a real `edge` in
+    orders per rupee at `confidence`, `power` of the time.
+
+    The same conditional test the verdict runs, solved for n: under no
+    difference A's share of the orders equals its share of the spend; with an
+    edge it moves to p1, and n is how many orders it takes for that move to
+    stand clear of the scatter.
+    """
+    from statistics import NormalDist
+    z_a = NormalDist().inv_cdf(1 - (1 - confidence) / 2)
+    z_b = NormalDist().inv_cdf(power)
+    p0 = share_a
+    p1 = share_a * (1 + edge) / (share_a * (1 + edge) + (1 - share_a))
+    n = ((z_a * math.sqrt(p0 * (1 - p0)) + z_b * math.sqrt(p1 * (1 - p1)))
+         / (p1 - p0)) ** 2
+    return int(math.ceil(n / 10) * 10)

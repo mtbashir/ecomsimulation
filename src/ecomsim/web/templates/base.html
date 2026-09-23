@@ -411,6 +411,33 @@ color:var(--ink);cursor:pointer}
 label.opt input{width:auto;margin:0}
 @media (max-width:640px){.c-row{grid-template-columns:1fr}}
 
+/* --- Handbook pages ------------------------------------------------------ */
+.toc{display:flex;flex-wrap:wrap;gap:6px 16px;margin-bottom:12px;font-size:13px}
+.toc a{color:var(--dim);text-decoration:none}.toc a:hover{color:var(--accent)}
+section h3{font-size:13.5px;font-weight:650;margin:0 0 5px}
+section p{font-size:13.5px;line-height:1.6}
+.g2,.g3{display:grid;gap:14px 22px;margin:4px 0 10px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.callout{background:var(--panel-2);border-left:3px solid var(--accent);border-radius:6px;
+padding:10px 13px;margin:10px 0 2px}
+.callout.warn{border-left-color:var(--warn-ink)}
+.funnel{display:grid;gap:5px;margin:6px 0 4px;max-width:720px}
+.f-step{width:var(--w);min-width:250px;display:flex;justify-content:space-between;gap:12px;
+background:color-mix(in srgb,var(--accent) 12%,var(--panel));border-radius:6px;
+padding:7px 11px;font-size:13px}
+.f-step span{color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+table.gloss{margin:8px 0 6px}
+table.gloss td{vertical-align:top;line-height:1.5}
+table.gloss td:first-child{white-space:nowrap}
+table.diag td:first-child{white-space:normal;min-width:170px}
+ol.qs,ul.kv{margin:4px 0 6px 18px;display:grid;gap:7px;font-size:13.5px;line-height:1.55}
+ul.kv{list-style:none;margin-left:0}
+ul.kv b,ol.qs b{color:var(--ink)}
+ul.kv b{display:inline-block;min-width:112px}
+details.mine{margin-top:10px}details.mine summary{cursor:pointer;color:var(--accent);
+font-size:13px;font-weight:600}
+
 /* --- Forms -------------------------------------------------------------- */
 label{display:block;font-size:13px;color:var(--dim);margin:0 0 3px}
 input:not([type]),input[type=text],input[type=password],input[type=number],
@@ -541,6 +568,8 @@ nav{display:flex}
       <span class="ico"></span>Research</a>
     <a href="{{ url_for('campaigns') }}" class="{{ 'on' if nav_at == 'campaigns' }}">
       <span class="ico"></span>Campaigns</a>
+    <a href="{{ url_for('guide_marketing') }}" class="{{ 'on' if nav_at == 'guide_marketing' }}">
+      <span class="ico"></span>Marketing guide</a>
   </nav>
   <div class="grp">Analyse</div>
   <nav>

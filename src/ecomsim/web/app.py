@@ -419,6 +419,15 @@ def register_routes(app: Flask) -> None:
             game=db.game(g.db))
 
 
+    @app.get("/guide/marketing")
+    @login_required()
+    def guide_marketing():
+        """How to read the campaign numbers, aim a budget, and run a test that
+        can actually tell you something. Open to instructors too."""
+        return render_template(
+            "guide_marketing.html",
+            g_=service.marketing_guide(g.db, session.get("team_id")))
+
     @app.get("/campaigns")
     @login_required("team")
     def campaigns():

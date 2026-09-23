@@ -549,3 +549,26 @@ def test_an_ab_test_needs_both_campaigns(game):
     r = team.post("/campaigns", data=lone)
     assert r.status_code == 400
     assert "needs campaigns 1 and 2 both running" in r.get_data(as_text=True)
+
+
+def test_the_marketing_guide_teaches_without_giving_the_answers_away(game):
+    from ecomsim import params as P, targeting as T
+    app, pw, path = game
+    team = _client(app, "team_01", pw["team_01"])
+    page = team.get("/guide/marketing").get_data(as_text=True)
+    for heading in ("The numbers", "Reading them together", "Building an audience",
+                    "A/B testing", "How many orders a test needs"):
+        assert heading in page, heading
+    assert f"{T.orders_needed(0.10):,}" in page, "test sizes come from the verdict's maths"
+    for a in P.load().audiences:
+        assert a["mistake"] not in page, "who buys each product is for the debrief"
+    assert "/guide/marketing" in team.get("/campaigns").get_data(as_text=True)
+    admin = _client(app, "admin", "admin-pw")
+    assert admin.get("/guide/marketing").status_code == 200
+
+
+def test_test_sizes_shrink_with_the_edge_and_grow_with_a_lopsided_split():
+    from ecomsim import targeting as T
+    sizes = [T.orders_needed(e) for e in (0.05, 0.1, 0.2, 0.3)]
+    assert sizes == sorted(sizes, reverse=True)
+    assert T.orders_needed(0.1, 0.1) > 2 * T.orders_needed(0.1)
