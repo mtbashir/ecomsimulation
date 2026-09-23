@@ -43,11 +43,21 @@
   <button type="submit">Run round {{ next_round }}</button>
 </form>
 <form method="post" action="{{ url_for('admin_rollback') }}"
-      onsubmit="return confirm('Roll back? Submissions are kept, results after that round are discarded.')">
-  <label for="rb">Roll back to end of round</label>
-  <input id="rb" name="to_round" type="number" min="0" max="{{ game['round'] }}"
-         value="{{ [game['round'] - 1, 0]|max }}" style="margin-bottom:8px">
+      onsubmit="return confirm('Roll back? Results after that round are discarded. Submissions are kept.')">
+  <label for="rb">Roll back</label>
+  {% if game['round'] %}
+  {# Name the round being undone, not the one being kept: "roll back to end
+     of round 3" was read as "undo round 3", which did nothing at all. #}
+  <select id="rb" name="to_round" style="margin-bottom:8px">
+    {% for to in range(game['round'] - 1, -1, -1) %}
+    <option value="{{ to }}">Undo {% if to + 1 < game['round'] %}rounds {{ to + 1 }} to {{ game['round'] }}{% else %}round {{ to + 1 }}{% endif %}
+      &middot; back to {% if to %}end of round {{ to }}{% else %}the start{% endif %}</option>
+    {% endfor %}
+  </select>
   <button type="submit" class="ghost">Roll back</button>
+  {% else %}
+  <p class="note" style="margin:0">Nothing to roll back until round 1 has run.</p>
+  {% endif %}
 </form>
 </div>
 </section>

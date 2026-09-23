@@ -753,10 +753,27 @@ def register_routes(app: Flask) -> None:
     @app.post("/admin/rollback")
     @login_required("admin")
     def admin_rollback():
-        to = int(request.form["to_round"])
+        # Only a round that has actually run can be undone. A blank field used
+        # to crash the page, and a round at or past the current one was
+        # reported as a successful rollback while nothing changed.
+        now = db.game(g.db)["round"]
+        try:
+            to = int(request.form.get("to_round", ""))
+        except ValueError:
+            to = -1
+        if not 0 <= to < now:
+            flash("Nothing to roll back yet - no round has been run."
+                  if now == 0 else
+                  f"Pick a round to go back to, from 0 to {now - 1}.", "error")
+            return redirect(url_for("admin"))
+
         db.rollback(g.db, to, session["user"])
-        flash(f"Rolled back to round {to}. Submissions are kept, so you can "
-              f"fix a parameter and re-run.", "ok")
+        undone = (f"Round {now} undone" if to == now - 1
+                  else f"Rounds {to + 1} to {now} undone")
+        flash(f"{undone}; the game is back at the end of round {to}. "
+              f"Submissions are kept and now closed: fix a parameter and run "
+              f"round {to + 1} again, or open it if a team needs to change "
+              f"its decisions first.", "ok")
         return redirect(url_for("admin"))
 
     @app.route("/admin/decisions", methods=["GET", "POST"])

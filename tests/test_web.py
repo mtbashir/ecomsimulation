@@ -330,6 +330,72 @@ def test_rollback_keeps_submissions_so_a_round_can_be_rerun(game):
     assert db.game(con)["round"] == 2
 
 
+def test_rollback_closes_the_round_that_was_open(game):
+    """The next round was usually already open when a mistake came to light.
+    Left open, teams kept submitting for a round that no longer came next."""
+    app, _pw, path = game
+    con = db.connect(path)
+    admin = _client(app, "admin", "admin-pw")
+    for _ in range(3):
+        admin.post("/admin/run", follow_redirects=True)
+    admin.post("/admin/open", data={"round": 4})
+
+    page = admin.post("/admin/rollback", data={"to_round": 1},
+                      follow_redirects=True).get_data(as_text=True)
+    row = db.game(con)
+    assert (row["round"], row["open_round"]) == (1, None)
+    assert "Rounds 2 to 3 undone" in page
+    assert "Submissions for round 2" in page, "the console must follow the rollback"
+
+
+def test_rollback_refuses_a_round_it_cannot_undo(game):
+    """A blank field crashed the page, and naming the current round reported
+    success while nothing changed."""
+    app, _pw, path = game
+    con = db.connect(path)
+    admin = _client(app, "admin", "admin-pw")
+    for _ in range(2):
+        admin.post("/admin/run", follow_redirects=True)
+
+    for bad in ("", "two", "2", "5", "-1"):
+        r = admin.post("/admin/rollback", data={"to_round": bad},
+                       follow_redirects=True)
+        assert r.status_code == 200, bad
+        assert "undone" not in r.get_data(as_text=True), bad
+        assert db.game(con)["round"] == 2, bad
+        assert [x["round"] for x in con.execute(
+            "SELECT round FROM round_log ORDER BY round")] == [1, 2], bad
+
+
+def test_rollback_offers_only_rounds_that_have_run(game):
+    app, _pw, _path = game
+    admin = _client(app, "admin", "admin-pw")
+    assert "Nothing to roll back" in admin.get("/admin").get_data(as_text=True)
+    for _ in range(2):
+        admin.post("/admin/run", follow_redirects=True)
+    page = admin.get("/admin").get_data(as_text=True)
+    assert '<option value="1">Undo round 2' in page
+    assert '<option value="0">Undo rounds 1 to 2' in page
+    assert 'value="2"' not in page.split('id="rb"')[1].split("</select>")[0]
+
+
+def test_rollback_to_the_start_reopens_setup(game):
+    """Rolling back to round 0 is how the roster and the setups are changed
+    once trading has begun, so it has to hand setup back to the teams."""
+    app, pw, path = game
+    admin = _client(app, "admin", "admin-pw")
+    admin.post("/admin/run", follow_redirects=True)
+    team = _client(app, "team_01", pw["team_01"])
+    assert team.get("/found").status_code == 302, "setup is closed while trading"
+
+    admin.post("/admin/rollback", data={"to_round": 0}, follow_redirects=True)
+    assert db.game(db.connect(path))["round"] == 0
+    assert db.load_world(db.connect(path)) is None
+    assert team.get("/found").status_code == 200
+    admin.post("/admin/run", follow_redirects=True)
+    assert db.game(db.connect(path))["round"] == 1
+
+
 def test_teams_that_do_not_submit_keep_their_previous_decisions(game):
     app, pw, path = game
     con = db.connect(path)

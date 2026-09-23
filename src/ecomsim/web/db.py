@@ -431,10 +431,16 @@ def load_world(con, round_: int | None = None):
 
 def rollback(con, to_round: int, actor: str = "admin") -> None:
     """Discard rounds after `to_round`. Submissions are kept, so a round can be
-    re-run with the same decisions after fixing a parameter."""
+    re-run with the same decisions after fixing a parameter.
+
+    Submissions close too. Whatever round was open belonged to the timeline
+    being undone: left open, teams would go on entering decisions for a round
+    that no longer comes next, while the console ran a different one.
+    """
     with con:
         con.execute("DELETE FROM round_log WHERE round > ?", (to_round,))
-        con.execute("UPDATE game SET round = ? WHERE id = 1", (to_round,))
+        con.execute("UPDATE game SET round = ?, open_round = NULL WHERE id = 1",
+                    (to_round,))
         log(con, actor, "round.rollback", f"to r{to_round}")
 
 
