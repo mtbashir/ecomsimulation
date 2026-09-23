@@ -1,0 +1,66 @@
+{% extends "base.html" %}{% block title %}Decision handbook{% endblock %}
+{% block body %}
+<div class="crumbs">Handbook &middot; every decision</div>
+<div class="head">
+  <div><p class="eyebrow">Handbook</p>
+    <h1>Decision handbook</h1>
+    <p>Every lever on the decision form: what it does, what it trades off, where
+    the result shows up in your monthly report, and the mistake teams usually
+    make. It will not tell you which choice wins &mdash; that depends on the
+    rest of your strategy, which is the point.</p></div>
+  <div class="cta"><a class="btn ghost" href="{{ url_for('guide_marketing') }}">Performance
+    marketing guide</a></div>
+</div>
+
+<nav class="toc card">
+{% for group, items in hb.groups.items() %}
+  <a href="#{{ group }}">{{ group_names.get(group, group) }}</a>
+{% endfor %}
+</nav>
+
+{% for group, items in hb.groups.items() %}
+<h2 class="sec" id="{{ group }}">{{ group_names.get(group, group) }}</h2>
+<p class="group-intro">{{ hb.intros.get(group, '') }}</p>
+{% for d in items %}
+<section class="hb {{ 'off' if not d.in_game }}" id="{{ d.anchor }}">
+  <div class="hb-head">
+    <div><h2>{{ d.name }} <span class="hb-code">{{ d.code }}</span></h2>
+      <p class="hb-lead">{{ d.does or d.help }}</p></div>
+    <div class="hb-state">
+      {% if not d.in_game %}<span class="pill">Not in this game</span>
+      {% elif d.open_now %}<span class="pill on">Open this month</span>
+      {% elif d.unlock > 1 %}<span class="pill">Usually opens from month {{ d.unlock }}</span>
+      {% endif %}</div>
+  </div>
+  <dl class="hb-grid">
+    {% if d.tradeoff %}<div><dt>The trade-off</dt><dd>{{ d.tradeoff }}</dd></div>{% endif %}
+    {% if d.watch %}<div><dt>Where you will see it</dt><dd>{{ d.watch }}</dd></div>{% endif %}
+    {% if d.mistake %}<div><dt>The usual mistake</dt><dd>{{ d.mistake }}</dd></div>{% endif %}
+    {% if d.range or d.options %}<div><dt>Range</dt><dd>
+      {% if d.range %}{{ d.range }}{% if d.unit %} &middot; {{ d.unit }}{% endif %}{% endif %}
+      {% if d.options %}<ul class="hb-opts">{% for v, label, note in d.options %}
+        <li><b>{{ label }}</b>{% if note %} &mdash; {{ note }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+    </dd></div>{% endif %}
+  </dl>
+  {% set f = hb.facts.get(d.code) %}
+  {% if f %}
+  <table class="gloss hb-facts">
+  <thead><tr>{% if f[0] %}<th>{{ f[0] }}</th>{% endif %}
+    {% for c in f[1] %}<th class="r">{{ c }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for row in f[2] %}<tr>
+    {% if f[0] %}<td><b>{{ row[0] }}</b></td>{% endif %}
+    {% for v in row[1:] %}<td class="num">{{ v }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+  {% if d.related or d.guide %}
+  <div class="bears">
+    {% if d.related %}<span class="bears-lab">Works with</span>
+    {% for code, name, anchor in d.related %}
+    <a class="pill link" href="#{{ anchor }}">{{ code }} {{ name }}</a>{% endfor %}{% endif %}
+    {% if d.guide %}<a class="pill link on" href="{{ url_for(d.guide[1]) }}">{{ d.guide[0] }} &rarr;</a>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endfor %}
+{% endfor %}
+{% endblock %}

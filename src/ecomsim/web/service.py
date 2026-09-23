@@ -440,11 +440,11 @@ def apply_foundings(con, world, params) -> None:
 
 # Where the handbook lives. A decision tile cites a reference; this is what a
 # team follows when the one-line help is not enough.
-HANDBOOK = {
-    "url": "https://github.com/mtbashir/ecomsimulation/blob/main/docs/"
-           "01-decision-list.md",
-    "title": "Decision handbook",
-}
+HANDBOOK = {"title": "Decision handbook", "path": "/handbook"}
+
+
+def handbook_anchor(code: str) -> str:
+    return "d" + code.replace(".", "-")
 
 
 def handbook_entry(spec) -> dict:
@@ -454,9 +454,63 @@ def handbook_entry(spec) -> dict:
         "name": spec.name,
         "help": spec.help,
         "guide": spec.guide,
-        "group": spec.group,
-        "url": f"{HANDBOOK['url']}#{spec.code.replace('.', '')}",
+        "url": f"{HANDBOOK['path']}#{handbook_anchor(spec.code)}",
     }
+
+
+def handbook_page(con) -> dict:
+    """Every decision, grouped as the form groups them, with the written
+    guidance beside what the registry says and the facts the engine uses."""
+    from . import handbook as hb
+    from ..modules.m04_capability import PROJECTS
+    from ..modules.m00_resolve import GATEWAY_SUCCESS
+    params = load_params(con)
+    g = db.game(con)
+    open_now = ({s.code for s in open_decisions(con, g["open_round"])}
+                if g["open_round"] else set())
+    groups: dict[str, list] = {}
+    for spec in sorted(REGISTRY.values(), key=_reading_order):
+        entry = hb.ENTRIES.get(spec.code, {})
+        guide = hb.GUIDES.get(entry.get("guide", ""))
+        groups.setdefault(spec.group, []).append({
+            "code": spec.code, "anchor": handbook_anchor(spec.code),
+            "name": spec.name, "help": spec.help, "range": spec.guide,
+            "unit": spec.unit, "options": [o for o in spec.options if o[0] != ""],
+            "unlock": spec.unlock_round,
+            "in_game": g["preset"] in spec.presets,
+            "open_now": spec.code in open_now,
+            "does": entry.get("does", ""), "tradeoff": entry.get("tradeoff", ""),
+            "watch": entry.get("watch", ""), "mistake": entry.get("mistake", ""),
+            "related": [(c, REGISTRY[c].name, handbook_anchor(c))
+                        for c in entry.get("related", []) if c in REGISTRY],
+            "guide": guide,
+        })
+    projects = {spec["decision"]: {
+        "capex": spec["capex"], "months": spec["lead"],
+        "running": spec["ongoing"], "odds": spec["p"]}
+        for spec in PROJECTS.values()}
+    facts = {
+        "7.2": ("Supplier", ["Unit cost", "Lead time", "Minimum order"],
+                [(s["name"], f"{float(s['cost_index']):.0%} of baseline",
+                  f"{int(s['lead_time_days'])} days", f"{int(s['moq_units']):,} units")
+                 for s in params.suppliers]),
+        "8.3": ("Courier", ["Cost per order", "Delivered first time", "Days",
+                            "Rural reach", "COD cash reaches you"],
+                [(c["name"], f"PKR {float(c['cost_per_order']):,.0f}",
+                  f"{float(c['success_rate']):.1%}", f"{float(c['avg_days']):.1f}",
+                  f"{float(c['rural_reach']):.0%}", f"{int(c['cod_remit_days'])} days")
+                 for c in params.couriers]),
+        "9.3": ("Gateway", ["Payments that succeed"],
+                [(f"Gateway {k}", f"{v:.0%}") for k, v in GATEWAY_SUCCESS.items()]),
+    }
+    for code, pr in projects.items():
+        facts[code] = ("", ["Build cost", "Build time", "Running cost a month",
+                            "Chance it works"],
+                       [("", f"PKR {pr['capex']:,.0f}",
+                         f"{pr['months']} month{'s' if pr['months'] != 1 else ''}",
+                         f"PKR {pr['running']:,.0f}", f"{pr['odds']:.0%}")])
+    return {"groups": groups, "intros": hb.GROUP_INTROS, "facts": facts,
+            "preset": g["preset"], "round": g["round"]}
 
 
 def monthly_catalogue(con, team_id: str, current: dict) -> list[dict]:

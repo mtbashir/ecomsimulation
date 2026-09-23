@@ -240,8 +240,7 @@
         <b>{{ s.code }} &middot; {{ hb.name if hb else s.name }}</b>
         <span>{{ hb.help if hb else s.help }}</span>
         {% if hb and hb.guide %}<span class="g">{{ hb.guide }}</span>{% endif %}
-        <a href="{{ hb.url if hb else handbook_url }}" target="_blank"
-           rel="noopener">Open the handbook &rarr;</a>
+        <a href="{{ hb.url if hb else handbook_url }}" target="_blank">Open the handbook &rarr;</a>
       </span>
     </span>
   </div>

@@ -572,3 +572,33 @@ def test_test_sizes_shrink_with_the_edge_and_grow_with_a_lopsided_split():
     sizes = [T.orders_needed(e) for e in (0.05, 0.1, 0.2, 0.3)]
     assert sizes == sorted(sizes, reverse=True)
     assert T.orders_needed(0.1, 0.1) > 2 * T.orders_needed(0.1)
+
+
+def test_every_decision_has_a_handbook_entry():
+    """The handbook is written by hand beside a registry that grows. A lever
+    that ships without an entry would send students to a blank card."""
+    from ecomsim.decisions import REGISTRY
+    from ecomsim.web import handbook as hb
+    assert set(hb.ENTRIES) == set(REGISTRY)
+    for code, e in hb.ENTRIES.items():
+        for part in ("does", "tradeoff", "watch", "mistake"):
+            assert e.get(part), f"{code} has no {part}"
+        assert all(r in REGISTRY for r in e.get("related", [])), code
+    assert set(hb.GROUP_INTROS) >= {s.group for s in REGISTRY.values()}
+
+
+def test_the_handbook_is_in_the_app_and_the_form_links_to_it(game):
+    app, pw, path = game
+    admin = _client(app, "admin", "admin-pw")
+    admin.post("/admin/open", data={"round": 1})
+    team = _client(app, "team_01", pw["team_01"])
+    page = team.get("/handbook").get_data(as_text=True)
+    assert 'id="d3-10"' in page and "The usual mistake" in page
+    assert "Speed Express" in page, "courier facts come from params/couriers.csv"
+    assert "Round 5" not in page, "no scheduled event is given away"
+    form = team.get("/submit").get_data(as_text=True)
+    assert "/handbook#d3-1" in form
+    assert "github.com" not in form and "01-decision-list" not in form
+    brief = team.get("/brief").get_data(as_text=True)
+    assert "/handbook" in brief and "github.com" not in brief
+    assert admin.get("/handbook").status_code == 200

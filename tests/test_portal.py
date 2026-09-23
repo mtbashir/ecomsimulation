@@ -790,7 +790,7 @@ def test_every_decision_carries_a_handbook_entry_you_can_open(game):
             continue
         entry = service.handbook_entry(spec)
         assert entry["help"], spec.code
-        assert entry["url"].endswith(spec.code.replace(".", "")), spec.code
+        assert entry["url"] == "/handbook#d" + spec.code.replace(".", "-"), spec.code
 
 
 def test_appearance_is_remembered_against_the_account_not_the_browser(game):

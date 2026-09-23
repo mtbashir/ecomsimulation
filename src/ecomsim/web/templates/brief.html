@@ -68,8 +68,8 @@ who is playing. Your company is the firm. Your brand is what the market sees
 <p class="cap">Every decision in the portal cites a handbook reference &mdash;
 hover one to see what the lever does. The handbook itself has the full
 description of all of them, with the ranges and the trade-offs.</p>
-<a class="btn ghost" href="{{ handbook.url }}" target="_blank"
-   rel="noopener">Open the {{ handbook.title|lower }}</a>
+<a class="btn ghost" href="{{ url_for('handbook') }}">Open the {{ handbook.title|lower }}</a>
+<a class="btn ghost" href="{{ url_for('guide_marketing') }}">Performance marketing guide</a>
 </section>
 
 <section>

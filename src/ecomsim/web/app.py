@@ -419,6 +419,13 @@ def register_routes(app: Flask) -> None:
             game=db.game(g.db))
 
 
+    @app.get("/handbook")
+    @login_required()
+    def handbook():
+        """Every decision: what it does, the trade-off, where it shows up in
+        the report, and the mistake teams usually make."""
+        return render_template("handbook.html", hb=service.handbook_page(g.db))
+
     @app.get("/guide/marketing")
     @login_required()
     def guide_marketing():
@@ -753,7 +760,7 @@ def register_routes(app: Flask) -> None:
             totals=service.shelf_totals(shelf),
             bundles=service.bundle_rows(g.db, tid, current),
             handbook={s.code: service.handbook_entry(s) for s in specs},
-            handbook_url=service.HANDBOOK["url"],
+            handbook_url=url_for("handbook"),
             group_order=sorted(by_group, key=lambda gr: int(gr[1:])))
 
     @app.route("/results/<int:round_>")
