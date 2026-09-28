@@ -1,0 +1,61 @@
+{% extends "base.html" %}{% block title %}{{ past['name'] }}{% endblock %}
+{% block body %}
+<div class="crumbs"><a href="{{ url_for('admin_games') }}">Games</a> &middot; past game</div>
+<div class="head"><div><h1>{{ past['name'] }}</h1>
+  <p>{{ teams|length }} teams &middot; {{ past['round'] }} of
+  {{ past['total_rounds'] }} months played &middot; started
+  {{ past['created_at'][:10] }}. Read-only: nothing here can change it.</p></div>
+  <div><a class="btn ghost" href="{{ url_for('admin_past_download', archive_id=archive_id) }}">
+    Download the database ({{ '%.1f'|format(size / 1048576) }} MB)</a></div>
+</div>
+
+<section>
+<h2>Final standings</h2>
+{% if table %}
+<p class="note">After month {{ past['round'] }}. Ranked by final score{% if past['round'] < 2 %}
+(needs two months - ranked by revenue instead){% endif %}.</p>
+<table><thead><tr><th>#</th><th>Team</th><th>Brand</th><th class="num">Score</th>
+<th class="num">Net revenue</th><th class="num">Share</th><th class="num">Cash</th><th></th></tr></thead>
+<tbody>
+{% for r in table %}
+<tr><td class="num">{{ r.rank }}</td><td>{{ r.team }}</td><td>{{ r.brand }}</td>
+<td class="num">{{ '%.1f'|format(r.score) if r.score is not none else '—' }}
+  {% if r.insolvent %}<span class="pill off">insolvent</span>{% endif %}</td>
+<td class="num">{{ r.revenue }}</td><td class="num">{{ r.share }}</td>
+<td class="num">{{ r.cash }}</td>
+<td class="num"><a class="note" target="_blank"
+  href="{{ url_for('admin_past_report', archive_id=archive_id, team=r.team_id, round_=past['round']) }}">report</a></td></tr>
+{% endfor %}
+</tbody></table>
+{% else %}
+<p class="note">No month was processed in this game.</p>
+{% endif %}
+</section>
+
+{% if past['round'] %}
+<section>
+<h2>Month by month</h2>
+<table><thead><tr><th>Month</th><th></th><th></th></tr></thead>
+<tbody>
+{% for rnd in range(1, past['round'] + 1) %}
+<tr><td>Month {{ rnd }}</td>
+<td><a class="note" target="_blank"
+  href="{{ url_for('admin_past_console', archive_id=archive_id, round_=rnd) }}">console</a></td>
+<td><a class="note"
+  href="{{ url_for('admin_past_export', archive_id=archive_id, round_=rnd) }}">decisions CSV</a></td></tr>
+{% endfor %}
+</tbody></table>
+</section>
+{% endif %}
+
+<section>
+<h2>Activity</h2>
+<table><tbody>
+{% for a in audit %}
+<tr><td class="note">{{ a['at'][:16].replace('T',' ') }}</td>
+<td>{{ a['actor'] }}</td><td>{{ a['action'] }}</td>
+<td class="note">{{ a['detail'] }}</td></tr>
+{% endfor %}
+</tbody></table>
+</section>
+{% endblock %}

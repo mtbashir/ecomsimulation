@@ -1,0 +1,79 @@
+{% extends "base.html" %}{% block title %}Games{% endblock %}
+{% block body %}
+<div class="crumbs">Instructor console &middot; games</div>
+<div class="head"><div><h1>Games</h1>
+  <p>One game runs at a time. Starting a new one saves the current game,
+  complete, under Past games first - every report, console and decisions file
+  stays readable here afterwards.</p></div></div>
+
+<div class="cols c11" style="margin-bottom:14px">
+  <div class="card">
+    <h2>Running now</h2>
+    <p class="cap">{{ game['name'] }}</p>
+    <table><tbody>
+      <tr><td class="note">Month</td><td class="num">{{ game['round'] }} / {{ game['total_rounds'] }}</td></tr>
+      <tr><td class="note">Teams</td><td class="num">{{ teams }}</td></tr>
+      <tr><td class="note">Start</td><td>{{ game['start_mode']|replace('_', ' ') }}</td></tr>
+      <tr><td class="note">Created</td><td>{{ game['created_at'][:10] }}</td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="card">
+    <h2>Start a new game</h2>
+    <p class="cap">For the next class. Every team in the current game is signed
+    out, and the new teams get new passwords on the Teams page. Your instructor
+    login, the preset and the AI field carry over.</p>
+    <form method="post" action="{{ url_for('admin_new_game') }}"
+          onsubmit='return confirm({{ ("Save “" ~ game["name"] ~ "” to Past games and start a new game? Current teams will be signed out.")|tojson }})'>
+      <label class="f" for="gn">Name</label>
+      <input id="gn" name="name" type="text" maxlength="80" required
+             placeholder="E-Commerce in Practice - Spring 2027">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+        <div style="max-width:120px"><label class="f" for="gt">Teams</label>
+          <input id="gt" name="teams" type="text" inputmode="numeric" value="{{ teams }}"></div>
+        <div style="max-width:120px"><label class="f" for="gr">Rounds</label>
+          <input id="gr" name="rounds" type="text" inputmode="numeric" value="{{ game['total_rounds'] }}"></div>
+        <div style="max-width:220px"><label class="f" for="gs">Teams start</label>
+          <select id="gs" name="start_mode">
+            <option value="founding" {{ 'selected' if game['start_mode'] == 'founding' }}>By founding a business</option>
+            <option value="going_concern" {{ 'selected' if game['start_mode'] == 'going_concern' }}>From a running business</option>
+          </select></div>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px">
+        <input type="checkbox" name="keep_overrides" value="1" checked style="width:auto">
+        Keep my parameter changes</label>
+      <label class="f" for="gc" style="margin-top:10px">Type NEW GAME to confirm</label>
+      <input id="gc" name="confirm" type="text" autocomplete="off" required>
+      <button type="submit" style="margin-top:10px">Save this game and start a new one</button>
+    </form>
+  </div>
+</div>
+
+<section>
+<h2>Past games</h2>
+{% if past %}
+<table><thead><tr><th>Game</th><th>Teams</th><th>Months played</th>
+<th>Started</th><th>Saved</th><th></th></tr></thead>
+<tbody>
+{% for p in past %}
+<tr>
+{% if p.error %}
+<td colspan="5" class="note">{{ p.id }} could not be read</td>
+{% else %}
+<td><a href="{{ url_for('admin_past_game', archive_id=p.id) }}">{{ p.name }}</a></td>
+<td class="num">{{ p.teams }}</td>
+<td class="num">{{ p.round }} / {{ p.total_rounds }}</td>
+<td class="note">{{ p.created_at[:10] }}</td>
+<td class="note">{{ p.archived_at[:10] }}</td>
+{% endif %}
+<td class="num"><a class="note" href="{{ url_for('admin_past_download', archive_id=p.id) }}">
+  download ({{ '%.1f'|format(p.size / 1048576) }} MB)</a></td>
+</tr>
+{% endfor %}
+</tbody></table>
+{% else %}
+<p class="note">None yet. When you start a new game, the one running now is
+saved here.</p>
+{% endif %}
+</section>
+{% endblock %}

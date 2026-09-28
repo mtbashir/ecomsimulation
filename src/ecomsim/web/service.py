@@ -1518,3 +1518,42 @@ def marketing_guide(con, team_id: str | None) -> dict:
             "cap": params["targeting_traffic_cap"],
             "interests": list(targeting.INTERESTS.values()),
             "tiers": targeting.TIER_NAMES}
+
+
+# --- Past games ------------------------------------------------------------------
+
+def final_table(con) -> list[dict]:
+    """Where every team finished, from the last round the game processed.
+
+    Ranked by the final score once there is enough history to score (two
+    rounds), by net revenue before that. Works on the live game or an archive.
+    """
+    world = db.load_world(con)
+    game = db.game(con)
+    if world is None or not game["round"]:
+        return []
+    params = load_params(con)
+    brands = {tid: (rec.get("config") or {}).get("brand_name")
+              for tid, rec in db.foundings(con).items()}
+    names = {r["team_id"]: r["display_name"] for r in db.accounts(con, "team")}
+    rows = []
+    for tid, team in world.teams.items():
+        h = team.history[-1] if team.history else {}
+        brand = brands.get(tid)
+        score = (scoring.final_score(team, params, world.teams)
+                 if len(team.history) >= 2 else None)
+        rows.append({
+            "team_id": tid, "team": names.get(tid, tid),
+            "brand": brand if brand and brand != "Unnamed" else team.brand_name,
+            "score": score["total"] if score else None,
+            "insolvent": bool(score and score["insolvent"]),
+            "revenue": _fmt(h.get("revenue_net"), "pkr"),
+            "share": _fmt(h.get("market_share"), "pct"),
+            "cash": _fmt(h.get("cash_balance"), "pkr"),
+            "_revenue": h.get("revenue_net") or 0.0,
+        })
+    rows.sort(key=lambda r: (-(r["score"] if r["score"] is not None else -1e18),
+                             -r["_revenue"]))
+    for i, row in enumerate(rows, 1):
+        row["rank"] = i
+    return rows

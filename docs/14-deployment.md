@@ -93,6 +93,7 @@ docker run -p 8000:8000 -v ecomsim-data:/var/data \
 |---|---|
 | Concurrency | One gunicorn worker, eight threads. A class of ten is nowhere near it |
 | Backup | Copy `game.db` from the disk, or roll back a round in the app |
+| Next cohort | **Games → Start a new game.** The running game is copied, complete, to `archive/` beside `game.db` and stays readable (standings, reports, consoles, decision CSVs, the database itself) under Past games. Nothing is deleted |
 | Health | `/healthz` returns 200 only if the database answers |
 | **If it fails mid-class** | Download the decisions CSV from the console and run `py run.py round --decisions <file>` offline. That path is tested and kept working |
 

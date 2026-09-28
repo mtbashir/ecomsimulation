@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS game (
   -- 'going_concern': everyone starts from the same running business (docs/05).
   start_mode     TEXT    NOT NULL DEFAULT 'founding',
   overrides      TEXT    NOT NULL DEFAULT '{}',   -- parameter overrides, JSON
+  -- Bumped each time a new game replaces this one, so a sign-in from the old
+  -- cohort stops working instead of landing in the new game as its team.
+  epoch          INTEGER NOT NULL DEFAULT 0,
   created_at     TEXT    NOT NULL
 );
 
@@ -121,6 +124,7 @@ def migrate(con) -> None:
         ("game", "start_mode", "TEXT NOT NULL DEFAULT 'founding'"),
         ("account", "briefing_seen_at", "TEXT"),
         ("account", "theme", "TEXT"),
+        ("game", "epoch", "INTEGER NOT NULL DEFAULT 0"),
     ]:
         have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
         if column not in have:
@@ -201,24 +205,31 @@ def add_teams(con, count: int, actor: str = "admin") -> dict:
     Numbering continues from the highest existing team, so a team that was
     removed does not have its identity handed to somebody else.
     """
+    with con:
+        passwords = _insert_teams(con, count)
+        log(con, actor, "teams.add", f"{count} added")
+    return passwords
+
+
+def _insert_teams(con, count: int) -> dict:
+    """Create `count` team accounts after the highest existing one, inside the
+    caller's transaction. Returns the generated passwords."""
     import secrets
 
     existing = {r["team_id"] for r in accounts(con, "team")}
     highest = max((int(t.split("_")[1]) for t in existing), default=0)
     passwords = {}
-    with con:
-        for offset in range(1, count + 1):
-            n = highest + offset
-            tid = f"team_{n:02d}"
-            pw = (f"{secrets.choice(WORDS)}-{secrets.choice(WORDS)}-"
-                  f"{secrets.randbelow(90) + 10}")
-            passwords[tid] = pw
-            con.execute(
-                "INSERT OR REPLACE INTO account "
-                "(username, password_hash, role, team_id, display_name, "
-                "initial_password, created_at) VALUES (?, ?, 'team', ?, ?, ?, ?)",
-                (tid, generate_password_hash(pw), tid, f"Team {n}", pw, _now()))
-        log(con, actor, "teams.add", f"{count} added")
+    for offset in range(1, count + 1):
+        n = highest + offset
+        tid = f"team_{n:02d}"
+        pw = (f"{secrets.choice(WORDS)}-{secrets.choice(WORDS)}-"
+              f"{secrets.randbelow(90) + 10}")
+        passwords[tid] = pw
+        con.execute(
+            "INSERT OR REPLACE INTO account "
+            "(username, password_hash, role, team_id, display_name, "
+            "initial_password, created_at) VALUES (?, ?, 'team', ?, ?, ?, ?)",
+            (tid, generate_password_hash(pw), tid, f"Team {n}", pw, _now()))
     return passwords
 
 
@@ -454,3 +465,128 @@ def log(con, actor: str, action: str, detail: str = "") -> None:
 def audit(con, limit: int = 50) -> list[sqlite3.Row]:
     return con.execute("SELECT * FROM audit ORDER BY id DESC LIMIT ?",
                        (limit,)).fetchall()
+
+
+# --- Past games ------------------------------------------------------------------
+#
+# The database holds one game. A new cohort does not replace it: the whole file
+# is copied into archive/ beside it first, and only then is the live game reset.
+# An archive is an ordinary game database, so every report, console and export
+# the app renders for the live game renders for a past one from the same code.
+
+ARCHIVE_DIR = "archive"
+
+
+def archive_dir(db_path: str | Path) -> Path:
+    return Path(db_path).parent / ARCHIVE_DIR
+
+
+def archive(con, db_path: str | Path) -> Path:
+    """Copy the live game, complete, into the archive. Returns the new file.
+
+    SQLite's backup API takes a consistent copy while the app keeps running,
+    which a file copy of a WAL database does not.
+    """
+    folder = archive_dir(db_path)
+    folder.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    dest = folder / f"game-{stamp}.db"
+    n = 1
+    while dest.exists():
+        n += 1
+        dest = folder / f"game-{stamp}-{n}.db"
+    out = sqlite3.connect(str(dest))
+    try:
+        con.backup(out)
+        # A rollback journal, not WAL: an archive is only ever opened
+        # read-only, and a read-only WAL database needs files it cannot create.
+        out.execute("PRAGMA journal_mode = DELETE")
+        out.commit()
+    finally:
+        out.close()
+    return dest
+
+
+def new_game(con, db_path: str | Path, name: str, teams: int, rounds: int,
+             start_mode: str, keep_overrides: bool,
+             actor: str = "admin") -> tuple[Path, dict]:
+    """Archive the current game, then reset this database to a fresh one.
+
+    Instructor accounts carry over with their passwords; teams are created new,
+    with passwords collected once from the Teams page as on first boot. The
+    preset, the AI field and (if asked) the parameter overrides carry over too:
+    they are how this instructor runs the course, not part of one cohort.
+    Returns the archive file and the new team passwords.
+    """
+    saved = archive(con, db_path)
+    old = game(con)
+    with con:
+        for table in ("submission", "decision_window", "founding", "round_log",
+                      "audit"):
+            con.execute(f"DELETE FROM {table}")
+        con.execute("DELETE FROM account WHERE role = 'team'")
+        con.execute(
+            "UPDATE game SET name = ?, round = 0, total_rounds = ?, "
+            "open_round = NULL, start_mode = ?, overrides = ?, epoch = ?, "
+            "created_at = ? WHERE id = 1",
+            (name, rounds, start_mode,
+             old["overrides"] if keep_overrides else "{}",
+             old["epoch"] + 1, _now()))
+        passwords = _insert_teams(con, teams)
+        log(con, actor, "game.new",
+            f"{name}: {teams} teams, {rounds} rounds, "
+            f"{start_mode.replace('_', ' ')} start; "
+            f"previous game '{old['name']}' archived as {saved.name}")
+    return saved, passwords
+
+
+def _archive_order(path: Path) -> tuple[str, int]:
+    """game-<stamp>.db, then game-<stamp>-2.db for a second save that second."""
+    parts = path.stem.split("-")
+    if len(parts) == 4 and parts[3].isdigit():
+        return "-".join(parts[:3]), int(parts[3])
+    return path.stem, 1
+
+
+def connect_archive(path: str | Path) -> sqlite3.Connection:
+    """Open a past game read-only. Nothing the app does can change it."""
+    con = sqlite3.connect(f"file:{Path(path).as_posix()}?mode=ro", uri=True,
+                          detect_types=sqlite3.PARSE_DECLTYPES)
+    con.row_factory = sqlite3.Row
+    return con
+
+
+def archives(db_path: str | Path) -> list[dict]:
+    """Every archived game, newest first, with enough to recognise it by."""
+    folder = archive_dir(db_path)
+    out = []
+    for path in sorted(folder.glob("game-*.db"), key=_archive_order,
+                       reverse=True):
+        entry = {"id": path.stem, "path": path, "size": path.stat().st_size,
+                 "archived_at": datetime.fromtimestamp(
+                     path.stat().st_mtime, timezone.utc).isoformat(
+                         timespec="seconds")}
+        try:
+            con = connect_archive(path)
+            try:
+                g = game(con)
+                entry.update(
+                    name=g["name"], round=g["round"],
+                    total_rounds=g["total_rounds"], created_at=g["created_at"],
+                    teams=con.execute("SELECT COUNT(*) FROM account "
+                                      "WHERE role = 'team'").fetchone()[0])
+            finally:
+                con.close()
+        except sqlite3.Error:
+            entry.update(name=None, error=True)
+        out.append(entry)
+    return out
+
+
+def find_archive(db_path: str | Path, archive_id: str) -> Path | None:
+    """The archive with this id, or None. Only names the listing produced are
+    accepted, so an id can never reach outside the archive folder."""
+    for path in archive_dir(db_path).glob("game-*.db"):
+        if path.stem == archive_id:
+            return path
+    return None

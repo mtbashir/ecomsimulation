@@ -13,7 +13,7 @@ from pathlib import Path
 
 from flask import (
     Flask, Response, abort, flash, g, redirect, render_template,
-    request, session, url_for,
+    request, send_file, session, url_for,
 )
 
 from .. import founding
@@ -163,9 +163,10 @@ def create_app(database: str | Path | None = None) -> Flask:
 
     @app.teardown_request
     def _close_db(exc):
-        con = g.pop("db", None)
-        if con is not None:
-            con.close()
+        for key in ("db", "past_db"):
+            con = g.pop(key, None)
+            if con is not None:
+                con.close()
 
     @app.context_processor
     def _inject():
@@ -269,6 +270,18 @@ def safe_next(app: Flask, target: str | None, role: str | None) -> str | None:
 
 def register_routes(app: Flask) -> None:
 
+    @app.before_request
+    def _same_game():
+        """Sign out anyone whose sign-in belongs to a game since replaced.
+
+        Team usernames repeat from game to game, so without this a student from
+        last term's cohort would still be signed in as team_01 of this one. A
+        sign-in from before games had epochs counts as the first game.
+        """
+        if "user" in session and \
+                session.get("epoch", 0) != db.game(g.db)["epoch"]:
+            session.clear()
+
     @app.context_processor
     def nav_state():
         """What the shell needs, on every page, without each route saying so."""
@@ -302,7 +315,8 @@ def register_routes(app: Flask) -> None:
             else:
                 session.update(user=row["username"], role=row["role"],
                                team_id=row["team_id"], name=row["display_name"],
-                               theme=row["theme"] or "consulytics")
+                               theme=row["theme"] or "consulytics",
+                               epoch=db.game(g.db)["epoch"])
                 with g.db:
                     db.log(g.db, row["username"], "auth.login", "")
                 dest = safe_next(app, request.args.get("next"), row["role"])
@@ -1023,3 +1037,105 @@ def register_routes(app: Flask) -> None:
             service.export_decisions(g.db, round_), mimetype="text/csv",
             headers={"Content-Disposition":
                      f"attachment; filename=decisions_r{round_}.csv"})
+
+    # --- Past games -----------------------------------------------------------
+
+    @app.route("/admin/games")
+    @login_required("admin")
+    def admin_games():
+        return render_template(
+            "admin_games.html",
+            past=db.archives(app.config["DATABASE"]),
+            teams=len(db.accounts(g.db, "team")))
+
+    @app.post("/admin/games/new")
+    @login_required("admin")
+    def admin_new_game():
+        current = db.game(g.db)
+        name = (request.form.get("name") or "").strip()[:80]
+        try:
+            teams = int(request.form.get("teams", 0))
+            rounds = int(request.form.get("rounds", 0))
+        except ValueError:
+            teams = rounds = 0
+        start_mode = request.form.get("start_mode", "founding")
+        problem = (
+            "Type NEW GAME to confirm." if
+            (request.form.get("confirm") or "").strip().upper() != "NEW GAME"
+            else "Give the new game a name." if not name
+            else "Between 2 and 20 teams." if not 2 <= teams <= 20
+            else "Between 1 and 24 rounds." if not 1 <= rounds <= 24
+            else "Pick how teams start." if start_mode not in
+            ("founding", "going_concern") else None)
+        if problem:
+            flash(f"No new game started. {problem}", "error")
+            return redirect(url_for("admin_games"))
+
+        saved, _ = db.new_game(
+            g.db, app.config["DATABASE"], name=name, teams=teams,
+            rounds=rounds, start_mode=start_mode,
+            keep_overrides=bool(request.form.get("keep_overrides")),
+            actor=session["user"])
+        # Keep the instructor who did it signed in; everyone else is out.
+        session["epoch"] = db.game(g.db)["epoch"]
+        flash(f"'{current['name']}' is saved under Past games. '{name}' has "
+              f"started with {teams} new teams - collect their passwords "
+              f"below.", "ok")
+        return redirect(url_for("admin_teams"))
+
+    def _past(archive_id: str):
+        path = db.find_archive(app.config["DATABASE"], archive_id)
+        if path is None:
+            abort(404)
+        # Closed with the live connection at the end of the request.
+        g.past_db = con = db.connect_archive(path)
+        return path, con
+
+    @app.route("/admin/games/<archive_id>")
+    @login_required("admin")
+    def admin_past_game(archive_id):
+        path, con = _past(archive_id)
+        past = db.game(con)
+        return render_template(
+            "admin_past_game.html", archive_id=archive_id, past=past,
+            table=service.final_table(con),
+            teams=db.accounts(con, "team"),
+            audit=db.audit(con, 200),
+            size=path.stat().st_size)
+
+    @app.route("/admin/games/<archive_id>/download")
+    @login_required("admin")
+    def admin_past_download(archive_id):
+        path = db.find_archive(app.config["DATABASE"], archive_id)
+        if path is None:
+            abort(404)
+        return send_file(path, as_attachment=True,
+                         download_name=f"{archive_id}.db",
+                         mimetype="application/vnd.sqlite3")
+
+    @app.route("/admin/games/<archive_id>/console/<int:round_>")
+    @login_required("admin")
+    def admin_past_console(archive_id, round_):
+        _, con = _past(archive_id)
+        html = service.instructor_console(con, round_)
+        if html is None:
+            abort(404)
+        return Response(html, mimetype="text/html")
+
+    @app.route("/admin/games/<archive_id>/report/<team>/<int:round_>")
+    @login_required("admin")
+    def admin_past_report(archive_id, team, round_):
+        _, con = _past(archive_id)
+        html = service.team_report(con, team, round_)
+        if html is None:
+            abort(404)
+        return Response(html, mimetype="text/html")
+
+    @app.route("/admin/games/<archive_id>/export/<int:round_>.csv")
+    @login_required("admin")
+    def admin_past_export(archive_id, round_):
+        _, con = _past(archive_id)
+        return Response(
+            service.export_decisions(con, round_), mimetype="text/csv",
+            headers={"Content-Disposition":
+                     f"attachment; filename={archive_id}_decisions_r{round_}.csv"})
