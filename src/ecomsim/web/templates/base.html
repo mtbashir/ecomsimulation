@@ -121,6 +121,14 @@ padding:11px 17px;font:600 13.5px Inter,sans-serif;cursor:pointer;
 text-decoration:none;display:inline-block;white-space:nowrap}
 button.ghost,.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
 button.danger,.btn.danger{background:var(--bad);color:#fff}
+button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
+
+/* Side-by-side steps: label, one control, buttons - each on the same line
+   across the row, whatever the control is. */
+.runbar>form{display:flex;flex-direction:column}
+.runbar .ctl{min-height:44px;display:flex;align-items:center;margin-bottom:8px}
+.runbar .ctl>*{width:100%;margin:0}
+.runbar .acts{display:flex;gap:8px;margin-top:auto}
 
 /* --- Cards, tiles, charts ---------------------------------------------- */
 section,.card{background:var(--panel);border:1px solid var(--line);border-radius:11px;

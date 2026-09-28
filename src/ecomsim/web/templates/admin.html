@@ -26,21 +26,33 @@
 
 <section>
 <h2>Run the round</h2>
-<div class="row">
+{# One step at a time: open the round, then run it. Running closes it, which
+   hands the turn back to Open for the next one. #}
+{% set is_open = game['open_round'] %}
+{% set finished = game['round'] >= game['total_rounds'] %}
+<div class="row runbar">
 <form method="post" action="{{ url_for('admin_open') }}">
   <label for="r">Open a round for submissions</label>
+  <div class="ctl">
   <input id="r" name="round" type="number" min="1" max="{{ game['total_rounds'] }}"
-         value="{{ game['open_round'] or next_round }}" style="margin-bottom:8px">
-  <button type="submit">Open</button>
-  {% if game['open_round'] %}
+         value="{{ game['open_round'] or next_round }}"
+         {{ 'disabled' if is_open or finished }}></div>
+  <div class="acts">
+  <button type="submit" {{ 'disabled' if is_open or finished }}>Open</button>
+  {% if is_open %}
   <button type="submit" name="round" value="0" class="ghost">Close</button>
   {% endif %}
+  </div>
 </form>
 <form method="post" action="{{ url_for('admin_run') }}">
   <label>Process round {{ next_round }}</label>
-  <p class="note" style="margin:0 0 8px">Teams without a submission keep their
-  previous decisions.</p>
-  <button type="submit">Run round {{ next_round }}</button>
+  <div class="ctl"><p class="note">{% if is_open %}Teams without a submission
+  keep their previous decisions.{% elif finished %}All {{ game['total_rounds'] }}
+  rounds have run.{% else %}Open round {{ next_round }} first, so teams can
+  submit.{% endif %}</p></div>
+  <div class="acts">
+  <button type="submit" {{ 'disabled' if not is_open }}>Run round {{ next_round }}</button>
+  </div>
 </form>
 <form method="post" action="{{ url_for('admin_rollback') }}"
       onsubmit="return confirm('Roll back? Results after that round are discarded. Submissions are kept.')">
@@ -48,15 +60,17 @@
   {% if game['round'] %}
   {# Name the round being undone, not the one being kept: "roll back to end
      of round 3" was read as "undo round 3", which did nothing at all. #}
-  <select id="rb" name="to_round" style="margin-bottom:8px">
+  <div class="ctl">
+  <select id="rb" name="to_round">
     {% for to in range(game['round'] - 1, -1, -1) %}
     <option value="{{ to }}">Undo {% if to + 1 < game['round'] %}rounds {{ to + 1 }} to {{ game['round'] }}{% else %}round {{ to + 1 }}{% endif %}
       &middot; back to {% if to %}end of round {{ to }}{% else %}the start{% endif %}</option>
     {% endfor %}
-  </select>
-  <button type="submit" class="ghost">Roll back</button>
+  </select></div>
+  <div class="acts"><button type="submit" class="ghost">Roll back</button></div>
   {% else %}
-  <p class="note" style="margin:0">Nothing to roll back until round 1 has run.</p>
+  <div class="ctl"><p class="note">Nothing to roll back until round 1 has run.</p></div>
+  <div class="acts"><button type="button" class="ghost" disabled>Roll back</button></div>
   {% endif %}
 </form>
 </div>
