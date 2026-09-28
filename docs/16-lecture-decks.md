@@ -24,7 +24,15 @@ the instructor's standing rules. Apply them to every new deck and every edit.
    statistic; illustrative examples are marked as illustrative.
 4. **Introduce the simulation's market before using it.** Students do not know
    what the simulation sells or how it works until a slide tells them.
-5. The course map (`docs/15-course-map.md`) says which decisions open in which
+5. **Illustrate every theory block with real cases**: one Pakistani and one
+   global (or regional) company on a two-card case slide after the block,
+   with facts checked against published sources and cited in the footer and
+   notes. Prefer cases from the simulation's category where they fit.
+6. **Two parts per deck.** Part 1 is theory with cases; Part 2 (its own divider
+   slide) is the simulation, framed on its actual category — personal care and
+   home care in Pakistan — starting with one slide on how that category really
+   works online before the simulation's own market.
+7. The course map (`docs/15-course-map.md`) says which decisions open in which
    session; each session's simulation section covers exactly those.
 
 ## Design and animation
