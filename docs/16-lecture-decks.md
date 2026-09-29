@@ -58,7 +58,14 @@ the instructor's standing rules. Apply them to every new deck and every edit.
   `python tools/deck/build_pptx.py <deck folder> <out.pptx> <logo.png>`
   (the deck folder holds `project/deck.json` and `project/slides/`).
 
+- `s2_slides.py`, `s2_cases.py`, `s3_slides.py` — the generators that wrote the
+  Session 2 and 3 slides (helpers: section, card, band, grid, case slides,
+  dividers, waterfall, pinned tables). Run with the deck folder as argument.
+- Simulation numbers on Part 2 slides come from running the engine (one
+  baseline round with default decisions), never from memory or the logs.
+
 ## The decks
 
 - Session 1 — https://claude.ai/artifact/F5n9AU3uuw6LRAxWTTeEox
 - Session 2 — https://claude.ai/artifact/8m8wJahwjW9ZJ6FLqhgypd
+- Session 3 — https://claude.ai/artifact/V5LSNWTN1zvyQFTE1nvD4j

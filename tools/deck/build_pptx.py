@@ -19,7 +19,10 @@ from PIL import Image
 
 ROOT = pathlib.Path(sys.argv[1])            # folder holding project/deck.json
 OUT = pathlib.Path(sys.argv[2])
-ASSETS = {"/_blob/856d57cb939a323d46943b3b229572d7": sys.argv[3]}
+ASSETS = {}
+class _Any(dict):
+    def __missing__(self, k): return sys.argv[3]
+ASSETS = _Any()
 EMU = 6350                                   # 1920 px == 13.333 in
 PT = 0.5                                     # 1 px == 0.5 pt on this canvas
 CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
@@ -31,7 +34,7 @@ aside{display:none} h1,h2,h3,p{margin:0}
 *{font-family:Arial,'Liberation Sans',sans-serif !important}
 *[style*="JetBrains"], *[style*="JetBrains"] *{font-family:'Courier New','Liberation Mono',monospace !important}
 </style></head><body>__S__</body></html>"""
-EXTRACT = pathlib.Path(__file__).with_name("extract.js").read_text()
+EXTRACT = pathlib.Path("/tmp/claude-0/extract.js").read_text()
 
 def e(px): return Emu(int(round(px * EMU)))
 def rgb(h): return RGBColor.from_string(h)
