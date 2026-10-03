@@ -40,6 +40,18 @@ def run(world, params, resolved, ctx) -> None:
         target = max(1.0, min(5.0, target))
         team.rating += params["rating_convergence"] * (target - team.rating)
 
+        # Website investment (5.1) closes part of the gap between today's
+        # store and the best the tech stack allows. It was charged in M14 but
+        # never reached ux_score, so the lever cost money and did nothing.
+        # Updated here, after M8 has used this round's score, so the
+        # improvement lands the month after the spend - as the form promises.
+        spend = float(d.get("5.1", 0) or 0)
+        if spend > 0:
+            ceiling = getattr(team, "ux_ceiling", 0.75)
+            gap = max(0.0, ceiling - team.ux_score)
+            team.ux_score += gap * spend / (spend + params["ux_invest_half"])
+        ctx.setdefault("ux_score", {})[tid] = team.ux_score
+
         team.nps = (
             100 * (0.42 * (team.rating - 3) + 0.30 * sla_hit
                    + 0.28 * team.delivery_actual) - 20

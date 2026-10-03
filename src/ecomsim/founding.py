@@ -275,6 +275,7 @@ def apply(f: Founding, team, params) -> None:
     team.traffic_multiplier = _traffic
     team.rating = max(1.0, min(5.0, team.rating + rating_bonus))
     team.ux_score = min(ux_ceiling, 0.62 if launch_rounds == 0 else 0.42)
+    team.ux_ceiling = ux_ceiling
     team.cs_agents = f.headcount.get("cs", 4)
 
     # Capex is paid at founding, in full, and is not refundable.

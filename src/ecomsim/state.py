@@ -39,6 +39,8 @@ class TeamState:
     brand_equity: float = 0.50
     creative_quality: float = 0.50
     ux_score: float = 0.50
+    # The tech stack chosen at founding caps how good the store can get.
+    ux_ceiling: float = 0.75
     rating: float = 4.10
     nps: float = 24.0
 
