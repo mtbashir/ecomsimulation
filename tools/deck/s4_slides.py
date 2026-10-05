@@ -346,7 +346,7 @@ logo = sys.argv[2] if len(sys.argv) > 2 else "__LOGO__"
 root = pathlib.Path(sys.argv[1]) / "project"
 (root / "slides").mkdir(parents=True, exist_ok=True)
 for k, v in S.items():
-    (root / "slides" / f"{k}.html").write_text(v.replace("__LOGO__", logo))
+    (root / "slides" / f"{k}.html").write_text(v.replace("__LOGO__", logo.rsplit("/", 1)[-1]))
 deck = {"v": 4, "createdOnFiles": {"v": 1, "at": "2026-10-03T09:00:00Z"}, "lists": "css",
         "title": "Session 4 — Building Your Online Store", "order": ORDER,
         "sections": {
