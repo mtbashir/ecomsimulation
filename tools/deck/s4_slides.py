@@ -99,6 +99,39 @@ Link back to Exercise 1: the answers fall into the same piles — trust, cost, e
 
 Ask the room the band question and take three answers. Then the next slide shows how far Pakistan is from buying online at all.""")
 
+def pill(s, size=24, bg="#f5f5f6", col="#131316", pad="6px 14px"):
+    return f'<p style="font-size:{size}px; line-height:1.3; color:{col}; background:{bg}; padding:{pad}; border-radius:8px; white-space:nowrap">{s}</p>'
+groups = [("The product", "#2a78d6", ["Brand", "Product name", "Product type", "Shade / colour code", "Shade swatches", "Skin tone suitability",
+            "Skin type suitability", "Ingredients", "Benefits / claims", "SPF level", "Finish", "Coverage", "Texture description",
+            "Fragrance", "Size / quantity", "How to use"]),
+          ("Proof", "#1baf7a", ["Before / after results", "Customer ratings", "Number of reviews", "Customer reviews", "User photos / videos",
+            "Influencer reviews", "Expert claims", "Certifications", "Country of origin", "Authenticity", "Expiry / shelf life"]),
+          ("Cost and risk", "#ed0000", ["Price", "Discount", "Delivery charges", "Delivery time", "Return / exchange policy", "Seller rating",
+            "Seller credibility", "Availability", "Bundle offers", "Competitor comparison"])]
+online = "".join(f'''<div style="display:flex; flex-direction:column; gap:8px"><p style="font-size:22px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:{c}">{g}</p><div style="display:flex; flex-wrap:wrap; gap:8px">{"".join(pill(x) for x in items)}</div></div>''' for g, c, items in groups)
+offline = "".join(pill(x, 28, "#2b2b31", "#ffffff", "8px 18px") for x in ["Brand", "Shade", "Texture", "Fragrance", "Packaging", "Price", "Promotion"])
+S["attributes"] = sec("attributes", "#ffffff", "Shopper behaviour &middot; beauty", "Online shoppers check five times as much",
+  f'''  <div data-build-in="fade 1" style="position:absolute; left:128px; top:276px; width:1160px; height:640px; background:#ffffff; padding:28px 32px; border-radius:18px; border:1px solid #e4e4e7; display:flex; flex-direction:column; gap:14px">
+    <div style="display:flex; align-items:baseline; gap:20px"><p style="font-size:56px; font-weight:700; color:#ed0000; letter-spacing:-1px">37</p><p style="font-size:28px; font-weight:600; color:#131316">attributes online &middot; &ldquo;I need information to reduce uncertainty&rdquo;</p></div>
+    {online}
+  </div>
+  <div data-build-in="fade 2" style="position:absolute; left:1312px; top:276px; width:480px; height:640px; background:#131316; padding:28px 32px; border-radius:18px; display:flex; flex-direction:column; gap:18px">
+    <div style="display:flex; align-items:baseline; gap:20px"><p style="font-size:56px; font-weight:700; color:#ff3b3b; letter-spacing:-1px">7</p><p style="font-size:28px; font-weight:600; color:#ffffff">in a shop</p></div>
+    <p style="font-size:26px; line-height:1.35; color:#c9c9d1">&ldquo;I can see, touch and experience it&rdquo;</p>
+    <div style="display:flex; flex-wrap:wrap; gap:10px">{offline}</div>
+  </div>
+  <p data-build-in="fade 3" style="position:absolute; left:1344px; top:740px; width:416px; height:150px; font-size:28px; line-height:1.4; font-weight:600; color:#ffffff">The product page has to do the job of the shop counter, the tester and the shopkeeper.</p>''',
+  """Lipstick, foundation or a face serum. Click 1: the online shopper. Click 2: the same shopper in a shop. Click 3: the conclusion.
+
+In a shop the shopper swatches the shade on her hand, smells it, feels the texture, looks at the pack and the price tag. About seven things decide it, because the product answers the rest by itself.
+
+Online she cannot touch anything, so every one of those senses has to be replaced by information: shade swatches on different skin tones, finish and coverage in words, ingredients and SPF, before-and-after photos, reviews with user photos, and then everything about the seller — is it authentic, when will it come, what if the shade is wrong. Thirty-seven attributes in three groups: the product, proof, and cost and risk.
+
+This is an illustrative list for beauty products, not survey data; the exact count matters less than the gap. Ask the room: which of the 37 does your favourite beauty site leave out? Most will say shade on skin like theirs, and authenticity.
+
+Link forward: the product-page, photos and trust slides are the practical answer to this one.""",
+  footer="Lipstick, foundation, face serum &middot; illustrative attribute list, not survey data")
+
 S["shopper-data"] = sec("shopper-data", "#f5f5f6", "Shopper behaviour", "How Pakistan shops: mostly offline, still",
   row4([
     ("Did not buy online", "91%", "of adults made no online purchase in the first half of 2025."),
@@ -375,7 +408,7 @@ S["next"] = sec("next", "#131316", "Next session", "What to sell and how to pric
 
 Session 5 opens bundles (1.2), the free-delivery threshold (2.4) and product-by-product discounting in 1.1. It builds on Session 3's discount lesson and today's checkout lesson: a free-delivery threshold is the answer to "extra costs too high".""", dark=True, eyecol="#ff3b3b")
 
-ORDER = ["cover", "recall", "ex1", "part1", "shopper", "shopper-data", "channels", "case-channel", "pdp", "photos", "trust", "checkout", "cx",
+ORDER = ["cover", "recall", "ex1", "part1", "shopper", "attributes", "shopper-data", "channels", "case-channel", "pdp", "photos", "trust", "checkout", "cx",
          "case-trust", "audit", "ex2", "part2", "sim-cr", "sim-levers", "sim-tests", "checks", "next"]
 assert set(ORDER) == set(S), set(S) ^ set(ORDER)
 logo = sys.argv[2] if len(sys.argv) > 2 else "__LOGO__"
