@@ -82,6 +82,42 @@ S["part1"] = div("part1", "Part 1 &middot; Theory", "What makes a stranger<br>pr
   "Where to sell, product pages, trust, checkout and the experience after it &mdash; with Pakistani and global cases.",
   """Part 1 is real-world practice, no simulation. Five blocks: choosing the channel, the product page (photos and words), trust, checkout, and the experience after the order. Then a ten-minute store audit any of them can use on a real business.""")
 
+shop = [("Touches, smells and tries it", "Sees a photo and reads a label", "Show it the way a hand would check it"),
+        ("Knows the shopkeeper", "Buys from a stranger", "Earn trust before asking for money"),
+        ("Pays after seeing it", "Pays first, or cash at the door", "Offer the way they want to pay"),
+        ("Takes it home now", "Waits two to five days", "Promise a date, and keep it"),
+        ("Asks the shopkeeper what to buy", "Reads descriptions and reviews", "Answer the questions before they ask"),
+        ("Compares two or three shops", "Compares fifty in a minute", "Give a reason to choose you, not only a price")]
+S["shopper"] = sec("shopper", "#ffffff", "Shopper behaviour", "What shoppers give up online",
+  trows(["In a shop, the shopper&hellip;", "Online, they&hellip;", "So the store must&hellip;"], shop, 282, [560, 500, 548], rh=80, size=27)
+  + "\n" + band(7, 830, 80, "<b>Which of these would stop you buying online?</b>", size=29, extra="padding:20px 40px;"),
+  """One row per click. This is the frame for the whole of Part 1: every part of an online store exists to replace something the physical shop gives for free.
+
+Touch: photos, size in the hand, ingredients. Shopkeeper trust: reviews, a real phone number, authenticity proof. Paying after seeing: cash on delivery. Taking it home now: a delivery promise. Advice: descriptions and reviews. Comparison: online makes comparing easy, so a store needs a reason to be chosen beyond price.
+
+Link back to Exercise 1: the answers fall into the same piles — trust, cost, effort and doubt about the product.
+
+Ask the room the band question and take three answers. Then the next slide shows how far Pakistan is from buying online at all.""")
+
+S["shopper-data"] = sec("shopper-data", "#f5f5f6", "Shopper behaviour", "How Pakistan shops: mostly offline, still",
+  row4([
+    ("Did not buy online", "91%", "of adults made no online purchase in the first half of 2025."),
+    ("Prefer online", "3%", "for buying clothes, against 90% for local markets. In cities, 5%."),
+    ("Paid cash on delivery", "60%", "of online buyers. Easypaisa 15%, cards only 7%."),
+    ("Top category bought", "30%", "of online purchases were clothing, followed by watches."),
+  ], 290, 360)
+  + "\n" + band(5, 700, 180, "Nine in ten Pakistanis are not yet buying online. <b>Is your customer one of the ten percent who already do &mdash; or are you trying to convert the other ninety?</b>", size=30),
+  """One number per click. Two nationwide Gallup &amp; Gilani Pakistan surveys, as reported in the press:
+
+1. Online purchases: 91% of respondents said they made no online purchase in the previous six months (first half of 2025). Among those who did, 60% paid cash on delivery, 15% used Easypaisa and 7% a credit or debit card; clothing was the top category at 30%, followed by watches; 52% bought through websites, 16% through local online stores, 5% Amazon, 3% AliExpress. Reported by ProPakistani, December 2025.
+
+2. Where people prefer to shop for clothes: 90% local stores or markets, 3% malls, 3% online. Rural 93% local markets; urban 83% local, 6% malls, 5% online. Fieldwork 7–22 March 2025, 779 adults across all four provinces, telephone interviews, margin of error about ±2–3%. Reported by Business Recorder.
+
+Caveats to say out loud: these are national samples including rural and older adults; urban, young, smartphone-using shoppers — most of the room — buy online far more. The point is the size of the market not yet reached, and why trust and COD dominate.
+
+Question for the room: who is your customer — someone already buying online, or someone you must persuade to try?""",
+  footer="Source: Gallup &amp; Gilani Pakistan surveys, 2025, as reported by ProPakistani and Business Recorder")
+
 chan = [("Own website", "You do", "Low per order, but you pay for every visitor", "You must earn it", "Full: brand, data, price"),
         ("Marketplace", "The marketplace", "Commission on every sale", "Borrowed from the platform", "Little: its rules, its rivals"),
         ("Social media", "Shared with the platform", "Low to start; time and ads", "Personal, through the chat", "Some: but checkout is a DM")]
@@ -339,7 +375,7 @@ S["next"] = sec("next", "#131316", "Next session", "What to sell and how to pric
 
 Session 5 opens bundles (1.2), the free-delivery threshold (2.4) and product-by-product discounting in 1.1. It builds on Session 3's discount lesson and today's checkout lesson: a free-delivery threshold is the answer to "extra costs too high".""", dark=True, eyecol="#ff3b3b")
 
-ORDER = ["cover", "recall", "ex1", "part1", "channels", "case-channel", "pdp", "photos", "trust", "checkout", "cx",
+ORDER = ["cover", "recall", "ex1", "part1", "shopper", "shopper-data", "channels", "case-channel", "pdp", "photos", "trust", "checkout", "cx",
          "case-trust", "audit", "ex2", "part2", "sim-cr", "sim-levers", "sim-tests", "checks", "next"]
 assert set(ORDER) == set(S), set(S) ^ set(ORDER)
 logo = sys.argv[2] if len(sys.argv) > 2 else "__LOGO__"
