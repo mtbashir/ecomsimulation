@@ -66,3 +66,26 @@ def test_bundles_add_units_to_cogs():
     a, b = (world.teams[t].history[-1] for t in ids)
     assert b["aov_net"] > a["aov_net"]
     assert b["pnl"]["cogs"] / b["orders"] > a["pnl"]["cogs"] / a["orders"]
+
+
+def test_console_carries_the_debrief():
+    from pathlib import Path
+    import tempfile
+    from ecomsim import console
+    params, world, _ = _team()
+    ids = list(world.teams)
+    subs = {ids[0]: {"3.1": 30_000.0, "3.2": 20_000.0, "3.4": 10_000.0,
+                     "1.2": {c: {} for c in CODES + ["SKU-02"]}, "2.4": 0.0},
+            ids[1]: {}}
+    run_round(world, params, subs)
+    with tempfile.TemporaryDirectory() as tmp:
+        html = console.render(world, params, Path(tmp), submissions=subs,
+                              open_codes=["3.1", "3.2", "3.4", "1.2", "2.4", "12.5"]).read_text()
+    assert "what each team decided" in html
+    assert "Cut ad budgets" in html
+    assert "only the three most attractive count" in html
+    assert "Free delivery on every order" in html
+    assert "Submitted nothing" in html
+    with tempfile.TemporaryDirectory() as tmp:          # file runner: no submissions
+        plain = console.render(world, params, Path(tmp)).read_text()
+    assert "what each team decided" not in plain

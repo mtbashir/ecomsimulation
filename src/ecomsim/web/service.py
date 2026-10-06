@@ -1019,8 +1019,11 @@ def instructor_console(con, round_: int) -> str | None:
     from pathlib import Path
 
     with tempfile.TemporaryDirectory() as tmp:
-        return console.render(world, load_params(con), Path(tmp)).read_text(
-            encoding="utf-8")
+        submitted = db.submissions(con, round_)
+        open_codes = [s.code for s in open_decisions(con, round_)]
+        return console.render(world, load_params(con), Path(tmp),
+                              submissions=submitted,
+                              open_codes=open_codes).read_text(encoding="utf-8")
 
 
 def export_decisions(con, round_: int) -> str:

@@ -10,7 +10,7 @@ from __future__ import annotations
 from html import escape
 from pathlib import Path
 
-from . import scoring
+from . import debrief, scoring
 from .charts import CSS_TOKENS, rank_bars, small_multiple
 
 LEADERBOARD_FROM_ROUND = 4
@@ -105,7 +105,8 @@ def _targeting(ranked, params, name_of) -> str:
         '</tbody></table></details></section>')
 
 
-def render(world, params, out_dir: str | Path) -> Path:
+def render(world, params, out_dir: str | Path, submissions: dict | None = None,
+           open_codes: list[str] | None = None) -> Path:
     round_ = world.round
     teams = list(world.teams.values())
     cards = {t.team_id: scoring.final_score(t, params, world.teams) for t in teams}
@@ -201,11 +202,12 @@ h2,.sub,figcaption,.note,summary,.flag{{color:#c3c2b7}}
 table.t th,table.t td{{border-color:#2c2c2a}} table.t thead th{{color:#c3c2b7}}
 .up{{color:#0ca30c}}}}
 {CSS_TOKENS}
+{debrief.CSS}
 </style></head><body class="viz"><div class="wrap">
 <h1>Round {round_}</h1>
 <p class="sub">Instructor console &middot; {len(teams)} teams &middot;
 config {params.config_hash()}</p>
-{board}{_targeting(ranked, params, name_of)}{"".join(blocks)}
+{board}{debrief.section(ranked, params, submissions, open_codes or [], name_of)}{_targeting(ranked, params, name_of)}{"".join(blocks)}
 </div></body></html>"""
 
     out = Path(out_dir) / f"console_r{round_}.html"
