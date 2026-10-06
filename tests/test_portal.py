@@ -759,12 +759,16 @@ def test_bundles_are_priced_and_still_counted_by_the_engine(game):
 
     picked = [r["code"] for r in rows[:2]]
     data = {f"bundle_{c}": "1" for c in picked}
-    data.update({f"bundleprice_{c}": "2500" for c in picked})
+    # The form's own suggestion: 10% under three singles. A flat price for
+    # every pack would be dearer than three singles on the cheap lines, and
+    # since pack prices count, nobody would buy those.
+    fair = {r["code"]: round(r["reference"] * 0.9) for r in rows[:2]}
+    data.update({f"bundleprice_{c}": str(fair[c]) for c in picked})
     team.post("/submit", data=data, follow_redirects=True)
 
     saved = db.submission(con, 2, "team_01")["1.2"]
     assert set(saved) == set(picked)
-    assert saved[picked[0]]["price"] == pytest.approx(2500)
+    assert saved[picked[0]]["price"] == pytest.approx(fair[picked[0]])
 
     before = db.load_world(con).teams["team_01"].history[-1]["aov_net"]
     service.process_round(con)

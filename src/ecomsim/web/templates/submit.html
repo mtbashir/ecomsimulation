@@ -137,9 +137,11 @@
     </tbody></table>
     <div class="hint">A bundle is a three-pack of one of your own products, so
     its cost is three units landed and "three singles" is what a customer would
-    pay buying them one at a time. <b>What the model reads is how many packs you
-    offer</b> &mdash; that is what lifts basket size, and the gain flattens past
-    three. The pack price is the economics of the offer you are making.</div>
+    pay buying them one at a time. <b>The pack price matters.</b> A pack below
+    three singles sells more and gives the saving away on every pack sold; a pack
+    above three singles sells less, and priced a third over, nobody buys it. Your
+    three most attractive packs set the lift in basket size &mdash; more than
+    three adds nothing.</div>
 
   {% elif s.kind == 'shares' %}
     {% set chosen = val if val is mapping else default_shares.get(s.code, {}) %}

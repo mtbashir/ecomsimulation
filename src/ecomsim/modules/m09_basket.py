@@ -7,6 +7,10 @@ score that its actual price/quality position cannot support.
 from __future__ import annotations
 
 from . import m03_supply as m03
+from .m00_resolve import monthly_discounts, monthly_prices
+
+BUNDLE_UNITS = 3            # a bundle is a three-pack of one product
+DEFAULT_PACK_RATIO = 0.90   # a pack offered with no price: 10% under three singles
 
 
 def run(world, params, resolved, ctx) -> None:
@@ -23,9 +27,9 @@ def run(world, params, resolved, ctx) -> None:
         basket = ctx["basket_list_price"][tid] * params["units_per_order"]
         aov = basket * (1 - discount)
 
-        bundles = d.get("1.2") or []
-        penetration = min(1.0, len(bundles) / 3.0) if bundles else 0.0
-        aov *= 1 + params["bundle_aov_coef"] * penetration
+        bundle_aov, bundle_units = _bundle_effect(team, params, d)
+        aov *= bundle_aov
+        ctx.setdefault("bundle_units_mult", {})[tid] = bundle_units
 
         aov *= _freeship_effect(float(d.get("2.4", 0) or 0), params)
 
@@ -47,6 +51,63 @@ def run(world, params, resolved, ctx) -> None:
         world.market_avg_aov = sum(aovs.values()) / len(aovs)
 
 
+def _unit_net_price(team, params, d, code: str) -> float:
+    """What one unit of a product sells for this month, after its discount.
+
+    The same order of precedence as the shelf price: this month's price list,
+    then the founding price, then the catalogue at the team's tier.
+    """
+    sku = params.sku(code)
+    price = monthly_prices(d).get(
+        code, (team.sku_prices or {}).get(
+            code, float(sku["list_price"]) * team.price_multiplier))
+    discount = monthly_discounts(d).get(code, float(d.get("2.2", 0) or 0))
+    return float(price) * (1 - discount)
+
+
+def _bundle_effect(team, params, d) -> tuple[float, float]:
+    """(AOV multiplier, units-per-order multiplier) from the packs on offer.
+
+    Each pack is judged against three singles at the team's own net price.
+    A pack cheaper than three singles appeals more and is taken up more; one
+    dearer than three singles appeals less, and at a third over nobody buys
+    it. The three most appealing packs set the uptake - the gain flattens past
+    three lines. Uptake lifts the basket with real units, so cost of goods
+    rises with it, and the pack's saving is given away on the bundled share
+    of revenue. Before this, only the NUMBER of packs was read: a pack priced
+    at double three singles earned the same lift as a fair one.
+    """
+    raw = d.get("1.2") or {}
+    cells = {c: {} for c in raw} if isinstance(raw, list) else dict(raw)
+    sold = set(team.active_skus or [s["code"] for s in params.skus])
+    appeal, ratios = [], []
+    for code, cell in cells.items():
+        if code not in sold:
+            continue
+        reference = _unit_net_price(team, params, d, code) * BUNDLE_UNITS
+        if reference <= 0:
+            continue
+        try:
+            price = float((cell or {}).get("price") or 0)
+        except (TypeError, ValueError):
+            price = 0.0
+        ratio = price / reference if price > 0 else DEFAULT_PACK_RATIO
+        a = max(0.0, min(params["bundle_appeal_cap"],
+                         1 + params["bundle_price_sensitivity"] * (1 - ratio)))
+        appeal.append(a)
+        ratios.append(ratio)
+    if not appeal:
+        return 1.0, 1.0
+    top = sorted(zip(appeal, ratios), reverse=True)[:3]
+    penetration = sum(a for a, _ in top) / 3.0
+    weight = sum(a for a, _ in top) or 1.0
+    ratio = sum(a * r for a, r in top) / weight      # uptake-weighted pack price
+    uplift = params["bundle_aov_coef"] * penetration
+    share = params["bundle_revenue_share"] * penetration
+    aov_mult = (1 + uplift) * (1 - share * (1 - ratio))
+    return aov_mult, 1 + uplift
+
+
 def _freeship_effect(threshold: float, params) -> float:
     """A threshold slightly above natural basket lifts AOV.
 
@@ -60,7 +121,8 @@ def _freeship_effect(threshold: float, params) -> float:
 
 
 def _consume_stock(team, params, orders: float, ctx) -> None:
-    units = orders * params["units_per_order"]
+    units = (orders * params["units_per_order"]
+             * ctx.get("bundle_units_mult", {}).get(team.team_id, 1.0))
     skus = team.active_skus or [s["code"] for s in params.skus]
     total_w = sum(float(params.sku(c)["revenue_weight"]) for c in skus) or 1.0
     cogs = 0.0

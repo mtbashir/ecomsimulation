@@ -70,8 +70,9 @@ ENTRIES = {
         related=["1.1", "7.4", "8.5"]),
     "1.2": dict(
         does="Offers three-packs of your own products at a pack price. Bundles lift "
-             "average order value; the gain flattens after about three bundled "
-             "lines.",
+             "average order value; the price decides how many customers take the "
+             "pack. Cheaper than three singles sells more, dearer sells less, and "
+             "only your three most attractive packs count.",
         tradeoff="Basket size against margin. A pack priced well below three "
                  "singles trades margin for a bigger order.",
         watch="Average order value (AOV) and gross margin.",

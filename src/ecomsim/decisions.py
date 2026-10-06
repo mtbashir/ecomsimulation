@@ -85,9 +85,10 @@ REGISTRY: dict[str, DecisionSpec] = {
             "1.2", "G1", "Bundles", "bundles", [],
             frozenset({"standard", "advanced", "expert"}),
             help="Three-packs of your own products, priced as a pack. Offering "
-                 "bundles lifts average order value; the gain flattens once you "
-                 "are bundling three or more lines. Price the pack below three "
-                 "singles and you are trading margin for basket size.",
+                 "bundles lifts average order value; the pack price decides how "
+                 "many customers take it, and only your three most attractive "
+                 "packs count. Price the pack below three singles and you are "
+                 "trading margin for basket size; above, and fewer will buy it.",
             catalogue="skus"),
 
         # --- Pricing ---------------------------------------------------------
