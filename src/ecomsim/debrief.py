@@ -225,9 +225,10 @@ def _ordinal(n: int) -> str:
 
 def _rank(room: dict, tid: str, key: str, low: bool = False) -> int:
     """Competition rank: ties share a place, the next one skips."""
-    mine = room[tid][key]
+    mine = room[tid].get(key, 0) or 0
     better = sum(1 for r in room.values()
-                 if (r[key] < mine if low else r[key] > mine) and abs(r[key] - mine) > 1e-9)
+                 if ((r.get(key, 0) or 0) < mine if low else (r.get(key, 0) or 0) > mine)
+                 and abs((r.get(key, 0) or 0) - mine) > 1e-9)
     return better + 1
 
 
@@ -328,33 +329,38 @@ def _strategy(team, params, sub: dict, h: dict, room: dict) -> str:
     return " ".join(out)
 
 
-RESULT_COLS = [
-    ("Revenue", "revenue_net", _money, False),
-    ("Orders", "orders", lambda v: f"{v:,.0f}", False),
-    ("Conversion", "conversion_rate", lambda v: f"{v:.2%}", False),
-    ("Avg order", "aov_net", _money, False),
-    ("Gross margin", "gross_margin_pct", lambda v: f"{v:.1%}", False),
-    ("Contribution", "contribution_margin_pct", lambda v: f"{v:.1%}", False),
-    ("CAC", "cac_blended", _money, True),
-    ("EBITDA", "ebitda", _money, False),
-    ("Cash", "cash_balance", _money, False),
+RESULT_LINES = [
+    [("Revenue", "revenue_net", _money, False),
+     ("Orders", "orders", lambda v: f"{v:,.0f}", False),
+     ("Conversion", "conversion_rate", lambda v: f"{v:.2%}", False),
+     ("Avg order", "aov_net", _money, False),
+     ("CAC", "cac_blended", _money, True),
+     ("Repeat share", "repeat_order_share", lambda v: f"{v:.0%}", False)],
+    [("Gross margin", "gross_margin_pct", lambda v: f"{v:.1%}", False),
+     ("Contribution", "contribution_margin_pct", lambda v: f"{v:.1%}", False),
+     ("EBITDA", "ebitda", _money, False),
+     ("Cash", "cash_balance", _money, False),
+     ("Service level", "service_level", lambda v: f"{v:.0%}", False),
+     ("Rating", "rating", lambda v: f"{v:.2f}", False)],
 ]
 
 
 def _results(team, h: dict, room: dict, score) -> str:
-    """One team's results with its rank in the room under each figure."""
+    """One team's results in two lines, its rank in the room under each figure."""
     tid = team.team_id
-    head = "".join(f"<th>{label}</th>" for label, *_ in RESULT_COLS)
-    vals = "".join(f"<td>{fmt(h[key])}</td>" for _, key, fmt, _ in RESULT_COLS)
-    ranks = "".join(f"<td>{_ordinal(_rank(room, tid, key, low))}</td>"
-                    for _, key, _, low in RESULT_COLS)
-    s_head = "<th>Score</th>" if score is not None else ""
-    s_val = f"<td><b>{score:.1f}</b></td>" if score is not None else ""
-    s_rank = "<td></td>" if score is not None else ""
-    return (f'<table class="t res"><thead><tr><th></th>{s_head}{head}</tr></thead><tbody>'
-            f'<tr><td>Result</td>{s_val}{vals}</tr>'
-            f'<tr class="rk"><td>Rank in room</td>{s_rank}{ranks}</tr></tbody></table>')
-
+    lines = []
+    for i, cols in enumerate(RESULT_LINES):
+        first = i == 0 and score is not None
+        head = ("<th>Score</th>" if first else "<th></th>" if score is not None else "") \
+            + "".join(f"<th>{label}</th>" for label, *_ in cols)
+        vals = (f"<td><b>{score:.1f}</b></td>" if first else
+                "<td></td>" if score is not None else "") \
+            + "".join(f"<td>{fmt(h.get(key, 0) or 0)}</td>" for _, key, fmt, _ in cols)
+        ranks = ("<td></td>" if score is not None else "") + "".join(
+            f"<td>{_ordinal(_rank(room, tid, key, low))}</td>" for _, key, _, low in cols)
+        lines.append(f'<tr class="hd">{head}</tr><tr>{vals}</tr><tr class="rk">{ranks}</tr>')
+    return ('<table class="t res"><tbody>' + "".join(lines) + "</tbody></table>"
+            '<p class="rk-note">Small figures: rank in the room.</p>')
 
 def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
             scores: dict | None = None) -> str:
@@ -390,7 +396,8 @@ def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
             f'<div class="db {tag}"><h3>{i}. {escape(name_of(t))}'
             f'{"" if name_of(t) == t.team_id else f" <span class=tid>{t.team_id}</span>"}'
             f'{" <span class=pill>top</span>" if tag == "top" else ""}'
-            f'{" <span class=pill>bottom</span>" if tag == "bottom" else ""}</h3>'
+            f'{" <span class=pill>bottom</span>" if tag == "bottom" else ""}'
+            f'<span class="tid"> &middot; {escape(str(h.get("binding_constraint", "")).replace("_", " "))}</span></h3>'
             f'{_results(t, h, room, score)}'
             f'<p class="strat"><b>Strategy.</b> {strategy}</p><div class="cols"><dl>{took_html}</dl>'
             f'<div>{lists}</div></div>{left}</div>')
@@ -404,15 +411,21 @@ def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
 
 
 CSS = """
-.db{border-top:1px solid #e1e0d9;padding:14px 0 6px}
-.db:first-of-type{border-top:none}
+.db{border:1px solid #d6d5ce;border-left:4px solid #898781;border-radius:8px;
+padding:14px 16px 8px;margin:0 0 22px;background:#fff}
+.db.top{border-left-color:#006300} .db.bottom{border-left-color:#d03b3b}
 .db h3{font-size:16px;margin:0 0 4px}
 .db .pill{font-size:11px;font-weight:600;padding:1px 7px;border-radius:9px;
 background:#e7f3e7;color:#006300;vertical-align:2px}
 .db.bottom .pill{background:#fbe9e9;color:#d03b3b}
 .db .strat{font-size:14px;line-height:1.55;margin:8px 0 10px;padding:8px 10px;
 background:#f3f2ee;border-radius:6px}
-table.t.res{margin:6px 0 4px;font-size:12.5px} table.t.res tr.rk td{color:#898781;font-size:11.5px}
+table.t.res{margin:6px 0 0;font-size:13px}
+table.t.res tr.hd th{color:#52514e;font-weight:600;font-size:12px;border-bottom:none;padding-top:8px}
+table.t.res tr.rk td{color:#898781;font-size:11.5px;padding-top:0}
+table.t.res td,table.t.res th{text-align:right}
+table.t.res td:first-child,table.t.res th:first-child{text-align:left}
+.rk-note{font-size:11.5px;color:#898781;margin:2px 0 0}
 .db .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:820px){.db .cols{grid-template-columns:1fr}}
 .db dl{margin:0;display:grid;grid-template-columns:150px 1fr;gap:3px 10px;font-size:13px}
@@ -420,5 +433,5 @@ table.t.res{margin:6px 0 4px;font-size:12.5px} table.t.res tr.rk td{color:#89878
 .db .mute{color:#898781}
 .obs{font-size:13px;margin:0 0 8px} .obs ul{margin:4px 0 0;padding-left:18px}
 .obs.good b{color:#006300} .obs.watch b{color:#d03b3b}
-@media(prefers-color-scheme:dark){.db{border-color:#2c2c2a}.db dt{color:#c3c2b7}.db .strat{background:#232321}}
+@media(prefers-color-scheme:dark){.db{border-top-color:#3a3a37;border-right-color:#3a3a37;border-bottom-color:#3a3a37;background:#1f1f1d}.db dt{color:#c3c2b7}.db .strat{background:#232321}}
 """
