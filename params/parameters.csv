@@ -54,6 +54,9 @@ bundle_price_sensitivity,M9,3.0,2.0,4.5,0.0,8.0,coefficient,,Uptake change per u
 bundle_appeal_cap,M9,1.6,1.2,2.0,1.0,3.0,multiplier,,Most a deep pack discount can raise one pack's uptake
 bundle_revenue_share,M9,0.25,0.15,0.35,0.0,0.6,ratio,,Share of revenue sold as packs at full uptake; the pack saving is given away on this share
 freeship_coef,M9,0.12,0.05,0.22,0.0,0.40,coefficient,,AOV uplift from a free-shipping threshold above basket
+freeship_cr_penalty,M8,0.40,0.20,0.60,0.0,1.0,coefficient,,Conversion lost per basket of threshold beyond half a basket above a typical order
+freeship_free_cr_lift,M8,0.04,0.02,0.08,0.0,0.15,coefficient,,Conversion gained from free delivery on every order
+freeship_free_aov_drop,M9,0.03,0.01,0.06,0.0,0.10,ratio,,Smaller baskets when delivery is free on every order
 sla_overflow_coef,M10,0.6,0.3,0.9,0.0,1.0,coefficient,,SLA attainment loss per unit of capacity overflow
 cod_share_base,M10,0.62,0.30,0.75,0.0,0.90,ratio,,Above 0.90 the cash model degenerates
 rto_base,M10,0.18,0.08,0.28,0.0,0.40,ratio,,Above 0.40 disabling COD becomes trivially correct

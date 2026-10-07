@@ -142,3 +142,18 @@ def test_launch_month_has_no_returning_visitors():
     assert "no returning customers yet" in html
     run_round(world, params, {t: {} for t in world.teams})
     assert not funnel.from_scratch_launch(team, team.history[-1])   # month 2 onwards
+
+
+def test_free_delivery_threshold_is_a_trade_off():
+    params = P.load({"n_teams": 4})
+    world = bootstrap.new_world(params, run_id="ship")
+    ids = list(world.teams)
+    plan = {ids[0]: {}, ids[1]: {"2.4": 0.0}, ids[2]: {"2.4": 4500.0}, ids[3]: {"2.4": 10000.0}}
+    run_round(world, params, plan)
+    base, free, near, far = (world.teams[t].history[-1] for t in ids)
+    assert free["orders"] > base["orders"] and free["aov_net"] < base["aov_net"]
+    assert near["aov_net"] > base["aov_net"] and near["orders"] >= base["orders"] * 0.99
+    assert far["orders"] < base["orders"] * 0.85
+    # basket growth carries its cost: cost per order rises with the basket
+    assert near["pnl"]["cogs"] / near["orders"] > base["pnl"]["cogs"] / base["orders"]
+    assert far["pnl"]["contribution"] < near["pnl"]["contribution"]

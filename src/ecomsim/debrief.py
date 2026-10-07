@@ -199,8 +199,8 @@ def _observations(team, params, sub, h, room, open_codes) -> tuple[list[str], li
                      f"than 25% - basket grows, margin per unit shrinks.")
 
     if "2.4" in sub and float(sub["2.4"] or 0) <= 0:
-        watch.append("Free delivery on every order: no reason for customers to add "
-                     "to the basket, and the courier bill is all yours.")
+        watch.append("Free delivery on every order: a few more orders, but smaller "
+                     "baskets carrying the same courier cost each.")
     if sub.get("9.3") == "B":
         watch.append("Cheapest payment gateway: 1 in 6 card payments fails, and "
                      "each failure is a lost order.")

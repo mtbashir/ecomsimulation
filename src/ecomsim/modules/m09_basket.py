@@ -31,7 +31,11 @@ def run(world, params, resolved, ctx) -> None:
         aov *= bundle_aov
         ctx.setdefault("bundle_units_mult", {})[tid] = bundle_units
 
-        aov *= _freeship_effect(float(d.get("2.4", 0) or 0), params)
+        ship = _freeship_effect(float(d.get("2.4", 0) or 0), params)
+        aov *= ship
+        # Reaching for the bar means adding items, and items cost money: the
+        # basket's extra value carries its cost of goods, as packs do.
+        ctx["bundle_units_mult"][tid] *= ship
 
         recsys = ctx.get("capability_benefit", {}).get(tid, {}).get("recsys")
         if recsys is None and "recsys" in team.capabilities:
@@ -109,15 +113,31 @@ def _bundle_effect(team, params, d) -> tuple[float, float]:
 
 
 def _freeship_effect(threshold: float, params) -> float:
-    """A threshold slightly above natural basket lifts AOV.
+    """AOV multiplier from the free-delivery threshold.
 
-    Far above it kills conversion instead, which M8 already handles through the
-    price multiplier - so this only ever lifts.
+    A bar a little above a typical basket makes customers add to reach it (up
+    to half a basket above, then no further). Free delivery on everything takes
+    the reason away: baskets come in smaller. The conversion side - a bar far
+    above the basket loses small orders, free delivery wins some - is in M8
+    (freeship_conversion), so the lever is a trade-off, not a free lift.
     """
     if threshold <= 0:
-        return 1.0
+        return 1 - params["freeship_free_aov_drop"]
     gap = (threshold - params["aov_base"]) / params["aov_base"]
     return 1 + params["freeship_coef"] * max(0.0, min(0.5, gap))
+
+
+def freeship_conversion(threshold: float, params) -> float:
+    """Conversion multiplier from the free-delivery threshold.
+
+    Free delivery on every order converts a little better. A bar set more than
+    half a basket above a typical order turns small buyers away, more the
+    higher it goes. Between the two, delivery terms leave conversion alone.
+    """
+    if threshold <= 0:
+        return 1 + params["freeship_free_cr_lift"]
+    gap = (threshold - params["aov_base"]) / params["aov_base"]
+    return max(0.70, 1 - params["freeship_cr_penalty"] * max(0.0, gap - 0.5))
 
 
 def _consume_stock(team, params, orders: float, ctx) -> None:

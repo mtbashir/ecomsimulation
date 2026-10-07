@@ -93,13 +93,13 @@ ENTRIES = {
     "2.4": dict(
         does="The cart value above which delivery is free. Enter 0 for free "
              "delivery on everything.",
-        tradeoff="A low threshold wins small orders and you pay their shipping; a "
-                 "high one pushes baskets up and loses customers who only wanted "
-                 "one thing.",
-        watch="AOV, conversion rate and fulfilment cost per order.",
-        mistake="Setting it without looking at your AOV. A threshold far above what "
-                "a typical basket costs changes nobody's behaviour; it just loses "
-                "orders.",
+        tradeoff="A bar a little above a typical basket makes customers add items to "
+                 "reach it; set more than about half a basket above, it turns small "
+                 "buyers away. Free delivery on everything wins some orders but "
+                 "baskets come in smaller.",
+        watch="AOV, conversion rate and contribution per order.",
+        mistake="Setting the bar far above what a typical basket costs: it changes "
+                "nobody's basket, it just loses the small orders.",
         related=["1.2", "8.3"]),
     "3.1": dict(
         does="Monthly spend on Facebook and Instagram. The largest audience and "

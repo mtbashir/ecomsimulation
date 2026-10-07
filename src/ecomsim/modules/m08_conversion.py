@@ -92,9 +92,12 @@ def _conversion_rate(team, params, ctx) -> float:
     m_pay = gateway * (1 + params["cod_cr_lift"] * (1.0 if cod_on else 0.0))
     m_deliv = _clamp(1 + params["deliv_cr_coef"] * (team.delivery_perceived - 0.5), 0.85, 1.20)
     m_assort = _clamp(1 + params["assort_cr_coef"] * (fit - 0.5), 0.90, 1.12)
+    from .m09_basket import freeship_conversion
+    threshold = ctx.get("resolved", {}).get(tid, {}).get("2.4")
+    m_ship = freeship_conversion(float(threshold), params) if threshold not in (None, "") else 1.0
 
     return (params["cr_base"] * m_price * m_ux * m_rating
-            * m_stock * m_pay * m_deliv * m_assort)
+            * m_stock * m_pay * m_deliv * m_assort * m_ship)
 
 
 def _redistribute(world, params, ctx, orders, spare) -> None:

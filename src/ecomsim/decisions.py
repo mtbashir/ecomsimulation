@@ -103,8 +103,9 @@ REGISTRY: dict[str, DecisionSpec] = {
             "2.4", "G2", "Free-delivery order threshold", "curr", 2500, ALL,
             unit="PKR",
             help="Cart value above which the customer pays no delivery fee. "
-                 "A low threshold wins orders and raises your shipping bill; "
-                 "a high one pushes baskets up but loses small orders.",
+                 "Set a little above a typical basket and customers add items "
+                 "to reach it; set far above and small buyers walk away. Free "
+                 "delivery on everything wins orders but baskets shrink.",
             guide="Typical PKR 1,500-3,500. Enter 0 for free delivery on "
                   "everything."),
 
