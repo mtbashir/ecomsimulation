@@ -759,7 +759,8 @@ def funnel_now(con, team_id: str) -> dict | None:
     world = db.load_world(con)
     if world is None or team_id not in world.teams or not world.teams[team_id].history:
         return None
-    f = funnel.facts(world.teams[team_id].history[-1])
+    team = world.teams[team_id]
+    f = funnel.facts(team.history[-1], launch=funnel.from_scratch_launch(team, team.history[-1]))
     f["funnel_line"], f["stock_line"] = funnel.sentence(f)
     f["month"] = len(world.teams[team_id].history)
     return f

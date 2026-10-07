@@ -121,3 +121,24 @@ def test_funnel_and_channel_intent():
     # intent shares orders out between channels; it never adds any
     paid_cr = sum(r["clicks"] for r in h["campaigns"])
     assert paid_cr > 0
+
+
+def test_launch_month_has_no_returning_visitors():
+    from pathlib import Path
+    import tempfile
+    from ecomsim import funnel, report
+    from ecomsim.founding import Founding
+    params, world, team = _team()
+    run_round(world, params, {t: {} for t in world.teams})
+    h = team.history[-1]
+    going = funnel.facts(h, launch=funnel.from_scratch_launch(team, h))
+    assert going["returning"] > 0                       # going concern: customers exist
+    team.founding = Founding()
+    launch = funnel.facts(h, launch=funnel.from_scratch_launch(team, h))
+    assert launch["returning"] == 0
+    assert abs(launch["paid"] + launch["organic"] - launch["sessions"]) < 1e-6 * launch["sessions"]
+    with tempfile.TemporaryDirectory() as tmp:
+        html = report.render(team, 1, Path(tmp)).read_text()
+    assert "no returning customers yet" in html
+    run_round(world, params, {t: {} for t in world.teams})
+    assert not funnel.from_scratch_launch(team, team.history[-1])   # month 2 onwards

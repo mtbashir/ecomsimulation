@@ -314,18 +314,20 @@ def _tests(record: dict) -> str:
     return "".join(out)
 
 
-def _funnel(record: dict) -> str:
+def _funnel(record: dict, launch: bool = False) -> str:
     """Visitors to orders, and stock against sales, with the arithmetic shown
     so a team can check how conversion and cover are calculated."""
-    f = funnel.facts(record)
+    f = funnel.facts(record, launch=launch)
     def tile(label, value, note=""):
         return (f'<div class="ft"><div class="l">{label}</div><div class="n">{value}</div>'
                 f'<div class="u">{note}</div></div>')
     arrow = '<div class="fa">&rarr;</div>'
     op = lambda s: f'<div class="fa">{s}</div>'
-    split = (f"paid {f['paid']:,.0f} · organic {f['organic']:,.0f} · "
-             f"returning {f['returning']:,.0f}"
-             if f["paid"] or f["organic"] or f["returning"] else "store and listing visits")
+    split = ("store and listing visits" if not (f["paid"] or f["organic"] or f["returning"])
+             else f"paid {f['paid']:,.0f} · organic {f['organic']:,.0f} · launch month, "
+                  f"no returning customers yet" if launch
+             else f"paid {f['paid']:,.0f} · organic {f['organic']:,.0f} · "
+                  f"returning {f['returning']:,.0f}")
     row1 = (tile("Sessions (visits)", f"{f['sessions']:,.0f}", split)
             + arrow + tile("Orders", f"{f['orders']:,.0f}",
                            f"new customers {f['new_customers']:,.0f} · repeat "
@@ -539,7 +541,7 @@ padding:0}}
   {events_html}{score_html}</div>
   {missed_html}
 </section>
-{_funnel(record)}
+{_funnel(record, funnel.from_scratch_launch(team, record))}
 {run_chart}
 <h2 class="sec">Every measure, month {round_}{against}</h2>
 <div class="grid">{"".join(cards)}</div>
