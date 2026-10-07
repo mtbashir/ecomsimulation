@@ -157,3 +157,12 @@ def test_free_delivery_threshold_is_a_trade_off():
     # basket growth carries its cost: cost per order rises with the basket
     assert near["pnl"]["cogs"] / near["orders"] > base["pnl"]["cogs"] / base["orders"]
     assert far["pnl"]["contribution"] < near["pnl"]["contribution"]
+
+
+def test_dear_packs_never_beat_fair_ones():
+    params, world, team = _team()
+    fair = _bundle_effect(team, params, {"1.2": _packs(team, params, 0.9)})
+    dear = _bundle_effect(team, params, {"1.2": _packs(team, params, 1.1)})
+    # revenue per unit can never exceed three singles' worth
+    assert dear[0] / dear[1] <= 1.0 + 1e-9
+    assert dear[1] < fair[1]

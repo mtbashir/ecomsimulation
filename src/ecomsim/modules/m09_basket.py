@@ -74,8 +74,8 @@ def _bundle_effect(team, params, d) -> tuple[float, float]:
 
     Each pack is judged against three singles at the team's own net price.
     A pack cheaper than three singles appeals more and is taken up more; one
-    dearer than three singles appeals less, and at a third over nobody buys
-    it. The three most appealing packs set the uptake - the gain flattens past
+    dearer than three singles barely sells (shoppers buy the singles instead)
+    and never earns more than the singles would. The three most appealing packs set the uptake - the gain flattens past
     three lines. Uptake lifts the basket with real units, so cost of goods
     rises with it, and the pack's saving is given away on the bundled share
     of revenue. Before this, only the NUMBER of packs was read: a pack priced
@@ -96,10 +96,16 @@ def _bundle_effect(team, params, d) -> tuple[float, float]:
         except (TypeError, ValueError):
             price = 0.0
         ratio = price / reference if price > 0 else DEFAULT_PACK_RATIO
-        a = max(0.0, min(params["bundle_appeal_cap"],
-                         1 + params["bundle_price_sensitivity"] * (1 - ratio)))
+        if ratio <= 1.0:
+            a = 1 + params["bundle_price_sensitivity"] * (1 - ratio)
+        else:
+            # Dearer than three singles: shoppers buy the singles instead.
+            a = 1 - params["bundle_overprice_sensitivity"] * (ratio - 1)
+        a = max(0.0, min(params["bundle_appeal_cap"], a))
         appeal.append(a)
-        ratios.append(ratio)
+        # Nobody pays more for a pack than for its three singles, so a dear
+        # pack earns no premium - it simply sells less.
+        ratios.append(min(ratio, 1.0))
     if not appeal:
         return 1.0, 1.0
     top = sorted(zip(appeal, ratios), reverse=True)[:3]
