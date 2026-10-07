@@ -323,9 +323,10 @@ def _funnel(record: dict) -> str:
                 f'<div class="u">{note}</div></div>')
     arrow = '<div class="fa">&rarr;</div>'
     op = lambda s: f'<div class="fa">{s}</div>'
-    row1 = (tile("Sessions (visits)", f"{f['sessions']:,.0f}",
-                 f"paid {f['paid']:,.0f} · organic {f['organic']:,.0f} · "
-                 f"returning {f['returning']:,.0f}")
+    split = (f"paid {f['paid']:,.0f} · organic {f['organic']:,.0f} · "
+             f"returning {f['returning']:,.0f}"
+             if f["paid"] or f["organic"] or f["returning"] else "store and listing visits")
+    row1 = (tile("Sessions (visits)", f"{f['sessions']:,.0f}", split)
             + arrow + tile("Orders", f"{f['orders']:,.0f}",
                            f"new customers {f['new_customers']:,.0f} · repeat "
                            f"{f['repeat_orders']:,.0f}")
