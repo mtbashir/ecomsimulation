@@ -351,6 +351,7 @@ def _strategy(team, params, sub: dict, h: dict, room: dict) -> str:
 
 RESULT_LINES = [
     [("Revenue", "revenue_net", _money, False),
+     ("Sessions", "sessions", lambda v: f"{v:,.0f}", False),
      ("Orders", "orders", lambda v: f"{v:,.0f}", False),
      ("Conversion", "conversion_rate", lambda v: f"{v:.2%}", False),
      ("Avg order", "aov_net", _money, False),
@@ -361,6 +362,7 @@ RESULT_LINES = [
      ("EBITDA", "ebitda", _money, False),
      ("Cash", "cash_balance", _money, False),
      ("Service level", "service_level", lambda v: f"{v:.0%}", False),
+     ("Weeks of cover", "weeks_cover", lambda v: f"{v:.1f}", False),
      ("Rating", "rating", lambda v: f"{v:.2f}", False)],
 ]
 
@@ -382,8 +384,86 @@ def _results(team, h: dict, room: dict, score) -> str:
     return ('<table class="t res"><tbody>' + "".join(lines) + "</tbody></table>"
             '<p class="rk-note">Small figures: rank in the room.</p>')
 
+def _campaigns(team, params, sub: dict, h: dict, room: dict, open_codes) -> str:
+    """Performance-marketing read for one team: what each channel bought, the
+    customer numbers behind it, and the next move, backed by those numbers."""
+    from .targeting import CHANNEL_NAMES as NAMES, DECISION as SETUP
+    tid, n = team.team_id, len(room)
+    rows = h.get("campaigns") or []
+    per = {}
+    for r in rows:
+        c = per.setdefault(r["channel"], {"spend": 0.0, "clicks": 0.0, "orders": 0.0,
+                                          "new": 0.0, "broad": True})
+        c["spend"] += r["spend"]
+        c["clicks"] += r["clicks"]
+        c["orders"] += r["orders"]
+        c["new"] += r["orders"] * r.get("new_share", 0.0)
+        c["broad"] &= str(r.get("name", "")).startswith("Broad")
+    parts = []
+    for ch, c in per.items():
+        cvr = c["orders"] / c["clicks"] if c["clicks"] else 0.0
+        c["cac"] = c["spend"] / c["new"] if c["new"] else 0.0
+        parts.append(f"{NAMES.get(ch, ch)} {_money(c['spend'])} &rarr; "
+                     f"{c['orders']:,.0f} orders, CVR {cvr:.2%}, CAC {_money(c['cac'])}")
+    lines = []
+    if parts:
+        lines.append("Paid channels: " + " &middot; ".join(parts) + ".")
+    else:
+        lines.append("No paid media this month.")
+
+    def med(key):
+        vals = sorted(r.get(key, 0) or 0 for r in room.values())
+        return vals[len(vals) // 2] if vals else 0
+    lines.append(
+        f"New customers {h.get('new_customers', 0):,.0f} "
+        f"({_ordinal(_rank(room, tid, 'new_customers'))}); repeat orders "
+        f"{h.get('repeat_order_share', 0):.0%} ({_ordinal(_rank(room, tid, 'repeat_order_share'))}); "
+        f"store conversion {h.get('conversion_rate', 0):.2%} "
+        f"({_ordinal(_rank(room, tid, 'conversion_rate'))} of {n}).")
+
+    nxt = []
+    priced = {ch: c for ch, c in per.items() if c["cac"] > 0}
+    if len(priced) >= 2:
+        best = min(priced, key=lambda ch: priced[ch]["cac"])
+        worst = max(priced, key=lambda ch: priced[ch]["cac"])
+        if priced[worst]["cac"] > 1.3 * priced[best]["cac"]:
+            nxt.append(f"move budget in steps (say 20%) from {NAMES[worst]} (CAC "
+                       f"{_money(priced[worst]['cac'])}) to {NAMES[best]} (CAC "
+                       f"{_money(priced[best]['cac'])}), watching {NAMES[best]}'s CAC "
+                       f"as it scales &mdash; returns fall as a channel grows")
+    binding = h.get("binding_constraint", "")
+    if binding == "under_marketing" and priced:
+        best = min(priced, key=lambda ch: priced[ch]["cac"])
+        if nxt and NAMES[best] in nxt[-1]:
+            nxt[-1] += (f"; demand outran the traffic, so add to {NAMES[best]} rather "
+                        f"than only moving budget into it")
+        else:
+            nxt.append(f"demand outran the traffic, so add reach first on {NAMES[best]}, "
+                       f"the cheapest source of new customers (CAC "
+                       f"{_money(priced[best]['cac'])})")
+    elif binding == "wasted_spend":
+        nxt.append(f"do not buy more traffic yet: conversion is {h.get('conversion_rate', 0):.2%} "
+                   f"against a room median of {med('conversion_rate'):.2%}, so fix price, "
+                   f"range or store first")
+    rep, rep_med = h.get("repeat_order_share", 0), med("repeat_order_share")
+    if rep < rep_med - 0.02:
+        nxt.append(f"repeat orders are {rep:.0%} against a room median of {rep_med:.0%}: a "
+                   f"CRM &amp; retention budget (6.1) wins a repeat order more cheaply than "
+                   f"ads win a new customer")
+    if per and all(c["broad"] for c in per.values()):
+        if SETUP in (open_codes or []):
+            nxt.append("every channel still runs one broad campaign: aim each budget at "
+                       "the buyers of your products in Campaign setup")
+        else:
+            nxt.append("budgets run broad until campaign targeting opens in Session 7, so "
+                       "for now the levers are how much to spend and where")
+    if nxt:
+        lines.append("<b>Next:</b> " + "; ".join(nxt[:3]) + ".")
+    return " ".join(lines)
+
+
 def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
-            scores: dict | None = None) -> str:
+            scores: dict | None = None, flags: dict | None = None) -> str:
     """The debrief block for the console. Empty when no submissions are known."""
     if submissions is None:
         return ""
@@ -394,6 +474,7 @@ def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
         h = t.history[-1]
         sub = submissions.get(t.team_id, {}) or {}
         good, watch = _observations(t, params, sub, h, room, open_codes)
+        watch = list((flags or {}).get(t.team_id, [])) + watch
         tag = ("top" if i <= min(3, n // 2) else
                "bottom" if i > n - min(3, n // 2) else "")
         score = (scores or {}).get(t.team_id)
@@ -419,7 +500,10 @@ def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
             f'{" <span class=pill>bottom</span>" if tag == "bottom" else ""}'
             f'<span class="tid"> &middot; {escape(str(h.get("binding_constraint", "")).replace("_", " "))}</span></h3>'
             f'{_results(t, h, room, score)}'
-            f'<p class="strat"><b>Strategy.</b> {strategy}</p><div class="cols"><dl>{took_html}</dl>'
+            f'<p class="strat"><b>Strategy.</b> {strategy}</p>'
+            f'<p class="strat camp"><b>Campaigns &amp; customers.</b> '
+            f'{_campaigns(t, params, sub, h, room, open_codes)}</p>'
+            f'<div class="cols"><dl>{took_html}</dl>'
             f'<div>{lists}</div></div>{left}</div>')
     return ('<section class="wide"><h2>Debrief &middot; what each team decided '
             'and what it did</h2><p class="note">Ranked by score (shown here from month '
@@ -438,6 +522,7 @@ padding:14px 16px 8px;margin:0 0 22px;background:#fff}
 .db .pill{font-size:11px;font-weight:600;padding:1px 7px;border-radius:9px;
 background:#e7f3e7;color:#006300;vertical-align:2px}
 .db.bottom .pill{background:#fbe9e9;color:#d03b3b}
+.db .strat.camp{background:#eef3fb}
 .db .strat{font-size:14px;line-height:1.55;margin:8px 0 10px;padding:8px 10px;
 background:#f3f2ee;border-radius:6px}
 table.t.res{margin:6px 0 0;font-size:13px}
@@ -453,5 +538,5 @@ table.t.res td:first-child,table.t.res th:first-child{text-align:left}
 .db .mute{color:#898781}
 .obs{font-size:13px;margin:0 0 8px} .obs ul{margin:4px 0 0;padding-left:18px}
 .obs.good b{color:#006300} .obs.watch b{color:#d03b3b}
-@media(prefers-color-scheme:dark){.db{border-top-color:#3a3a37;border-right-color:#3a3a37;border-bottom-color:#3a3a37;background:#1f1f1d}.db dt{color:#c3c2b7}.db .strat{background:#232321}}
+@media(prefers-color-scheme:dark){.db{border-top-color:#3a3a37;border-right-color:#3a3a37;border-bottom-color:#3a3a37;background:#1f1f1d}.db dt{color:#c3c2b7}.db .strat{background:#232321}.db .strat.camp{background:#1e2430}}
 """

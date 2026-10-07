@@ -85,11 +85,19 @@ def run(world, params, resolved, ctx) -> None:
             "service_level": ctx["service_level"][tid],
             "lost_to_stockout": max(0.0, ctx["sellable"][tid] - ctx["orders"][tid]),
             "inventory_units": sum(team.inventory.values()),
+            "units_sold": ctx.get("units_sold", {}).get(tid, 0.0),
+            "repeat_orders": ctx.get("repeat_orders", {}).get(tid, 0.0),
+            "sessions_paid": ctx.get("sessions_split", {}).get(tid, {}).get("paid", 0.0),
+            "sessions_organic": ctx.get("sessions_split", {}).get(tid, {}).get("organic", 0.0),
+            "sessions_returning": ctx.get("sessions_split", {}).get(tid, {}).get("returning", 0.0),
             "demand_forecast": ctx["demand_forecast"][tid],
             "forecast_error": abs(ctx["demand_forecast"][tid] - ctx["orders"][tid])
                               / max(ctx["orders"][tid], 1.0),
+            # Units actually sold, so bundles' extra units count and the
+            # figure matches the funnel's stock line exactly.
             "weeks_cover": sum(team.inventory.values()) * 4.33
-                           / max(ctx["orders"][tid] * params["units_per_order"], 1.0),
+                           / max(ctx.get("units_sold", {}).get(tid)
+                                 or ctx["orders"][tid] * params["units_per_order"], 1.0),
             "cs_backlog": ctx["cs_backlog"][tid],
             "delivery_success": ctx["courier_success"][tid],
             "rto_rate": ctx["rto_rate"][tid],

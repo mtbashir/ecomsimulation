@@ -108,6 +108,9 @@ def run(world, params, resolved, ctx) -> None:
         scale = sessions / pre if pre > 0 else 0.0
         ctx.setdefault("paid_sessions", {})[team.team_id] = {
             c: v * scale for c, v in by_channel.items()}
+        ctx.setdefault("sessions_split", {})[team.team_id] = {
+            "paid": paid * scale, "organic": organic * scale,
+            "returning": returning * scale}
         ctx.setdefault("channel_inflation", {})[team.team_id] = inflation_by
         ctx.setdefault("targeting", {})[team.team_id] = scored
         cvr = 1.0

@@ -10,6 +10,7 @@ import math
 from html import escape
 from pathlib import Path
 
+from . import funnel
 from .charts import CSS_TOKENS, sparkline
 
 # (label, key, format, up_is_good). The last field is not decoration: a rising
@@ -285,7 +286,10 @@ def _campaigns(record: dict) -> str:
         'per new customer. <em>vs broad</em> is how much harder each rupee worked than '
         'one broad campaign would have. Orders are attributed from real sessions and '
         'the month\'s real conversion, so the rows add up to your paid orders, not '
-        'to what a platform dashboard would claim. '
+        'to what a platform dashboard would claim. CVR differs by channel because buying '
+        'intent does: a Google search for a product converts better than a TikTok scroll. '
+        'Paid CVR is measured on paid visitors only; your store conversion also counts '
+        'returning customers, who convert far better and cost nothing to bring back. '
         '<a href="/guide/marketing" target="_top">How to read this table</a>.</p></section>')
 
 
@@ -308,6 +312,33 @@ def _tests(record: dict) -> str:
             f'<p class="fn">Pooled over every month both sides ran unchanged. 95% '
             f'confidence is the usual bar for calling a winner.</p></section>')
     return "".join(out)
+
+
+def _funnel(record: dict) -> str:
+    """Visitors to orders, and stock against sales, with the arithmetic shown
+    so a team can check how conversion and cover are calculated."""
+    f = funnel.facts(record)
+    def tile(label, value, note=""):
+        return (f'<div class="ft"><div class="l">{label}</div><div class="n">{value}</div>'
+                f'<div class="u">{note}</div></div>')
+    arrow = '<div class="fa">&rarr;</div>'
+    op = lambda s: f'<div class="fa">{s}</div>'
+    row1 = (tile("Sessions (visits)", f"{f['sessions']:,.0f}",
+                 f"paid {f['paid']:,.0f} · organic {f['organic']:,.0f} · "
+                 f"returning {f['returning']:,.0f}")
+            + arrow + tile("Orders", f"{f['orders']:,.0f}",
+                           f"new customers {f['new_customers']:,.0f} · repeat "
+                           f"{f['repeat_orders']:,.0f}")
+            + op("=") + tile("Conversion", f"{f['conversion']:.2%}", "orders &divide; sessions"))
+    row2 = (tile("Units in stock", f"{f['units_in_stock']:,.0f}", "at the end of the month")
+            + op("&divide;") + tile("Units sold a week", f"{f['weekly_units']:,.0f}",
+                                    f"{f['units_sold']:,.0f} this month &divide; 4.33")
+            + op("=") + tile("Weeks of cover", f"{f['weeks_cover']:.1f}",
+                             "how long the stock lasts at this pace")
+            + tile("Lost to stock-outs", f"{f['lost_to_stockout']:,.0f}", "orders you could not fill"))
+    return (f'<h2 class="sec">Funnel and stock this month</h2>'
+            f'<section class="funnel"><div class="frow">{row1}</div>'
+            f'<div class="frow">{row2}</div></section>')
 
 
 def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None) -> Path:
@@ -486,6 +517,14 @@ padding:0}}
 .sw[aria-pressed="true"]{{outline:2px solid var(--accent);outline-offset:1.5px}}
 .sw-consulytics{{background:linear-gradient(135deg,#fff 52%,#ff0000 52%)}}
 .sw-dark{{background:#0d0d0c}}.sw-slate{{background:#22242a}}.sw-light{{background:#f4f5f7}}
+.funnel{{padding:14px 18px}}
+.frow{{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap}}
+.frow+.frow{{margin-top:12px;padding-top:12px;border-top:1px solid var(--line, #e1e0d9)}}
+.ft{{flex:1 1 150px;min-width:140px}}
+.ft .l{{font-size:12px;color:var(--dim,#52514e)}}
+.ft .n{{font:600 22px/1.25 inherit;font-variant-numeric:tabular-nums}}
+.ft .u{{font-size:11.5px;color:var(--dim,#898781)}}
+.fa{{flex:0 0 auto;align-self:center;font-size:20px;color:var(--dim,#898781);padding:0 2px}}
 {CSS_TOKENS}
 @media(max-width:1380px){{.wrap{{max-width:100%}}}}
 @media(max-width:1180px){{.grid{{grid-template-columns:repeat(2,1fr)}}}}
@@ -499,6 +538,7 @@ padding:0}}
   {events_html}{score_html}</div>
   {missed_html}
 </section>
+{_funnel(record)}
 {run_chart}
 <h2 class="sec">Every measure, month {round_}{against}</h2>
 <div class="grid">{"".join(cards)}</div>

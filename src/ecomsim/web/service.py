@@ -753,6 +753,18 @@ def _fmt(value, kind: str) -> str:
     return f"{value:,.0f}"
 
 
+def funnel_now(con, team_id: str) -> dict | None:
+    """Last month's funnel and stock, with the arithmetic, or None before trading."""
+    from .. import funnel
+    world = db.load_world(con)
+    if world is None or team_id not in world.teams or not world.teams[team_id].history:
+        return None
+    f = funnel.facts(world.teams[team_id].history[-1])
+    f["funnel_line"], f["stock_line"] = funnel.sentence(f)
+    f["month"] = len(world.teams[team_id].history)
+    return f
+
+
 def headline_kpis(con, team_id: str) -> list[dict]:
     """The top row: where each figure is, which way it is going, and whether
     that direction is good news. A rising cost of acquisition is not green."""

@@ -64,6 +64,14 @@ recovery is slow and expensive &mdash; fix the cash position before anything els
 </div>
 {% endif %}
 
+{% if funnel %}
+<div class="card" style="margin-top:12px">
+  <h2>Month {{ funnel.month }}: visitors to orders, and stock</h2>
+  <p class="cap" style="margin:4px 0 0">{{ funnel.funnel_line }}</p>
+  <p class="cap" style="margin:6px 0 0">{{ funnel.stock_line }}</p>
+</div>
+{% endif %}
+
 <div class="cols c31" style="margin-top:12px">
   <div>
     {% if meters %}

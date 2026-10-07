@@ -105,3 +105,19 @@ def test_debrief_explains_the_binding_constraint():
         room[team.team_id] = h
         lists = debrief._observations(team, params, {}, h, room, [])
         assert any(phrase in x for x in lists[side]), code
+
+
+def test_funnel_and_channel_intent():
+    from ecomsim import funnel
+    params, world, team = _team()
+    run_round(world, params, {t: {} for t in world.teams})
+    h = team.history[-1]
+    f = funnel.facts(h)
+    assert abs(f["paid"] + f["organic"] + f["returning"] - f["sessions"]) < 1e-6 * f["sessions"]
+    assert abs(f["conversion"] - h["conversion_rate"]) < 1e-12
+    assert abs(f["weeks_cover"] - h["weeks_cover"]) < 1e-9
+    rows = {r["channel"]: r for r in h["campaigns"]}
+    assert rows["google_search"]["cvr"] > rows["meta"]["cvr"] > rows["tiktok"]["cvr"]
+    # intent shares orders out between channels; it never adds any
+    paid_cr = sum(r["clicks"] for r in h["campaigns"])
+    assert paid_cr > 0

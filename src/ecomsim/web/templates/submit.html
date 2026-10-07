@@ -228,6 +228,17 @@
                            else 'leave blank and we order for you' }}">
   {% endif %}
 
+  {% if funnel and s.code in ('7.1', '7.5') %}
+  <div class="hint"><b>Now:</b> {{ '{:,.0f}'.format(funnel.units_in_stock) }} units in
+    stock &divide; {{ '{:,.0f}'.format(funnel.weekly_units) }} sold a week =
+    <b>{{ '%.1f'|format(funnel.weeks_cover) }} weeks of cover</b> at last month's pace.
+    {% if s.code == '7.1' %}A month of sales is about
+    {{ '{:,.0f}'.format(funnel.units_sold) }} units; each extra week of cover is about
+    {{ '{:,.0f}'.format(funnel.weekly_units) }}.{% else %}Each week of cover is about
+    {{ '{:,.0f}'.format(funnel.weekly_units) }} units held.{% endif %}
+    {% if funnel.lost_to_stockout >= 1 %}Last month about
+    {{ '{:,.0f}'.format(funnel.lost_to_stockout) }} orders were lost to stock-outs.{% endif %}</div>
+  {% endif %}
   {% if s.guide %}<div class="hint">{{ s.guide }}</div>{% endif %}
   {% if s.code in previous and s.kind != 'grid' %}
   <div class="hint">Last month:

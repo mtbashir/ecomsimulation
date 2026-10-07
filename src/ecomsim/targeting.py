@@ -483,6 +483,11 @@ def performance(team, params, ctx, resolved: dict, run_id: str = "",
     new_share = min(1.0, new / max(orders_all * (1 - repeat), 1.0))
 
     rows = []
+    # Buying intent differs by channel: someone searching for "sunscreen" is
+    # closer to buying than someone scrolling TikTok. Intent shares the paid
+    # orders out between channels; it never changes how many there are - the
+    # totals the P&L already booked stay exactly as they were.
+    intent_of = {ch: float(params.channel(ch).get("intent_cvr") or 1.0) for ch in CHANNELS}
     for ch, dec in CHANNELS.items():
         spend = float(resolved.get(dec, 0) or 0)
         if spend <= 0:
@@ -500,25 +505,37 @@ def performance(team, params, ctx, resolved: dict, run_id: str = "",
             cpm = cpm_base * inflation.get(ch, 1.0) / max(c["fatigue"], 0.3)
             impressions = c["spend"] / cpm * 1000 if cpm > 0 else 0.0
             orders = s * cr * c["cvr"] * realised
-            revenue = orders * aov
-            acquired = orders * new_share
             rows.append({
                 "channel": ch, "channel_name": CHANNEL_NAMES[ch],
                 "name": c.get("name") or "Campaign",
                 "spend": c["spend"], "impressions": impressions, "cpm": cpm,
                 "clicks": s, "ctr": s / impressions if impressions else 0.0,
                 "cpc": c["spend"] / s if s else 0.0,
-                "orders": orders, "cvr": orders / s if s else 0.0,
-                "revenue": revenue,
-                "roas": revenue / c["spend"] if c["spend"] else 0.0,
-                "cac": c["spend"] / acquired if acquired else 0.0,
+                "orders": orders, "intent": intent_of.get(ch, 1.0),
                 "quality": c["quality"], "lift": c["traffic"] - 1,
                 "findings": findings(c, params, block) if block else [],
                 "test": c.get("test", ""), "settings": settings_of(c),
                 "new_share": new_share, "aov": aov,
             })
+    _apportion(rows, aov, new_share)
     _split_tests(rows, run_id, round_, team.team_id)
     return rows
+
+
+def _apportion(rows: list[dict], aov: float, new_share: float) -> None:
+    """Share the paid orders between rows by channel intent, totals unchanged,
+    then derive each row's conversion, revenue, ROAS and CAC from its share."""
+    total = sum(r["orders"] for r in rows)
+    weighted = sum(r["orders"] * r["intent"] for r in rows)
+    k = total / weighted if weighted > 0 else 1.0
+    for r in rows:
+        r["orders"] = r["orders"] * r["intent"] * k
+        clicks, spend = r["clicks"], r["spend"]
+        acquired = r["orders"] * new_share
+        r["cvr"] = r["orders"] / clicks if clicks else 0.0
+        r["revenue"] = r["orders"] * aov
+        r["roas"] = r["revenue"] / spend if spend else 0.0
+        r["cac"] = spend / acquired if acquired else 0.0
 
 
 def _split_tests(rows: list[dict], run_id: str, round_: int, team_id: str) -> None:

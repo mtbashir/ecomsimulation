@@ -367,6 +367,7 @@ def register_routes(app: Flask) -> None:
             position=service.company_position(g.db, tid),
             research=_research_bought(g.db, tid, game["round"]),
             kpis=service.headline_kpis(g.db, tid),
+            funnel=service.funnel_now(g.db, tid),
             meters=service.plan_meters(g.db, tid),
             agenda=service.agenda(g.db, tid),
             standings=service.standings(g.db, tid),
@@ -782,6 +783,7 @@ def register_routes(app: Flask) -> None:
             totals=service.shelf_totals(shelf),
             bundles=service.bundle_rows(g.db, tid, current),
             handbook={s.code: service.handbook_entry(s) for s in specs},
+            funnel=service.funnel_now(g.db, tid),
             handbook_url=url_for("handbook"),
             group_order=sorted(by_group, key=lambda gr: int(gr[1:])))
 

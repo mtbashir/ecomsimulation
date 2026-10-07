@@ -11,7 +11,7 @@ from html import escape
 from pathlib import Path
 
 from . import debrief, scoring
-from .charts import CSS_TOKENS, rank_bars, small_multiple
+from .charts import CSS_TOKENS, rank_bars
 
 LEADERBOARD_FROM_ROUND = 4
 
@@ -26,16 +26,6 @@ TRIGGERS = [
     ("Loyalty flywheel", "repeat_order_share", 0.35, "above"),
 ]
 
-PANELS = [
-    ("Net revenue", "revenue_net", lambda v: f"{v/1e6:,.2f}M", True),
-    ("Orders", "orders", lambda v: f"{v:,.0f}", True),
-    ("Contribution margin", "contribution_margin_pct", lambda v: f"{v:.1%}", True),
-    ("Cash", "cash_balance", lambda v: f"{v/1e6:,.2f}M", True),
-    ("Repeat share", "repeat_order_share", lambda v: f"{v:.0%}", True),
-    ("Service level", "service_level", lambda v: f"{v:.0%}", True),
-    ("CAC", "cac_blended", lambda v: f"{v:,.0f}", False),
-    ("Rating", "rating", lambda v: f"{v:.2f}", True),
-]
 
 
 def _near_misses(team, params) -> list[str]:
@@ -131,29 +121,23 @@ def render(world, params, out_dir: str | Path, submissions: dict | None = None,
                  'so teams settle on a strategy before anchoring on rivals '
                  '(docs/08).</p></section>')
 
-    # Per-team small multiples
-    blocks = []
+    # Warnings that used to sit on the per-team KPI panels now go into each
+    # team's debrief, where the instructor reads about that team anyway.
+    flags = {}
     for t in ranked:
-        hist = t.history
-        panels = "".join(
-            small_multiple(label, [h.get(key) for h in hist],
-                           hist[-1].get(key, 0), fmt, good_up)
-            for label, key, fmt, good_up in PANELS)
-        misses = _near_misses(t, params)
-        flags = ""
-        if misses:
-            flags = ('<p class="flag"><strong>Near a conditional trigger:</strong> '
-                     + "; ".join(escape(m) for m in misses) + "</p>")
-        h = hist[-1]
-        if h["insolvent"]:
-            flags += '<p class="flag crit"><strong>In administration.</strong></p>'
-        rank = ranked.index(t) + 1
-        label = escape(name_of(t))
-        ident = "" if name_of(t) == t.team_id else f'<span class="tid">{t.team_id}</span> '
-        blocks.append(
-            f'<section class="wide"><h2>{rank}. {label} {ident}'
-            f'<span class="tid">&middot; {escape(h["binding_constraint"].replace("_", " "))}'
-            f'</span></h2>{flags}<div class="sms">{panels}</div></section>')
+        notes = [f"Near a conditional trigger: {m}." for m in _near_misses(t, params)]
+        if t.history[-1]["insolvent"]:
+            notes.insert(0, "In administration: cash ran out and the credit line is full.")
+        flags[t.team_id] = notes
+
+    # Without submissions there is no debrief to carry the warnings, so list
+    # them on their own (the file runner and the demo).
+    watch = ""
+    if submissions is None and any(flags.values()):
+        items = "".join(
+            f"<li><b>{escape(name_of(t))}</b>: {' '.join(escape(n) for n in flags[t.team_id])}</li>"
+            for t in ranked if flags[t.team_id])
+        watch = f'<section class="wide"><h2>Trigger watch</h2><ul class="note">{items}</ul></section>'
 
     html = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
@@ -207,7 +191,7 @@ table.t th,table.t td{{border-color:#2c2c2a}} table.t thead th{{color:#c3c2b7}}
 <h1>Round {round_}</h1>
 <p class="sub">Instructor console &middot; {len(teams)} teams &middot;
 config {params.config_hash()}</p>
-{board}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()})}{_targeting(ranked, params, name_of)}{"".join(blocks)}
+{board}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags)}{watch}{_targeting(ranked, params, name_of)}
 </div></body></html>"""
 
     out = Path(out_dir) / f"console_r{round_}.html"
