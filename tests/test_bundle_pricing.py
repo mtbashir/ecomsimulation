@@ -89,3 +89,19 @@ def test_console_carries_the_debrief():
     with tempfile.TemporaryDirectory() as tmp:          # file runner: no submissions
         plain = console.render(world, params, Path(tmp)).read_text()
     assert "what each team decided" not in plain
+
+
+def test_debrief_explains_the_binding_constraint():
+    from ecomsim import debrief
+    params, world, team = _team()
+    run_round(world, params, {t: {} for t in world.teams})
+    h = dict(team.history[-1])
+    room = {t.team_id: t.history[-1] for t in world.teams.values()}
+    for code, side, phrase in [("balanced", 0, "Balanced month"),
+                               ("under_marketing", 1, "Under-marketing"),
+                               ("wasted_spend", 1, "Wasted spend"),
+                               ("stock_out", 1, "Stock-out")]:
+        h["binding_constraint"] = code
+        room[team.team_id] = h
+        lists = debrief._observations(team, params, {}, h, room, [])
+        assert any(phrase in x for x in lists[side]), code

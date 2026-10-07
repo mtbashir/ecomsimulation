@@ -123,6 +123,26 @@ def _observations(team, params, sub, h, room, open_codes) -> tuple[list[str], li
     good, watch = [], []
     tid = team.team_id
 
+    # What held sales back this month - the label in the card's heading,
+    # spelled out (same reading as the team's own report).
+    binding = h.get("binding_constraint", "")
+    missed = max(0.0, float(h.get("potential", 0) or 0) - float(h.get("orders", 0) or 0))
+    lost = max(0.0, float(h.get("sellable", 0) or 0) - float(h.get("orders", 0) or 0))
+    if binding == "balanced":
+        good.append("Balanced month: demand, traffic and stock were in step, so little "
+                    "was left on the table.")
+    elif binding == "under_marketing":
+        watch.append("Under-marketing: the offer was strong enough for more demand than "
+                     "the traffic reached" + (f" (about {missed:,.0f} more orders were there "
+                     f"to win)" if missed >= 1 else "") + ". More reach would have sold more.")
+    elif binding == "wasted_spend":
+        watch.append(f"Wasted spend: plenty of visitors, but rivals' offers took the demand "
+                     f"(conversion {h.get('conversion_rate', 0):.2%}). Fix price, range or "
+                     f"store before buying more traffic.")
+    elif binding == "stock_out":
+        watch.append("Stock-out: demand and traffic were both there and the stock ran out"
+                     + (f", losing about {lost:,.0f} orders" if lost >= 1 else "") + ".")
+
     def best(key, label, fmt, low=False):
         vals = [r[key] for r in room.values()]
         if len(vals) < 2:
