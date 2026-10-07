@@ -63,41 +63,13 @@ MARKET = [
 # marked against the cohort, so every team can score well, and a weak cohort
 # does not make a weak run look good.
 
-PILLARS = [
-    ("Profitability", 25,
-     "Contribution margin, EBITDA margin and gross margin, averaged across the "
-     "run with later months weighted more heavily.",
-     [("Contribution margin", "0% scores nothing, 9% scores half, 18% scores full"),
-      ("EBITDA margin", "-10% scores nothing, break-even scores half, +10% scores full"),
-      ("Gross margin", "25% scores nothing, 38% scores half, 50% scores full")]),
-    ("Growth", 20,
-     "How much bigger you finished than you started, and whether you took "
-     "share while doing it.",
-     [("Revenue multiple, final month against first",
-       "0.8x scores nothing, 1.9x scores half, 3.5x scores full"),
-      ("Market share change", "-2pp scores nothing, +0.5pp half, +4pp full"),
-      ("Order growth per month", "-2% nothing, +3% half, +9% full")]),
-    ("Customer value", 20,
-     "Whether you built a customer base or rented one. This is where a "
-     "discount-led strategy usually comes apart.",
-     [("Lifetime value against acquisition cost",
-       "1.0x nothing, 2.5x half, 5.0x full"),
-      ("Repeat order share", "10% nothing, 22% half, 40% full"),
-      ("Active customers at the end", "20,000 nothing, 45,000 half, 90,000 full"),
-      ("NPS", "0 nothing, 24 half, 55 full")]),
-    ("Operational efficiency", 15,
-     "Whether the business actually worked: stock on hand, orders delivered, "
-     "cash cycle.",
-     [("In-stock rate", "80% nothing, 93% half, 99% full"),
-      ("Delivery success rate", "75% nothing, 87% half, 95% full")]),
-    ("Cash & capital", 10,
-     "Closing cash, runway and how hard you leaned on the credit facility.",
-     []),
-    ("Decision quality", 10,
-     "Judged by your instructor, not the model. Three of these ten points are "
-     "your founding business plan, read against what you actually delivered.",
-     []),
-]
+# Rendered from the scorecard the engine actually scores against, so the
+# targets students read cannot drift from the code (they had: every anchor on
+# this page was from an earlier calibration).
+from ..scoring import published as _published
+
+PILLARS = [(name, pts, summary, [(label, where) for label, _p, where in rows])
+           for name, pts, summary, rows in _published()]
 
 # --- Round framing -----------------------------------------------------------------
 #

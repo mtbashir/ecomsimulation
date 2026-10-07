@@ -1,0 +1,94 @@
+{% extends "base.html" %}{% block title %}How you are scored{% endblock %}
+{% block body %}
+<div class="crumbs">Handbook &middot; scoring</div>
+<div class="head">
+  <div><p class="eyebrow">Handbook</p>
+    <h1>How you are scored</h1>
+    <p>100 points across six pillars. Every measure is marked against fixed,
+    published targets &mdash; not against the other teams &mdash; so every team in
+    the room can score well. Market share is the only measure that depends on
+    your rivals.</p></div>
+  <div class="cta"><a class="btn ghost" href="{{ url_for('handbook') }}">Decision handbook</a></div>
+</div>
+
+<nav class="toc card">
+  <a href="#where">1 &middot; Where you see it</a>
+  <a href="#marks">2 &middot; How a measure is marked</a>
+  <a href="#months">3 &middot; Which months count</a>
+  <a href="#pillars">4 &middot; The six pillars</a>
+  <a href="#traps">5 &middot; What the scorecard punishes</a>
+</nav>
+
+<section id="where">
+<h2>1 &middot; Where you see it</h2>
+<div class="g2">
+  <div><h3>Your monthly report</h3>
+    <p>From month 2, the report ends with <b>Scorecard, as it stands</b>: your
+    points on each pillar against its weight. Only your own score is shown.</p></div>
+  <div><h3>The leaderboard</h3>
+    <p>Withheld until month 4, so every team settles on a strategy before
+    comparing itself with rivals. The final scorecard is published after
+    month 12.</p></div>
+</div>
+</section>
+
+<section id="marks">
+<h2>2 &middot; How a measure is marked</h2>
+<p>Every measure has three published anchors: the value that scores nothing,
+the value that scores half, and the value that scores full marks. In between,
+marks rise in a straight line; beyond the ends they stop. A measure worth 8
+points at its half-way anchor earns 4.</p>
+<p class="callout"><strong>Example.</strong> Gross margin is worth 5 points:
+30% scores nothing, 37% half, 44% full. A gross margin of 40.5% is three
+quarters of the way, so it earns 3.75 points.</p>
+</section>
+
+<section id="months">
+<h2>3 &middot; Which months count</h2>
+<p>Most measures are taken across the whole run, and <b>later months count
+more</b>: each month's weight is its number out of 78, so month 12 carries
+about 15% and month 1 about 1%. A weak start can be recovered; a strong start
+thrown away cannot.</p>
+<p>Margins are the margins of the whole period &mdash; total profit over total
+revenue &mdash; not an average of monthly percentages, so a fat margin on a tiny
+month cannot lift the score. Customers, NPS, runway and cash are read <b>as
+they stand at the end</b>.</p>
+</section>
+
+<section id="pillars">
+<h2>4 &middot; The six pillars</h2>
+{% for name, weight, summary, rows in pillars %}
+<h3>{{ name }} <span class="hb-code">{{ weight }} points</span></h3>
+<p class="cap">{{ summary }}</p>
+{% if rows %}
+<table class="gloss">
+<tr><th>Measure</th><th class="r">Points</th><th>Where the marks are</th></tr>
+{% for label, pts, where in rows %}
+<tr><td>{{ label }}</td><td class="num">{{ pts }}</td><td>{{ where }}</td></tr>
+{% endfor %}
+</table>
+{% endif %}
+{% endfor %}
+</section>
+
+<section id="traps">
+<h2>5 &middot; What the scorecard punishes</h2>
+<div class="g2">
+  <div><h3>Buying growth</h3>
+    <p>Deep discounts and heavy ads raise revenue and orders, then cost you on
+    margins, customer value and cash. Growth is 20 points; the pillars it can
+    damage are 70.</p></div>
+  <div><h3>Harvesting at the end</h3>
+    <p>Cutting marketing in the last months lifts the margin for a moment, but
+    the final months carry the most weight, revenue falls against your first
+    month, and the customer base shrinks.</p></div>
+  <div><h3>Hoarding cash</h3>
+    <p>Runway is a band, not &ldquo;most wins&rdquo;: more than 9 months of
+    idle cash scores less than 3 to 9 months. Running out scores nothing on the
+    whole cash pillar.</p></div>
+  <div><h3>Ignoring the memo</h3>
+    <p>Decision quality is your instructor's judgement of your board memos:
+    what you decided, why, and the number that will prove you right.</p></div>
+</div>
+</section>
+{% endblock %}

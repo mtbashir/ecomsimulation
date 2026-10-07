@@ -449,6 +449,14 @@ def register_routes(app: Flask) -> None:
             "guide_marketing.html",
             g_=service.marketing_guide(g.db, session.get("team_id")))
 
+    @app.get("/guide/scoring")
+    @login_required()
+    def guide_scoring():
+        """The published scorecard: pillars, measures and anchors, rendered
+        from the table the engine scores against."""
+        from ..scoring import published
+        return render_template("guide_scoring.html", pillars=published())
+
     @app.get("/campaigns")
     @login_required("team")
     def campaigns():

@@ -23,9 +23,9 @@ SOURCING = {"local": "local", "import": "imported", "mixed": "mixed"}
 
 def _money(v: float) -> str:
     v = float(v or 0)
-    if abs(v) >= 1e6:
-        return f"PKR {v / 1e6:,.2f}m"
-    return f"PKR {v:,.0f}"
+    sign = "&minus;" if v < 0 else ""
+    v = abs(v)
+    return f"{sign}PKR {v / 1e6:,.2f}m" if v >= 1e6 else f"{sign}PKR {v:,.0f}"
 
 
 def _default(code: str):
@@ -215,7 +215,149 @@ def _observations(team, params, sub, h, room, open_codes) -> tuple[list[str], li
     return good, watch
 
 
-def section(ranked, params, submissions: dict, open_codes: list[str], name_of) -> str:
+TIER_WORD = {"premium": "premium", "mainstream": "mainstream", "standard": "standard",
+             "economy": "economy", "value": "value"}
+
+
+def _ordinal(n: int) -> str:
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
+def _rank(room: dict, tid: str, key: str, low: bool = False) -> int:
+    """Competition rank: ties share a place, the next one skips."""
+    mine = room[tid][key]
+    better = sum(1 for r in room.values()
+                 if (r[key] < mine if low else r[key] > mine) and abs(r[key] - mine) > 1e-9)
+    return better + 1
+
+
+def _strategy(team, params, sub: dict, h: dict, room: dict) -> str:
+    """The team's strategy in a few sentences: what it chose, and what that did.
+
+    Built from its founding position, this month's decisions and where its
+    results sit in the room. Each sentence ties a decision to an outcome.
+    """
+    tid, n = team.team_id, len(room)
+    f = getattr(team, "founding", None)
+    out = []
+
+    # Position
+    tier = str(sub.get("1.5") or (getattr(f, "tier", "") if f else "") or "")
+    cats = ", ".join(getattr(f, "categories", []) or []) if f else ""
+    segs = getattr(f, "segment_priority", []) if f else []
+    pos = []
+    if tier:
+        pos.append(f"a {TIER_WORD.get(tier, tier)} position")
+    if cats:
+        pos.append(f"selling {escape(cats)}")
+    if segs:
+        names = {s["code"]: s["name"] for s in params.segments}
+        pos.append("aimed at " + escape(", ".join(names.get(s, s) for s in segs[:2])))
+    if pos:
+        out.append(("A team with " if tier else "A team ") + " ".join(pos) + ".")
+
+    # Marketing
+    default_ads = sum(float(_default(c) or 0) for c in AD_CODES)
+    ads = sum(float(sub.get(c, _default(c)) or 0) for c in AD_CODES)
+    cac_rank = _rank(room, tid, "cac_blended", low=True) if h["cac_blended"] > 0 else n
+    new_rank = _rank(room, tid, "new_customers")
+    cost_word = ("the lowest" if cac_rank == 1 else "the highest" if cac_rank == n
+                 else f"the {_ordinal(cac_rank)} lowest")
+    if not any(c in sub for c in AD_CODES):
+        out.append(f"Left ad budgets at the default {_money(default_ads)}: customers cost "
+                   f"{_money(h['cac_blended'])} each, {cost_word} in the room.")
+    elif ads < 0.4 * default_ads:
+        out.append(f"Starved marketing at {_money(ads)} of ads ({ads / default_ads:.0%} of the "
+                   f"default), so it won only {h['new_customers']:,.0f} new customers "
+                   f"({_ordinal(new_rank)} of {n}) while fixed costs stayed the same.")
+    elif ads > 1.6 * default_ads:
+        verdict = ("and it paid off" if cac_rank <= n / 2 else
+                   "but each customer cost more than most rivals'")
+        out.append(f"Spent heavily on ads ({_money(ads)}, {ads / default_ads:.1f}&times; the "
+                   f"default), {verdict}: CAC {_money(h['cac_blended'])}, {cost_word} in the room.")
+    else:
+        verdict = ("an efficient level of spend" if cac_rank <= n / 2 else
+                   "though customers cost more than at most rivals")
+        out.append(f"Spent {_money(ads)} on ads ({ads / default_ads:.0%} of the default) "
+                   f"&mdash; {verdict}: CAC {_money(h['cac_blended'])}, {cost_word} in the room.")
+
+    # Basket
+    aov_rank = _rank(room, tid, "aov_net")
+    packs = _packs(team, params, sub)
+    fair = [r for _, r in packs if r <= 1.0]
+    threshold = float(sub["2.4"]) if "2.4" in sub else None
+    drivers = []
+    if fair:
+        drivers.append(f"{min(len(fair), 3) if len(fair) > 3 else len(fair)} fairly priced "
+                       f"bundle{'s' if len(fair) != 1 else ''}"
+                       + (f" (of {len(packs)} offered)" if len(packs) > len(fair) or len(packs) > 3 else ""))
+    if threshold is not None and threshold > params["aov_base"]:
+        drivers.append(f"free delivery only above {_money(threshold)}")
+    if drivers:
+        out.append(f"{' and '.join(drivers).capitalize()} pushed customers to add to the "
+                   f"basket: average order {_money(h['aov_net'])}, {_ordinal(aov_rank)} in the room.")
+    elif threshold is not None and threshold <= 0:
+        out.append(f"Free delivery on every order gave customers no reason to add more: "
+                   f"average order {_money(h['aov_net'])}, {_ordinal(aov_rank)} in the room.")
+    elif aov_rank == n and n > 1:
+        out.append(f"Nothing pushed basket size (no bundles, no delivery threshold above "
+                   f"a typical order): the smallest average order in the room.")
+
+    # Margin
+    gm_rank = _rank(room, tid, "gross_margin_pct")
+    grid = sub.get("1.1") if isinstance(sub.get("1.1"), dict) else {}
+    srcs = {c.get("sourcing") for c in grid.values() if isinstance(c, dict) and c.get("sourcing")}
+    why = []
+    if tier == "premium":
+        why.append("premium pricing")
+    if srcs == {"import"}:
+        why.append("imported stock")
+    if srcs == {"local"}:
+        why.append("locally sourced stock")
+    if h.get("discount_rate", 0) >= 0.05:
+        why.append(f"a {h['discount_rate']:.0%} average discount")
+    if gm_rank == 1 and n > 1:
+        out.append(f"{(' and '.join(why) or 'Its pricing').capitalize()} gave the best gross "
+                   f"margin in the room ({h['gross_margin_pct']:.1%}).")
+    elif gm_rank == n and n > 1:
+        out.append(f"{(' and '.join(why) or 'Its cost base').capitalize()} left the thinnest "
+                   f"gross margin in the room ({h['gross_margin_pct']:.1%}).")
+
+    eb_rank = _rank(room, tid, "ebitda")
+    out.append(f"Net result: EBITDA {_money(h['ebitda'])}, {_ordinal(eb_rank)} of {n}.")
+    return " ".join(out)
+
+
+RESULT_COLS = [
+    ("Revenue", "revenue_net", _money, False),
+    ("Orders", "orders", lambda v: f"{v:,.0f}", False),
+    ("Conversion", "conversion_rate", lambda v: f"{v:.2%}", False),
+    ("Avg order", "aov_net", _money, False),
+    ("Gross margin", "gross_margin_pct", lambda v: f"{v:.1%}", False),
+    ("Contribution", "contribution_margin_pct", lambda v: f"{v:.1%}", False),
+    ("CAC", "cac_blended", _money, True),
+    ("EBITDA", "ebitda", _money, False),
+    ("Cash", "cash_balance", _money, False),
+]
+
+
+def _results(team, h: dict, room: dict, score) -> str:
+    """One team's results with its rank in the room under each figure."""
+    tid = team.team_id
+    head = "".join(f"<th>{label}</th>" for label, *_ in RESULT_COLS)
+    vals = "".join(f"<td>{fmt(h[key])}</td>" for _, key, fmt, _ in RESULT_COLS)
+    ranks = "".join(f"<td>{_ordinal(_rank(room, tid, key, low))}</td>"
+                    for _, key, _, low in RESULT_COLS)
+    s_head = "<th>Score</th>" if score is not None else ""
+    s_val = f"<td><b>{score:.1f}</b></td>" if score is not None else ""
+    s_rank = "<td></td>" if score is not None else ""
+    return (f'<table class="t res"><thead><tr><th></th>{s_head}{head}</tr></thead><tbody>'
+            f'<tr><td>Result</td>{s_val}{vals}</tr>'
+            f'<tr class="rk"><td>Rank in room</td>{s_rank}{ranks}</tr></tbody></table>')
+
+
+def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
+            scores: dict | None = None) -> str:
     """The debrief block for the console. Empty when no submissions are known."""
     if submissions is None:
         return ""
@@ -228,11 +370,8 @@ def section(ranked, params, submissions: dict, open_codes: list[str], name_of) -
         good, watch = _observations(t, params, sub, h, room, open_codes)
         tag = ("top" if i <= min(3, n // 2) else
                "bottom" if i > n - min(3, n // 2) else "")
-        kpis = (f'{_money(h["revenue_net"])} revenue &middot; {h["orders"]:,.0f} orders '
-                f'&middot; AOV {_money(h["aov_net"])} &middot; gross margin '
-                f'{h["gross_margin_pct"]:.1%} &middot; contribution '
-                f'{h["contribution_margin_pct"]:.1%} &middot; CAC {_money(h["cac_blended"])} '
-                f'&middot; EBITDA {_money(h["ebitda"])}')
+        score = (scores or {}).get(t.team_id)
+        strategy = _strategy(t, params, sub, h, room)
         took = _decisions(t, params, sub)
         took_html = ("".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in took)
                      if took else "<dt>Decisions</dt><dd>None submitted</dd>")
@@ -252,10 +391,12 @@ def section(ranked, params, submissions: dict, open_codes: list[str], name_of) -
             f'{"" if name_of(t) == t.team_id else f" <span class=tid>{t.team_id}</span>"}'
             f'{" <span class=pill>top</span>" if tag == "top" else ""}'
             f'{" <span class=pill>bottom</span>" if tag == "bottom" else ""}</h3>'
-            f'<p class="kpis">{kpis}</p><div class="cols"><dl>{took_html}</dl>'
+            f'{_results(t, h, room, score)}'
+            f'<p class="strat"><b>Strategy.</b> {strategy}</p><div class="cols"><dl>{took_html}</dl>'
             f'<div>{lists}</div></div>{left}</div>')
     return ('<section class="wide"><h2>Debrief &middot; what each team decided '
-            'and what it did</h2><p class="note">Ranked by score. Decisions are what '
+            'and what it did</h2><p class="note">Ranked by score (shown here from month '
+            '1; teams see the leaderboard from month 4). Decisions are what '
             'each team submitted for this month; anything not listed ran on its '
             'default. Observations are generated from the decisions and the '
             'results, for the instructor to check before using.</p>'
@@ -269,7 +410,9 @@ CSS = """
 .db .pill{font-size:11px;font-weight:600;padding:1px 7px;border-radius:9px;
 background:#e7f3e7;color:#006300;vertical-align:2px}
 .db.bottom .pill{background:#fbe9e9;color:#d03b3b}
-.db .kpis{font-size:13px;color:#52514e;margin:0 0 8px}
+.db .strat{font-size:14px;line-height:1.55;margin:8px 0 10px;padding:8px 10px;
+background:#f3f2ee;border-radius:6px}
+table.t.res{margin:6px 0 4px;font-size:12.5px} table.t.res tr.rk td{color:#898781;font-size:11.5px}
 .db .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:820px){.db .cols{grid-template-columns:1fr}}
 .db dl{margin:0;display:grid;grid-template-columns:150px 1fr;gap:3px 10px;font-size:13px}
@@ -277,5 +420,5 @@ background:#e7f3e7;color:#006300;vertical-align:2px}
 .db .mute{color:#898781}
 .obs{font-size:13px;margin:0 0 8px} .obs ul{margin:4px 0 0;padding-left:18px}
 .obs.good b{color:#006300} .obs.watch b{color:#d03b3b}
-@media(prefers-color-scheme:dark){.db{border-color:#2c2c2a}.db dt,.db .kpis{color:#c3c2b7}}
+@media(prefers-color-scheme:dark){.db{border-color:#2c2c2a}.db dt{color:#c3c2b7}.db .strat{background:#232321}}
 """

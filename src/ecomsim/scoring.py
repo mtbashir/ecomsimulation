@@ -18,6 +18,82 @@ from .modules.m17_score import anchor, runway_score
 _NET_OF_GROSS = 0.78
 
 
+# The published scorecard: (pillar, measure key, label, points, (zero, fifty,
+# hundred) anchors, unit). final_score reads its anchors from here, and the
+# briefing page and the handbook render from here, so what students are told
+# and what the engine scores cannot drift apart again. A measure whose
+# anchors run downwards (zero above hundred) is "lower is better".
+SCORECARD = [
+    ("Profitability", 25, "Margins over the whole run, weighted by each month's revenue.", [
+        ("cm_pre", "Contribution margin before marketing", 12, (0.14, 0.24, 0.32), "pct"),
+        ("ebitda", "EBITDA margin", 8, (-0.22, -0.11, -0.02), "pct"),
+        ("gm", "Gross margin", 5, (0.30, 0.37, 0.44), "pct")]),
+    ("Growth", 20, "How much bigger you finished, and whether you took share doing it.", [
+        ("rev_multiple", "Net revenue, last month against first", 8, (0.65, 1.00, 1.35), "x"),
+        ("share_pp", "Market share gained, in percentage points", 7, (-2.0, 0.0, 2.5), "pp"),
+        ("order_growth", "Orders against a baseline business", 5, (-0.28, -0.06, 0.22), "pct")]),
+    ("Customer value", 20, "Whether you built a customer base or rented one.", [
+        ("ltv_cac", "Lifetime value against lifetime acquisition cost", 6, (0.8, 1.9, 3.8), "x"),
+        ("repeat", "Repeat order share, over all orders", 5, (0.26, 0.355, 0.46), "pct"),
+        ("active", "Active customers at the end", 6, (22_000, 30_000, 40_000), "int"),
+        ("nps", "NPS at the end", 3, (70, 82, 92), "int")]),
+    ("Operational efficiency", 15, "Whether the business delivered what it sold, cheaply.", [
+        ("service", "Service level", 2, (0.94, 0.985, 1.00), "pct"),
+        ("delivery", "Delivery success", 6, (0.920, 0.940, 0.958), "pct"),
+        ("leak", "Refused and returned parcel costs, as a share of revenue", 4,
+         (0.055, 0.042, 0.032), "pct"),
+        ("turns", "Stock turns a year", 3, (8.0, 13.0, 20.0), "x")]),
+    ("Cash & capital", 10, "Whether the business can keep going, and paid its own way.", [
+        ("runway", "Runway at the end", 5, None, "band"),
+        ("free_cash", "Cash the business generated itself", 3, (-15e6, 0.0, 25e6), "pkr"),
+        ("net_margin", "Net profit margin", 2, (-0.30, -0.14, -0.02), "pct")]),
+    ("Decision quality", 10, "Judged by your instructor, not the model: your board "
+                             "memos and the reasoning behind your decisions.", []),
+]
+_ANCHORS = {key: (pts, a) for _, _, _, ms in SCORECARD for key, _, pts, a, _ in ms}
+
+
+def _fmt(v: float, unit: str) -> str:
+    if unit == "pct":
+        return f"{v * 100:.1f}%".replace(".0%", "%")
+    if unit == "pp":
+        return f"{v:+g} points" if v else "no change"
+    if unit == "x":
+        return f"{v:g}" + ("×" if v < 5 else "")
+    if unit == "pkr":
+        return "PKR 0" if not v else f"PKR {v / 1e6:+g}m"
+    return f"{v:,.0f}"
+
+
+RUNWAY_BAND = ("under 1.5 months scores nothing; 1.5–3 months 30%; "
+               "3–9 months full marks; 9–16 months 60%; more than 16 months 30%. "
+               "Too much idle cash is marked down like too little.")
+
+
+def published() -> list[tuple]:
+    """(pillar, points, summary, [(measure, points, where the marks are)]) for pages."""
+    out = []
+    for name, pts, summary, measures in SCORECARD:
+        rows = []
+        for key, label, mpts, a, unit in measures:
+            if a is None:
+                where = RUNWAY_BAND
+            else:
+                z, f, h = (_fmt(x, unit) for x in a)
+                where = f"{z} scores nothing, {f} half, {h} full"
+                if a[2] < a[0]:
+                    where += " (lower is better)"
+            rows.append((label, mpts, where))
+        out.append((name, pts, summary, rows))
+    return out
+
+
+def _mark(key: str, value: float) -> float:
+    """Points earned on one published measure."""
+    pts, a = _ANCHORS[key]
+    return pts * anchor(value, *a)
+
+
 def _weights(n: int) -> list[float]:
     total = n * (n + 1) / 2
     return [(t + 1) / total for t in range(n)]
@@ -62,9 +138,9 @@ def final_score(team, params, all_teams: dict) -> dict:
     insolvent = any(x["insolvent"] for x in h)
 
     # P1 Profitability (25) - all flow
-    p1 = (12 * anchor(_margin(h, "contribution_pre_marketing_pct"), 0.14, 0.24, 0.32)
-          + 8 * anchor(_margin(h, "ebitda_margin_pct"), -0.22, -0.11, -0.02)
-          + 5 * anchor(_margin(h, "gross_margin_pct"), 0.30, 0.37, 0.44)) / 100
+    p1 = (_mark("cm_pre", _margin(h, "contribution_pre_marketing_pct"))
+          + _mark("ebitda", _margin(h, "ebitda_margin_pct"))
+          + _mark("gm", _margin(h, "gross_margin_pct"))) / 100
 
     # P2 Growth (20)
     # Revenue multiple is where the business ended against where it started,
@@ -78,9 +154,9 @@ def final_score(team, params, all_teams: dict) -> dict:
     baseline_orders = params["baseline_team_revenue"] / params["aov_base"]
     order_growth = _flow(h, lambda x: x["orders"] / baseline_orders - 1, w)
     # 12 monthly rounds of a mature business: 1.9x was a 3-year anchor.
-    p2 = (8 * anchor(rev_multiple, 0.65, 1.00, 1.35)
-          + 7 * anchor(share_change_pp, -2.0, 0.0, 2.5)
-          + 5 * anchor(order_growth, -0.28, -0.06, 0.22)) / 100
+    p2 = (_mark("rev_multiple", rev_multiple)
+          + _mark("share_pp", share_change_pp)
+          + _mark("order_growth", order_growth)) / 100
 
     # P3 Customer value (20)
     # LTV is a lifetime figure, so the CAC it is divided by is the lifetime one:
@@ -95,10 +171,10 @@ def final_score(team, params, all_teams: dict) -> dict:
     # With eight points on the ratio and four on the base, a team could stop
     # acquiring, watch the base shrink, and score better on customer value for
     # having stopped spending. Six and six says what the pillar means.
-    p3 = (6 * anchor(ltv_cac, 0.8, 1.9, 3.8)
-          + 5 * anchor(_share(h, "repeat_order_share", "orders"), 0.26, 0.355, 0.46)
-          + 6 * anchor(last["active_customers"], 22_000, 30_000, 40_000)
-          + 3 * anchor(last["nps"], 70, 82, 92)) / 100
+    p3 = (_mark("ltv_cac", ltv_cac)
+          + _mark("repeat", _share(h, "repeat_order_share", "orders"))
+          + _mark("active", last["active_customers"])
+          + _mark("nps", last["nps"])) / 100
 
     # P4 Operational efficiency (15)
     leak = lambda x: (x["pnl"]["rto_cost"] + x["pnl"]["return_cost"]) / max(x["revenue_net"], 1.0)
@@ -113,10 +189,10 @@ def final_score(team, params, all_teams: dict) -> dict:
     # can move is four points of scorecard that says nothing, so it drops to
     # two on a demanding anchor and the weight goes to delivery success - which
     # in a 62%-COD market is the operating number a team actually lives on.
-    p4 = (2 * anchor(_flow(h, "service_level", w), 0.94, 0.985, 1.00)
-          + 6 * anchor(_flow(h, "delivery_success", w), 0.920, 0.940, 0.958)
-          + 4 * anchor(_flow(h, leak, w), 0.055, 0.042, 0.032)
-          + 3 * anchor(turns, 8.0, 13.0, 20.0)) / 100
+    p4 = (_mark("service", _flow(h, "service_level", w))
+          + _mark("delivery", _flow(h, "delivery_success", w))
+          + _mark("leak", _flow(h, leak, w))
+          + _mark("turns", turns)) / 100
 
     # P5 Cash & capital (10), as docs/08 specifies it: runway read terminally,
     # not averaged across the year, and the cash the business itself threw off
@@ -127,9 +203,9 @@ def final_score(team, params, all_teams: dict) -> dict:
     free_cash = ((last["cash_balance"] - params["starting_cash"])
                  - (last["credit_drawn"] - first["credit_drawn"]))
     ccc = _flow(h, lambda x: x["pnl"]["net_profit"] / max(x["revenue_net"], 1.0), w)
-    p5 = 0.0 if insolvent else (5 * liquidity
-                                + 3 * anchor(free_cash, -15e6, 0.0, 25e6)
-                                + 2 * anchor(ccc, -0.30, -0.14, -0.02)) / 100
+    p5 = 0.0 if insolvent else (_ANCHORS["runway"][0] * liquidity
+                                + _mark("free_cash", free_cash)
+                                + _mark("net_margin", ccc)) / 100
 
     # P6 Decision quality (10) - not scorable in a scripted harness
     p6 = 10 * 0.5

@@ -207,7 +207,7 @@ table.t th,table.t td{{border-color:#2c2c2a}} table.t thead th{{color:#c3c2b7}}
 <h1>Round {round_}</h1>
 <p class="sub">Instructor console &middot; {len(teams)} teams &middot;
 config {params.config_hash()}</p>
-{board}{debrief.section(ranked, params, submissions, open_codes or [], name_of)}{_targeting(ranked, params, name_of)}{"".join(blocks)}
+{board}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()})}{_targeting(ranked, params, name_of)}{"".join(blocks)}
 </div></body></html>"""
 
     out = Path(out_dir) / f"console_r{round_}.html"

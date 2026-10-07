@@ -932,3 +932,21 @@ def test_a_lagged_study_says_when_it_was_measured(game):
     seg = next(f for f in service.research_desk(con, "team_01")["findings"]
                if f["code"] == "MR-06")
     assert seg["lagged"] or seg["as_of"] is not None
+
+
+def test_scoring_guide_publishes_the_anchors_the_engine_uses(game):
+    from ecomsim.scoring import SCORECARD, published
+    app, pw, path = game
+    _trading(app, path)
+    page = _team(app, pw).get("/guide/scoring").data.decode()
+    assert "How you are scored" in page
+    for name, pts, _s, measures in SCORECARD:
+        assert name.replace("&", "&amp;") in page
+    # the briefing page reads the same table, not a hand-written copy
+    for _name, _pts, _s, rows in published():
+        for label, _p, where in rows:
+            assert label in page
+    assert "14% scores nothing, 24% half, 32% full" in page
+    brief = _team(app, pw).get("/brief").data.decode()
+    assert "14% scores nothing, 24% half, 32% full" in brief
+    assert "0.8x scores nothing" not in brief          # the stale calibration
