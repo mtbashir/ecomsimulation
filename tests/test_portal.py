@@ -960,3 +960,21 @@ def test_price_grid_shows_last_months_product_results(game):
         "each line carries last month's units, share and contribution")
     report = _team(app, pw).get("/results/1").data.decode()
     assert "Sales by product" in report
+
+
+def test_results_workbook_downloads_for_the_team_and_the_instructor(game):
+    app, pw, path = game
+    _trading(app, path)
+    team = _team(app, pw)
+    page = team.get("/results/1").data.decode()
+    assert "/results/1.xlsx" in page, "the report offers the workbook"
+    r = team.get("/results/1.xlsx")
+    assert r.status_code == 200 and r.data[:2] == b"PK"
+    assert "attachment" in r.headers["Content-Disposition"]
+    assert team.get("/results/2.xlsx").status_code == 404, "a month not yet run"
+    assert "results/1.xlsx" in team.get("/").data.decode()
+    admin = app.test_client()
+    admin.post("/login", data={"username": "admin", "password": "admin-pw"})
+    assert admin.get("/admin/report/team_02/1.xlsx").data[:2] == b"PK"
+    assert team.get("/admin/report/team_02/1.xlsx").status_code in (302, 403), (
+        "a team cannot download another team's workbook")

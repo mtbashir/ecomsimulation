@@ -1009,7 +1009,7 @@ def endowment(con) -> dict:
     }
 
 
-def team_report(con, team_id: str, round_: int) -> str | None:
+def team_report(con, team_id: str, round_: int, download: str | None = None) -> str | None:
     """Render one team's report as HTML, without touching disk."""
     world = db.load_world(con, round_)
     if world is None or team_id not in world.teams:
@@ -1026,7 +1026,27 @@ def team_report(con, team_id: str, round_: int) -> str | None:
         team.brand_name = brand
     card = scoring.final_score(team, params, world.teams) if round_ >= 2 else None
     with tempfile.TemporaryDirectory() as tmp:
-        return report.render(team, round_, Path(tmp), card).read_text(encoding="utf-8")
+        return report.render(team, round_, Path(tmp), card,
+                             download=download).read_text(encoding="utf-8")
+
+
+def team_workbook(con, team_id: str, round_: int) -> tuple[bytes, str] | None:
+    """One team's results, months 1..round_, as an Excel workbook and its
+    file name. None when that month has not been run."""
+    import re
+    from .. import workbook
+
+    world = db.load_world(con, round_)
+    if world is None or team_id not in world.teams:
+        return None
+    team = world.teams[team_id]
+    if len(team.history) < round_ or round_ < 1:
+        return None
+    brand = (db.founding(con, team_id) or {}).get("config", {}).get("brand_name")
+    name = (brand if brand and brand != "Unnamed" else None) or team.brand_name or team_id
+    data = workbook.build(team, load_params(con), name, round_)
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_") or team_id
+    return data, f"{slug}_month_{round_}.xlsx"
 
 
 def instructor_console(con, round_: int) -> str | None:

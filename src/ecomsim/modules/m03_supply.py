@@ -22,8 +22,12 @@ def run(world, params, resolved, ctx) -> None:
         tid = team.team_id
         d = ctx["resolved"][tid]
 
-        _land_arrivals(team, world.round)
-        _return_rto_units(team)
+        opening = dict(team.inventory)
+        received = _land_arrivals(team, world.round)
+        returned = _return_rto_units(team)
+        # The month's stock movements, product by product, for the workbook.
+        ctx.setdefault("stock_moves", {})[tid] = {
+            "open": opening, "received": received, "returned": returned}
 
         supplier = dict(_supplier(params, d))
         ctx.setdefault("supplier_quality", {})[tid] = float(supplier["quality_index"])
@@ -87,18 +91,21 @@ def _supplier(params, d) -> dict:
         return next(s for s in params.suppliers if s["code"] == SUPPLIER_DEFAULT)
 
 
-def _land_arrivals(team, round_: int) -> None:
-    remaining = []
+def _land_arrivals(team, round_: int) -> dict[str, float]:
+    """Put arrived purchase orders on the shelf; return what landed."""
+    remaining, landed = [], {}
     for po in team.open_pos:
         if po["arrives"] <= round_:
             for sku, units in po["units"].items():
                 team.inventory[sku] = team.inventory.get(sku, 0.0) + units
+                landed[sku] = landed.get(sku, 0.0) + units
         else:
             remaining.append(po)
     team.open_pos = remaining
+    return landed
 
 
-def _return_rto_units(team) -> None:
+def _return_rto_units(team) -> dict[str, float]:
     """RTO stock rejoins sellable inventory at the start of the next round.
 
     Structural decision: units are in transit during the round they fail, so
@@ -109,6 +116,7 @@ def _return_rto_units(team) -> None:
         for sku, units in pending.items():
             team.inventory[sku] = team.inventory.get(sku, 0.0) + units
         team._pending_rto_units = {}
+    return dict(pending or {})
 
 
 def _publish_forecast(team, world, params, ctx) -> None:

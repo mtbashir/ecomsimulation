@@ -130,6 +130,8 @@ def run(world, params, resolved, ctx) -> None:
         record["products"] = mix.product_lines(team, params, ctx)
         record["order_segments"] = dict(ctx.get("order_segments", {}).get(tid, {}))
         record["segment_names"] = {s["code"]: s["name"] for s in params.segments}
+        record["stock"] = mix.stock_lines(team, params, ctx, world.round)
+        record["cash_flow"] = dict(ctx.get("cash_flow", {}).get(tid, {}))
         record["ab_tests"] = targeting.ab_tests(team.history + [record])
         team.history.append(record)
         ctx.setdefault("scorecard", {})[tid] = _scorecard(team, params, record)

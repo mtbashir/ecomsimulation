@@ -63,13 +63,30 @@ def run(world, params, resolved, ctx) -> None:
             + ctx.get("capex", {}).get(tid, 0.0)
         )
 
+        opening = team.cash
         team.cash += inflow - outflow
 
+        draw = 0.0
         if team.cash < 0:
             headroom = params["credit_ceiling"] - team.credit_drawn
             draw = min(headroom, -team.cash)
             team.credit_drawn += draw
             team.cash += draw
+        # Where the cash went, line by line, for the workbook. Operating costs
+        # are the P&L's cash costs as the engine pays them this month.
+        ctx.setdefault("cash_flow", {})[tid] = {
+            "opening": opening, "receipts": inflow,
+            "sales_prepaid": prepaid, "sales_cod": cod,
+            "supplier_payments": payable_now,
+            "operating": outflow - payable_now - pnl["interest"]
+                         - ctx.get("capex", {}).get(tid, 0.0),
+            "interest": pnl["interest"],
+            "capex": ctx.get("capex", {}).get(tid, 0.0),
+            "credit_draw": draw, "closing": team.cash,
+            "purchases_ordered": po_cost,
+            "owed_to_suppliers": sum(team.payables.values()),
+            "cod_in_transit": team.cod_receivable,
+        }
 
         insolvent = team.cash < 0
         if insolvent:

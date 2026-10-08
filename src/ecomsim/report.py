@@ -443,7 +443,8 @@ def _funnel(record: dict, launch: bool = False) -> str:
             f'<div class="frow">{row2}</div></section>')
 
 
-def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None) -> Path:
+def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None,
+           download: str | None = None) -> Path:
     record = team.history[round_ - 1]
     prior = team.history[round_ - 2] if round_ > 1 else None
     series = team.history[:round_]
@@ -620,6 +621,10 @@ padding:0}}
 .sw-consulytics{{background:linear-gradient(135deg,#fff 52%,#ff0000 52%)}}
 .sw-dark{{background:#0d0d0c}}.sw-slate{{background:#22242a}}.sw-light{{background:#f4f5f7}}
 .perf tr.why .wt{{position:sticky;left:8px;max-width:calc(100vw - 96px)}}
+.sub .xl{{display:inline-block;margin-left:10px;padding:3px 10px;border:1px solid var(--line);
+border-radius:7px;background:var(--surface);color:var(--s1);font-size:12.5px;font-weight:600;
+text-decoration:none}}
+.sub .xl:hover{{border-color:var(--s1)}}
 .prods .lead{{margin:0 0 10px 18px;color:var(--ink);font-size:13px;line-height:1.6}}
 .perf tr.tot th,.perf tr.tot td{{font-weight:700;border-top:2px solid var(--line)}}
 .perf tr.tot th{{color:var(--ink)}}
@@ -640,7 +645,8 @@ td.v.down{{color:var(--bad)}}
 .verdict{{flex-direction:column;gap:12px}}.verdict .big{{margin-left:0;text-align:left}}}}
 </style></head><body class="viz"><div class="wrap">
 <h1>{escape(name)}</h1>
-<p class="sub">Month {round_} &middot; {team.team_id} &middot; where the month was won and lost</p>
+<p class="sub">Month {round_} &middot; {team.team_id} &middot; where the month was won and lost
+{f'<a class="xl" href="{escape(download)}">Download every month as Excel: P&amp;L, KPIs, products, stock, cash</a>' if download else ''}</p>
 <section class="verdict">
   <div><h2>{verdict}</h2><p class="cap" style="max-width:82ch">{explanation}</p>
   {events_html}{score_html}</div>

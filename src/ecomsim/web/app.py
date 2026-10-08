@@ -790,10 +790,25 @@ def register_routes(app: Flask) -> None:
     @app.route("/results/<int:round_>")
     @login_required("team")
     def results(round_):
-        html = service.team_report(g.db, session["team_id"], round_)
+        html = service.team_report(g.db, session["team_id"], round_,
+                                   download=url_for("results_xlsx", round_=round_))
         if html is None:
             abort(404)
         return Response(html, mimetype="text/html")
+
+    @app.route("/results/<int:round_>.xlsx")
+    @login_required("team")
+    def results_xlsx(round_):
+        return _workbook(session["team_id"], round_)
+
+    def _workbook(team_id, round_):
+        made = service.team_workbook(g.db, team_id, round_)
+        if made is None:
+            abort(404)
+        data, filename = made
+        return Response(
+            data, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
     # --- Instructor -----------------------------------------------------------
 
@@ -1025,10 +1040,16 @@ def register_routes(app: Flask) -> None:
     @app.route("/admin/report/<team>/<int:round_>")
     @login_required("admin")
     def results_admin(team, round_):
-        html = service.team_report(g.db, team, round_)
+        html = service.team_report(g.db, team, round_,
+                                   download=url_for("results_admin_xlsx", team=team, round_=round_))
         if html is None:
             abort(404)
         return Response(html, mimetype="text/html")
+
+    @app.route("/admin/report/<team>/<int:round_>.xlsx")
+    @login_required("admin")
+    def results_admin_xlsx(team, round_):
+        return _workbook(team, round_)
 
     @app.route("/admin/console/<int:round_>")
     @login_required("admin")

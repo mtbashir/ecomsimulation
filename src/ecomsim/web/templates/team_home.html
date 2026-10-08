@@ -160,6 +160,10 @@ recovery is slow and expensive &mdash; fix the cash position before anything els
       <a class="btn ghost" style="margin:0 6px 6px 0;padding:7px 12px;font-size:12.5px"
          href="{{ url_for('results', round_=r) }}" target="_blank">Month {{ r }}</a>
       {% endfor %}</p>
+      <p style="margin:6px 0 0"><a class="btn" style="padding:7px 12px;font-size:12.5px"
+         href="{{ url_for('results_xlsx', round_=rounds|max) }}">Download every month as Excel</a>
+      <span class="cap" style="margin-left:8px">P&amp;L, KPIs with their formulas, sales and
+      stock by product, cash and campaigns.</span></p>
     </div>
     {% endif %}
   </div>

@@ -7,7 +7,6 @@ score that its actual price/quality position cannot support.
 from __future__ import annotations
 
 from .. import mix
-from . import m03_supply as m03
 
 BUNDLE_UNITS = 3            # a bundle is a three-pack of one product
 DEFAULT_PACK_RATIO = 0.90   # a pack offered with no price: 10% under three singles
@@ -192,7 +191,6 @@ def _consume_stock(team, params, orders: float, ctx, lines: dict, terms: dict,
     uplift = terms["uplift"]
     pack_reach = (params["bundle_revenue_share"] / params["bundle_aov_coef"]
                   if params["bundle_aov_coef"] > 0 else 0.0)
-    supplier = ctx.get("supplier", {}).get(tid, {"cost_index": 1.0})
 
     wanted_units = shipped_units = cogs = 0.0
     sales = {}
@@ -216,10 +214,7 @@ def _consume_stock(team, params, orders: float, ctx, lines: dict, terms: dict,
         # the purchase order in M3, which is where a rupee move hits first and
         # hardest. Putting it here as well moved baseline contribution margin
         # by five points and is a recalibration, not a sourcing feature.
-        line_cogs = (taken * float(params.sku(code)["unit_cost"])
-                     * float(supplier.get("cost_index", 1.0))
-                     * m03.landed_index(team, code, d)
-                     * params["cogs_scale"])
+        line_cogs = taken * mix.landed_unit_cost(team, params, ctx, code)
         cogs += line_cogs
         wanted_units += want
         shipped_units += taken

@@ -355,6 +355,58 @@ def why(r: dict, params) -> list[str]:
     return out
 
 
+# --- Stock, product by product ----------------------------------------------------------
+
+def landed_unit_cost(team, params, ctx, code: str) -> float:
+    """What one unit of a product costs on the shelf this month: catalogue
+    cost x supplier x the team's own sourcing x the cost scale. The same
+    figure M9 charges as cost of goods."""
+    from .modules import m03_supply as m03
+    tid = team.team_id
+    supplier = ctx.get("supplier", {}).get(tid, {"cost_index": 1.0})
+    return (float(params.sku(code)["unit_cost"])
+            * float(supplier.get("cost_index", 1.0))
+            * m03.landed_index(team, code, ctx["resolved"][tid])
+            * params["cogs_scale"])
+
+
+def stock_lines(team, params, ctx, round_: int) -> list[dict]:
+    """Each product's stock movement this month.
+
+    Opening + received + back from failed deliveries - sold = closing, which
+    holds exactly: nothing else moves stock. On order is everything bought and
+    not yet landed, this month's purchase included.
+    """
+    tid = team.team_id
+    moves = ctx.get("stock_moves", {}).get(tid) or {}
+    sales = ctx.get("sku_sales", {}).get(tid) or {}
+    codes = list(dict.fromkeys(active(team, params) + list(team.inventory)))
+    pending = getattr(team, "_pending_rto_units", None) or {}
+    rows = []
+    for c in codes:
+        on_order = sum(po["units"].get(c, 0.0) for po in team.open_pos)
+        ordered = sum(po["units"].get(c, 0.0) for po in team.open_pos
+                      if po.get("placed") == round_)
+        arrives = min((po["arrives"] for po in team.open_pos
+                       if po["units"].get(c, 0.0) > 0), default=None)
+        sold = sales.get(c, {}).get("sold", 0.0)
+        close = team.inventory.get(c, 0.0)
+        cost = landed_unit_cost(team, params, ctx, c)
+        rows.append({
+            "code": c, "name": params.sku(c)["name"],
+            "category": params.sku(c)["category"],
+            "open": moves.get("open", {}).get(c, 0.0),
+            "received": moves.get("received", {}).get(c, 0.0),
+            "returned": moves.get("returned", {}).get(c, 0.0),
+            "sold": sold, "wanted": sales.get(c, {}).get("want", sold),
+            "close": close, "ordered": ordered, "on_order": on_order,
+            "next_arrival": arrives, "back_next_month": pending.get(c, 0.0),
+            "unit_cost": cost, "value": close * cost,
+            "weeks_cover": close * 4.33 / sold if sold > 0 else None,
+        })
+    return rows
+
+
 # --- What the buyer orders next --------------------------------------------------------
 
 def demand_shares(team, params) -> dict[str, float]:

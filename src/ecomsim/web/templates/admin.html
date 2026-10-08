@@ -113,7 +113,9 @@ left out.</p>
 {% else %}<span class="pill off">waiting</span>{% endif %}</td>
 <td class="num">{% if game['round'] %}
 <a href="{{ url_for('results_admin', team=t['team_id'], round_=game['round']) }}"
-   target="_blank" class="note">report</a>{% endif %}</td></tr>
+   target="_blank" class="note">report</a> &middot;
+<a href="{{ url_for('results_admin_xlsx', team=t['team_id'], round_=game['round']) }}"
+   class="note">excel</a>{% endif %}</td></tr>
 {% endfor %}
 </tbody></table>
 </section>

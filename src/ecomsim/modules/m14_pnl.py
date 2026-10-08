@@ -128,6 +128,23 @@ def run(world, params, resolved, ctx) -> None:
             "research": research,
             "holding": holding,
             "ageing": ageing,
+            # The lines behind each subtotal, so a workbook can show the sum.
+            "cogs_sold": cogs,
+            "write_off": write_off,
+            "pick_pack": pick_pack,
+            "courier": courier_forward,
+            "return_shipping": return_shipping,
+            "gateway": gateway_cost,
+            "cod_fee": cod_cost,
+            "marketing_spend": marketing,
+            "affiliate": affiliate,
+            "payroll": params["payroll_base"],
+            "service_team": ctx["cs_cost"][tid],
+            "warehouse": params["warehouse_fixed_cost"],
+            "technology": params["tech_fixed_cost"]
+                          + ctx.get("ongoing_tech_cost", {}).get(tid, 0.0),
+            "website": float(d.get("5.1", 0) or 0),
+            "quality_assurance": float(d.get("7.4", 0) or 0),
         }
         ctx.setdefault("gross_margin_pct", {})[tid] = (
             gross_profit / net_revenue if net_revenue > 0 else 0.0

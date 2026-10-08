@@ -85,6 +85,7 @@ be settled, so each is decided once, here.
 | `contribution_margin_pct` | Contribution margin % | See definitional decisions | M14 | free | **P1 · 12** |
 | `ebitda_margin_pct` | EBITDA margin % | `ebitda ÷ revenue_net` | M14 | free | **P1 · 8** |
 | `discount_rate` | Effective discount | `1 − net_price ÷ list_price` | M9 | free | — |
+| `workbook` | Results workbook | Every month as Excel: P&L with each subtotal a formula, every report KPI rebuilt as a formula where it can be, sales and stock by product, cash flow, campaigns, segments (`ecomsim.workbook`, `/results/<n>.xlsx`) | M17 records | free | — |
 | `products` | Sales by product | Per product: units, net sales, gross margin, contribution before and after marketing, buyers by segment - adding up to the P&L (`ecomsim.mix.product_lines`) | M9 / M17 | free | — |
 | `price_index` | Price vs market | `net_price ÷ market_avg` | M7 | **paid** MR-02 | — |
 | `bundle_penetration` | Bundle share | Bundle orders ÷ orders | M9 | free | — |

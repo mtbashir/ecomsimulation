@@ -63,7 +63,9 @@ story.append(Paragraph(
   "Every number in your monthly report is calculated by the simulation engine from the decisions you submitted "
   "and the market's response. This guide gives each KPI in the order the report shows it — Growth, Marketing, "
   "Commercial, Operations, Customer, Finance — followed by the profit and loss lines they are built from, "
-  "the paid-campaign table and sales by product. Formulas are written exactly as the engine computes them. Fixed numbers inside "
+  "the paid-campaign table and sales by product. The same formulas are live in your Excel workbook: "
+  "<b>Download every month as Excel</b> at the top of each monthly report, then click any black or green "
+  "figure to see how it is built. Formulas are written exactly as the engine computes them. Fixed numbers inside "
   "the formulas (for example 2.424 units per order or a 1.2% COD fee) are the simulation's assumptions, not "
   "measured market data.", st["lead"]))
 
