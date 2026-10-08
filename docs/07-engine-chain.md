@@ -389,6 +389,14 @@ units[p]  = orders × units_per_order × ship × (share[p]·(1−H) + push[p] + 
 revenue   = Σ_p shipped[p] × net_price[p] − pack saving,   AOV = revenue ÷ orders
 ```
 
+**Pack uptake.** Each pack's appeal follows its saving against three singles:
+`appeal = min(1.6, 0.1 + 11 × saving)` for a pack at or below three singles,
+and nothing above (`0.1 − 6 × overprice`, floored at 0). Units sold in packs run
+about 3× the extra units packs add - most pack buyers would have bought the
+units anyway - so the saving is given away on all of them. A small saving
+earns most; past about 12% a pack loses money; a pack with no saving draws
+only convenience buyers and a dear one does nothing.
+
 `affinity` comes from each product's main and second buyer segments
 (audiences.csv), tilted by tier against each segment's willingness to pay.
 `stores_mix` is the size-weighted customer mix of all teams, so identical teams

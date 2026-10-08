@@ -143,11 +143,14 @@
     </tbody></table>
     <div class="hint">A bundle is a three-pack of one of your own products, so
     its cost is three units landed and "three singles" is what a customer would
-    pay buying them one at a time. <b>The pack price matters.</b> A pack below
-    three singles sells more and gives the saving away on every pack sold; a pack
-    above three singles barely sells &mdash; shoppers buy the singles instead. Your
-    three most attractive packs set the lift in basket size &mdash; more than
-    three adds nothing.</div>
+    pay buying them one at a time. <b>The pack price matters.</b> The saving is
+    the reason to buy a pack: with none, only a few convenience buyers take it;
+    priced above three singles, nobody does &mdash; the singles are on the same
+    shelf. Each point of saving draws more pack buyers, but most of them would
+    have bought the units anyway, so the saving is given away on all of them: a
+    small saving earns most, and past about 12% a pack loses money. Your three
+    most attractive packs set the lift in basket size &mdash; more than three
+    adds nothing.</div>
 
   {% elif s.kind == 'shares' %}
     {% set chosen = val if val is mapping else default_shares.get(s.code, {}) %}
@@ -355,7 +358,7 @@
       var s = ref > 0 ? (ref - price) / ref : 0;
       var m = (price - cost) / price;
       save.textContent = Math.round(s * 100) + "%";
-      save.classList.toggle("deep", s > 0.25);
+      save.classList.toggle("deep", s > 0.12 || s <= 0);
       cell.textContent = Math.round(m * 100) + "%";
       cell.classList.toggle("thin", m < 0.25);
       cell.classList.toggle("loss", m < 0);

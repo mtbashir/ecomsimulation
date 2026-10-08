@@ -73,14 +73,20 @@ ENTRIES = {
         related=["1.1", "7.4", "8.5"]),
     "1.2": dict(
         does="Offers three-packs of your own products at a pack price. Bundles lift "
-             "average order value; the price decides how many customers take the "
-             "pack. Cheaper than three singles sells more, dearer sells less, and "
-             "only your three most attractive packs count.",
-        tradeoff="Basket size against margin. A pack priced well below three "
-                 "singles trades margin for a bigger order.",
-        watch="Average order value (AOV) and gross margin.",
+             "average order value; the saving against three singles decides how "
+             "many customers take the pack. No saving draws only a few convenience "
+             "buyers, a pack dearer than three singles sells nothing, and only "
+             "your three most attractive packs count.",
+        tradeoff="Basket size against margin. Most pack buyers would have bought "
+                 "the units anyway, so the saving is given away on all of them, "
+                 "not just on the extra units the pack adds. A small saving earns "
+                 "most; past about 12% the pack loses money.",
+        watch="Average order value (AOV), gross margin, and each packed line in "
+              "Sales by product - its share of units sold in 3-packs and its "
+              "contribution.",
         mistake="Discounting the pack so hard that a bigger basket earns less than "
-                "the single order it replaced.",
+                "the single order it replaced - or pricing it at three singles and "
+                "wondering why nobody takes it.",
         related=["1.1", "2.4"]),
     "2.2": dict(
         does="An average discount across the whole site. Every point buys volume "

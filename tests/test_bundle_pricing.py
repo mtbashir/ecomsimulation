@@ -1,5 +1,7 @@
 """Bundle pack prices must matter (decision 1.2)."""
 import sys
+
+import pytest
 sys.path.insert(0, "src")
 
 from ecomsim import bootstrap, params as P
@@ -34,7 +36,7 @@ def test_fair_pack_beats_dear_pack():
     params, _, team = _team()
     fair = _bundle_effect(team, params, {"1.2": _packs(team, params, 0.9)})
     dear = _bundle_effect(team, params, {"1.2": _packs(team, params, 1.15)})
-    assert fair[1] > dear[1] > 1.0          # more packs taken at a fair price
+    assert fair[1] > 1.0 == dear[1]         # a dear pack sells nothing at all
 
 
 def test_deep_discount_costs_revenue_per_unit():
@@ -166,3 +168,38 @@ def test_dear_packs_never_beat_fair_ones():
     # revenue per unit can never exceed three singles' worth
     assert dear[0] / dear[1] <= 1.0 + 1e-9
     assert dear[1] < fair[1]
+
+
+def _contribution(ratio, months=3):
+    """Average monthly contribution of a team with three packs at `ratio`."""
+    params = P.load({"n_teams": 2, "events_enabled": 0})
+    world = bootstrap.new_world(params, run_id="curve")
+    a, b = list(world.teams)
+    plan = {} if ratio is None else {"1.2": _packs(world.teams[a], params, ratio)}
+    total = 0.0
+    for _ in range(months):
+        run_round(world, params, {a: plan, b: {}})
+        total += world.teams[a].history[-1]["pnl"]["contribution"]
+    return total / months
+
+
+def test_pack_economics_reward_a_modest_saving():
+    """No saving draws few; a dear pack sells nothing; a deep one gives the
+    margin away on units that would have sold anyway. The best pack saves a
+    little - never none, never a lot."""
+    none = _contribution(None)
+    curve = {r: _contribution(r) for r in (0.7, 0.85, 0.9, 0.95, 1.0, 1.1)}
+    assert curve[1.1] == pytest.approx(none, rel=1e-9)        # dear: nothing at all
+    assert none < curve[1.0] < curve[0.95]                   # no saving: convenience only
+    assert curve[0.9] > none                                 # 10% still pays
+    assert curve[0.7] < curve[0.85] < none                   # deep: a loss, deeper worse
+    assert max(curve, key=curve.get) in (0.9, 0.95)
+
+
+def test_the_appeal_curve():
+    from ecomsim.modules.m09_basket import pack_appeal
+    params = P.load()
+    assert pack_appeal(1.2, params) == 0.0
+    assert pack_appeal(1.0, params) == pytest.approx(params["bundle_convenience_appeal"])
+    assert pack_appeal(0.95, params) < pack_appeal(0.9, params) <= params["bundle_appeal_cap"]
+    assert pack_appeal(0.5, params) == params["bundle_appeal_cap"]

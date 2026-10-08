@@ -73,6 +73,23 @@ def _unit_net_price(team, params, d, code: str) -> float:
     return mix.unit_net_price(team, params, d, code)
 
 
+def pack_appeal(ratio: float, params) -> float:
+    """How readily shoppers take a pack priced at `ratio` x three singles.
+
+    The saving is the reason to buy a pack. With no saving only a few take it
+    for convenience; each point of saving draws more, up to a ceiling; a pack
+    dearer than three singles sells nothing, because the singles are on the
+    same shelf. Before this a pack with no saving drew full uptake, so the
+    most profitable pack was one that saved the shopper nothing - and a dear
+    one still out-earned a fair one.
+    """
+    base = params["bundle_convenience_appeal"]
+    if ratio > 1.0:
+        return max(0.0, base - params["bundle_overprice_sensitivity"] * (ratio - 1))
+    return min(params["bundle_appeal_cap"],
+               base + params["bundle_price_sensitivity"] * (1 - ratio))
+
+
 def _pack_terms(team, params, d) -> dict:
     """The packs that count this month: the three most appealing.
 
@@ -96,15 +113,9 @@ def _pack_terms(team, params, d) -> dict:
         except (TypeError, ValueError):
             price = 0.0
         ratio = price / reference if price > 0 else DEFAULT_PACK_RATIO
-        if ratio <= 1.0:
-            a = 1 + params["bundle_price_sensitivity"] * (1 - ratio)
-        else:
-            # Dearer than three singles: shoppers buy the singles instead.
-            a = 1 - params["bundle_overprice_sensitivity"] * (ratio - 1)
-        a = max(0.0, min(params["bundle_appeal_cap"], a))
-        # Nobody pays more for a pack than for its three singles, so a dear
-        # pack earns no premium - it simply sells less.
-        offered.append((a, min(ratio, 1.0), code))
+        a = pack_appeal(ratio, params)
+        if a > 0:
+            offered.append((a, min(ratio, 1.0), code))
     if not offered:
         return {"uplift": 0.0, "share": 0.0, "ratio": 1.0, "packs": {}}
     top = sorted(offered, reverse=True)[:3]

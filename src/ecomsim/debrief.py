@@ -19,6 +19,7 @@ from .modules.m09_basket import BUNDLE_UNITS, _unit_net_price
 from .targeting import CHANNELS, CHANNEL_NAMES
 
 AD_CODES = list(CHANNELS.values())                     # Meta, TikTok, Google
+DEEP_PACK = 0.88      # deeper than ~12% off three singles, a pack loses money
 SOURCING = {"local": "local", "import": "imported", "mixed": "mixed"}
 
 
@@ -193,11 +194,17 @@ def _observations(team, params, sub, h, room, open_codes) -> tuple[list[str], li
     if dear:
         n, r = max(dear, key=lambda x: x[1])
         watch.append(f"{len(dear)} pack{'s' if len(dear) != 1 else ''} priced above three "
-                     f"singles (worst: {escape(n)} at {r - 1:.0%} over) - few will buy.")
-    deep = [(n, r) for n, r in packs if r < 0.75]
+                     f"singles (worst: {escape(n)} at {r - 1:.0%} over) - nobody buys a "
+                     f"pack dearer than its singles, so {'they do' if len(dear) != 1 else 'it does'} nothing.")
+    flat = [n for n, r in packs if 0.995 <= r <= 1.0]
+    if flat:
+        watch.append(f"{len(flat)} pack{'s' if len(flat) != 1 else ''} priced the same as "
+                     f"three singles - with no saving, only a few convenience buyers take it.")
+    deep = [(n, r) for n, r in packs if r < DEEP_PACK]
     if deep:
         watch.append(f"{len(deep)} pack{'s' if len(deep) != 1 else ''} discounted more "
-                     f"than 25% - basket grows, margin per unit shrinks.")
+                     f"than {1 - DEEP_PACK:.0%} - most pack buyers would have bought the "
+                     f"units anyway, so the saving costs more than the extra units earn.")
 
     if "2.4" in sub and float(sub["2.4"] or 0) <= 0:
         watch.append("Free delivery on every order: a few more orders, but smaller "
@@ -306,12 +313,12 @@ def _strategy(team, params, sub: dict, h: dict, room: dict) -> str:
     # Basket
     aov_rank = _rank(room, tid, "aov_net")
     packs = _packs(team, params, sub)
-    fair = [r for _, r in packs if r <= 1.0]
+    fair = [r for _, r in packs if r < 0.995]
     threshold = float(sub["2.4"]) if "2.4" in sub else None
     drivers = []
     if fair:
-        drivers.append(f"{min(len(fair), 3) if len(fair) > 3 else len(fair)} fairly priced "
-                       f"bundle{'s' if len(fair) != 1 else ''}"
+        drivers.append(f"{min(len(fair), 3) if len(fair) > 3 else len(fair)} "
+                       f"bundle{'s' if len(fair) != 1 else ''} with a saving"
                        + (f" (of {len(packs)} offered)" if len(packs) > len(fair) or len(packs) > 3 else ""))
     if threshold is not None and threshold > params["aov_base"]:
         drivers.append(f"free delivery only above {_money(threshold)}")

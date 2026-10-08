@@ -292,33 +292,34 @@ Every number in Part 2 is the simulation's assumption or a test run of it, not m
 
 S["sim-levers"] = sec("sim-levers", "#ffffff", "In the simulation", "Three decisions open this month",
   grid([
-    ("1.2 &middot; Bundles", "Three-packs, priced as a pack", "Below three singles, more customers take the pack and you give the saving away; above, almost nobody buys. Only your three best packs count.", "#ed0000"),
+    ("1.2 &middot; Bundles", "Three-packs, priced as a pack", "The saving sells the pack. None: few take it. Dearer than three singles: nobody does. Too deep: the margin goes. Only your three best packs count.", "#ed0000"),
     ("2.4 &middot; Free delivery", "Where to set the bar", "Up to about half a basket above a typical order (about PKR 4,500), customers add items. Higher, small buyers leave. Free on everything: more orders, smaller baskets.", "#2a78d6"),
     ("1.1 &middot; Line discounts", "Discount product by product", "The cost is the discount times each product's share of sales. Your report shows the weighted average.", "#1baf7a"),
   ], 3, 290, 440, bsize=25)
   + "\n" + band(4, 770, 120, "<b>Which of the three does your month-3 report say your basket needs most?</b>", size=30),
   """One decision per click. The rules are the simulation's.
 
-Bundles: each pack is judged against three singles at your own price. A 10% saving is a fair pack. Extra units carry their product cost, so the basket grows and gross margin dips a little.
+Bundles: each pack is judged against three singles at your own price. The saving is the reason to buy it: with no saving only a few convenience buyers take a pack, and a pack priced above three singles sells nothing at all, because the singles are on the same shelf. Most pack buyers would have bought the units anyway, so the saving is given away on all of them, not just on the extra units the pack adds: a small saving (about 5%) earns most, and past about 12% a pack loses money. Extra units carry their product cost, so the basket grows and gross margin dips a little.
 
 Free delivery: a typical basket is about PKR 3,000. A bar between there and about PKR 4,500 makes customers add items; beyond that, conversion falls. Free delivery on everything lifts orders about 4% and shrinks baskets about 3%.
 
 Line discounts: discounting a best-seller costs far more than the same discount on a slow line; the "discount rate" in your report is the sales-weighted average.""",
   footer="Decision rules from the simulation &middot; not market data")
 
-tests5 = [("No change", "844k", "PKR 2,959 &middot; 39.3%"),
-          ("3 packs at 10% off three singles", "874k &nbsp;(+4%)", "PKR 3,161 &middot; 37.2%"),
-          ("3 packs at 30% off", "145k &nbsp;(&minus;83%)", "PKR 2,937 &middot; 31.0%"),
-          ("Free delivery above PKR 4,500", "1,028k &nbsp;(+22%)", "PKR 3,137 &middot; 39.3%"),
-          ("10% off everything", "94k &nbsp;(&minus;89%)", "PKR 2,663 &middot; 32.5%"),
-          ("10% off the 3 best-sellers", "618k &nbsp;(&minus;27%)", "PKR 2,867 &middot; 37.3%"),
-          ("10% off the 3 slowest lines", "740k &nbsp;(&minus;12%)", "PKR 2,917 &middot; 38.4%")]
+tests5 = [("No change", "849k", "PKR 2,963 &middot; 39.3%"),
+          ("3 packs at 5% off three singles", "938k &nbsp;(+10%)", "PKR 3,086 &middot; 38.8%"),
+          ("3 packs at 10% off", "898k &nbsp;(+6%)", "PKR 3,149 &middot; 37.6%"),
+          ("3 packs at 30% off", "371k &nbsp;(&minus;56%)", "PKR 3,011 &middot; 33.0%"),
+          ("Free delivery above PKR 4,500", "1,033k &nbsp;(+22%)", "PKR 3,141 &middot; 39.3%"),
+          ("10% off everything", "78k &nbsp;(&minus;91%)", "PKR 2,648 &middot; 32.5%"),
+          ("10% off the 3 best-sellers", "616k &nbsp;(&minus;27%)", "PKR 2,867 &middot; 37.3%"),
+          ("10% off the 3 slowest lines", "734k &nbsp;(&minus;14%)", "PKR 2,906 &middot; 38.4%")]
 S["sim-tests"] = sec("sim-tests", "#f5f5f6", "In the simulation", "What the levers did in a test month",
-  trows(["Test, all else default", "Contribution", "Avg order &middot; gross margin"], tests5, 282, [700, 420, 488], rh=70, size=27)
-  + "\n" + band(8, 840, 70, "<b>Which line of this table would you bet your month 4 on?</b>", size=27, extra="padding:16px 40px;"),
+  trows(["Test, all else default", "Contribution", "Avg order &middot; gross margin"], tests5, 276, [700, 420, 488], rh=62, size=27)
+  + "\n" + band(9, 844, 70, "<b>Which line of this table would you bet your month 4 on?</b>", size=27, extra="padding:16px 40px;"),
   """One test per click. Each line is one team changing one decision against an identical team on every default, in the same simulated month.
 
-Read across: a fair bundle helps a little; a deep one destroys margin. A free-delivery bar just above a typical basket was the best single move here. A blanket 10% discount wiped out nearly all the month's contribution — the Session 3 lesson again. The same 10% aimed at the three slowest lines cost far less than on the three best-sellers, because the weighted average discount was smaller (1.4% against 3.1%).
+Read across: a pack with a small saving helped most; 10% helped less, because the saving is given away on every unit sold in packs, most of which would have sold anyway; 30% destroyed margin. A pack priced 15% above three singles did nothing at all (849k, identical to no change) and one priced at three singles added only about 3%. A free-delivery bar just above a typical basket was the best single move here. A blanket 10% discount wiped out nearly all the month's contribution — the Session 3 lesson again. The same 10% aimed at the three slowest lines cost far less than on the three best-sellers, because the weighted average discount was smaller (1.4% against 3.1%).
 
 Results depend on each team's own prices, range and segments; these are directions, not forecasts.""",
   footer="Simulation test run, month 1, all else default &middot; not market data")
@@ -326,7 +327,7 @@ Results depend on each team's own prices, range and segments; these are directio
 S["checks"] = sec("checks", "#fdeceb", "Before month 4 runs", "Four questions before you submit",
   grid([
     ("Range", "Which are your stars?", "Never discount them deeply; never let them run out.", "#ed0000"),
-    ("Bundles", "Is every pack below three singles?", "Check the Saving column; three good packs are enough.", "#eb6834"),
+    ("Bundles", "Is every pack a little below three singles?", "A small saving sells it; a deep one gives margin away. Three good packs are enough.", "#eb6834"),
     ("Delivery", "Where is your typical basket?", "Set the bar a little above it, not far above.", "#2a78d6"),
     ("Discounts", "Who gets the discount?", "Aim it at lines where it wins customers, not at buyers who would pay anyway.", "#1baf7a"),
   ], 4, 300, 330)
