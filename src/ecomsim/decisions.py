@@ -152,7 +152,9 @@ REGISTRY: dict[str, DecisionSpec] = {
                  "products each campaign promotes, and to whom - age, gender, "
                  "cities, interests, language and format. The budgets stay "
                  "what they are; the right audience makes each rupee buy more "
-                 "visits that order, the wrong one buys clicks that do not."),
+                 "visits that order, the wrong one buys clicks that do not. "
+                 "A campaign that names products also sells more of them - "
+                 "and needs the stock to match."),
         DecisionSpec(
             "3.6", "G3", "Affiliate & influencer commission", "pct", 0.0,
             frozenset({"standard", "advanced", "expert"}), unlock_round=2,

@@ -78,7 +78,10 @@
     {% for row in shelf %}
     <tr class="cat-row on">
       <td class="c-cat">{{ row.category|replace("_", " ")|title }}</td>
-      <td class="c-name"><strong>{{ row.name }}</strong></td>
+      <td class="c-name"><strong>{{ row.name }}</strong>
+        {%- if row.last %}<span class="lm" title="Last month: contribution after marketing PKR {{ '{:,.0f}'.format(row.last.cm) }}">
+        {{ '{:,.0f}'.format(row.last.units) }} sold &middot; {{ '{:.0%}'.format(row.last.sales_share) }} of sales
+        &middot; CM {{ '{:.0%}'.format(row.last.cm_pre_pct) }}{% if row.last.short > 0.5 %} &middot; <b class="short">ran out</b>{% endif %}</span>{% endif %}</td>
       <td class="src-cell"><select name="sourcing_{{ row.code }}" class="src-input"
            data-local="{{ '%.2f'|format(row.cost_local) }}"
            data-import="{{ '%.2f'|format(row.cost_import) }}"
@@ -110,7 +113,10 @@
     gross margin <b class="tot-gm">{{ '{:.1%}'.format(totals.gross_margin) }}</b>.
     A deep cut on a line nobody buys is not a promotion, and the weighting says
     so. COGS follows the sourcing choice and is what the P&amp;L charges. Which
-    products you sell was settled at founding.</div>
+    products you sell was settled at founding.
+    {%- if shelf and shelf[0].last %} Under each product: last month's units, share
+    of sales and contribution before marketing (CM) - the full picture, with who
+    bought each line, is under Sales by product in your report.{% endif %}</div>
 
   {% elif s.kind == 'bundles' %}
     <table class="catalogue packs">

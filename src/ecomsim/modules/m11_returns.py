@@ -7,6 +7,8 @@ depends on margin, which is the point.
 """
 from __future__ import annotations
 
+from .. import mix
+
 
 def run(world, params, resolved, ctx) -> None:
     for team in world.teams.values():
@@ -34,9 +36,7 @@ def run(world, params, resolved, ctx) -> None:
 
 
 def _sku_propensity(team, params) -> float:
-    skus = team.active_skus or [s["code"] for s in params.skus]
-    total_w = sum(float(params.sku(c)["revenue_weight"]) for c in skus) or 1.0
-    return sum(
-        float(params.sku(c)["return_propensity"]) * float(params.sku(c)["revenue_weight"])
-        for c in skus
-    ) / total_w
+    """Return propensity of what was delivered last month, by its product mix:
+    a store selling more serum takes more back."""
+    shares = mix.demand_shares(team, params)
+    return sum(float(params.sku(c)["return_propensity"]) * s for c, s in shares.items())

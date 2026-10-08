@@ -75,8 +75,11 @@ def _courier(params, code: str) -> dict:
 def _stage_rto_stock(team, params, rto_orders: float, ctx) -> None:
     """RTO units rejoin sellable stock next round, less those damaged in transit."""
     units = rto_orders * params["units_per_order"] * params["rto_recovery"]
-    skus = team.active_skus or [s["code"] for s in params.skus]
-    total_w = sum(float(params.sku(c)["revenue_weight"]) for c in skus) or 1.0
-    team._pending_rto_units = {
-        c: units * float(params.sku(c)["revenue_weight"]) / total_w for c in skus
-    }
+    # Back in the proportions that went out.
+    shipped = {c: v["sold"] for c, v in ctx.get("sku_sales", {}).get(team.team_id, {}).items()}
+    total = sum(shipped.values())
+    if total <= 0:
+        skus = team.active_skus or [s["code"] for s in params.skus]
+        shipped = {c: float(params.sku(c)["revenue_weight"]) for c in skus}
+        total = sum(shipped.values()) or 1.0
+    team._pending_rto_units = {c: units * v / total for c, v in shipped.items()}

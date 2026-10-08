@@ -10,7 +10,7 @@ import math
 from html import escape
 from pathlib import Path
 
-from . import funnel
+from . import funnel, mix
 from .charts import CSS_TOKENS, sparkline
 
 # (label, key, format, up_is_good). The last field is not decoration: a rising
@@ -273,7 +273,7 @@ def _campaigns(record: dict) -> str:
             f'<td class="v">{r["roas"]:.1f}</td><td class="v">{r["cac"]:,.0f}</td>'
             f'<td class="v"><span class="d {cls}">{lift:+.0%}</span></td></tr>')
         for f in r.get("findings") or []:
-            body.append(f'<tr class="why"><td colspan="12">{escape(f)}</td></tr>')
+            body.append(f'<tr class="why"><td colspan="12"><div class="wt">{escape(f)}</div></td></tr>')
     return (
         '<h2 class="sec">Paid media, campaign by campaign</h2>'
         '<section class="camps"><div class="sx"><table class="perf">'
@@ -291,6 +291,105 @@ def _campaigns(record: dict) -> str:
         'Paid CVR is measured on paid visitors only; your store conversion also counts '
         'returning customers, who convert far better and cost nothing to bring back. '
         '<a href="/guide/marketing" target="_top">How to read this table</a>.</p></section>')
+
+
+def _products(record: dict) -> str:
+    """Sales, margin and contribution by product, why each line sold the way
+    it did, and who bought it. Adds up to the P&L, so a portfolio decision -
+    re-price, push, pack or drop a line - can be read against the money."""
+    rows = record.get("products") or []
+    if not rows:
+        return ""
+    names = record.get("segment_names") or {}
+    segments = record.get("order_segments") or {}
+
+    def money(v):
+        return _fmt(v, "pkr")
+
+    def pct(v):
+        return f"{v * 100:.0f}%"
+
+    def tone(v):
+        return "down" if v < 0 else ""
+
+    body = []
+    for r in rows:
+        vs = (r["unit_share"] / r["typical_share"] - 1) if r["typical_share"] else 0.0
+        cls = "flat" if abs(vs) < 0.05 else ("up" if vs > 0 else "down")
+        body.append(
+            f'<tr><th><span class="chn">{escape(str(r["category"]).title())}</span> '
+            f'{escape(r["name"])}</th>'
+            f'<td class="v">{r["units"]:,.0f}</td>'
+            f'<td class="v">{r["unit_share"]:.1%} <span class="d {cls}">{vs:+.0%}</span></td>'
+            f'<td class="v">{money(r["net_sales"])}</td><td class="v">{pct(r["sales_share"])}</td>'
+            f'<td class="v {tone(r["gross_margin"])}">{money(r["gross_margin"])}</td>'
+            f'<td class="v {tone(r["gm_pct"])}">{pct(r["gm_pct"])}</td>'
+            f'<td class="v {tone(r["cm_pre"])}">{money(r["cm_pre"])}</td>'
+            f'<td class="v {tone(r["cm_pre_pct"])}">{pct(r["cm_pre_pct"])}</td>'
+            f'<td class="v">{money(r["marketing"])}</td>'
+            f'<td class="v {tone(r["cm"])}">{money(r["cm"])}</td></tr>')
+        if r.get("why"):
+            text = "; ".join(r["why"])
+            body.append(f'<tr class="why"><td colspan="11"><div class="wt">'
+                        f'{escape(text[0].upper() + text[1:])}.</div></td></tr>')
+
+    net = sum(r["net_sales"] for r in rows) or 1.0
+    tot = {k: sum(r[k] for r in rows) for k in
+           ("units", "net_sales", "gross_margin", "cm_pre", "marketing", "cm")}
+    body.append(
+        f'<tr class="tot"><th>All products</th><td class="v">{tot["units"]:,.0f}</td>'
+        f'<td class="v">100%</td><td class="v">{money(tot["net_sales"])}</td>'
+        f'<td class="v">100%</td><td class="v">{money(tot["gross_margin"])}</td>'
+        f'<td class="v">{pct(tot["gross_margin"] / net)}</td>'
+        f'<td class="v">{money(tot["cm_pre"])}</td><td class="v">{pct(tot["cm_pre"] / net)}</td>'
+        f'<td class="v">{money(tot["marketing"])}</td>'
+        f'<td class="v {tone(tot["cm"])}">{money(tot["cm"])}</td></tr>')
+
+    lead = "".join(f"<li>{escape(x)}</li>" for x in mix.headline(rows, segments, names))
+    sales = (
+        '<h2 class="sec">Sales by product this month</h2>'
+        f'<section class="prods"><ul class="lead">{lead}</ul>'
+        '<div class="sx"><table class="perf">'
+        '<tr><th>Product</th><th class="v">Units</th><th class="v">Share of units '
+        '&middot; vs typical</th><th class="v">Net sales</th><th class="v">Share</th>'
+        '<th class="v">Gross margin</th><th class="v">GM %</th>'
+        '<th class="v">Contribution before mktg</th><th class="v">CM %</th>'
+        '<th class="v">Marketing</th><th class="v">Contribution after mktg</th></tr>'
+        f'{"".join(body)}</table></div>'
+        '<p class="fn">Net sales are after returns, failed deliveries and the prepaid '
+        'discount. Gross margin takes off each line\'s own landed cost. Contribution '
+        'before marketing also takes off delivery, packing and courier - shared by '
+        'items in the parcel, so a cheap item carries as much as a dear one and a '
+        '3-pack counts as one item - and payment and marketplace fees, shared by sales. '
+        'A product campaign\'s spend is charged to the products it named; the rest of '
+        'marketing is shared by sales. Every column adds up to your P&amp;L. '
+        '<em>vs typical</em> compares each line\'s share of units with a store selling '
+        'the same range, at one price position, to the same customers as the other '
+        'stores.</p></section>')
+
+    codes = [c for c in names] or sorted({s for r in rows for s in r["buyers"]})
+
+    def cell(v):
+        return (f'<td class="v seg" style="background:linear-gradient(90deg,'
+                f'rgba(42,120,214,.20) {v * 100:.0f}%,transparent {v * 100:.0f}%)">'
+                f'{v:.0%}</td>')
+
+    seg_rows = [f'<tr class="tot"><th>All your orders</th>'
+                + "".join(cell(segments.get(c, 0.0)) for c in codes) + '</tr>'] if segments else []
+    for r in rows:
+        seg_rows.append(f'<tr><th>{escape(r["name"])}</th>'
+                        + "".join(cell(r["buyers"].get(c, 0.0)) for c in codes) + '</tr>')
+    buyers = (
+        '<h2 class="sec">Who bought each product</h2>'
+        '<section class="prods"><div class="sx"><table class="perf segs">'
+        '<tr><th>Product</th>'
+        + "".join(f'<th class="v">{escape(names.get(c, c))}</th>' for c in codes)
+        + f'</tr>{"".join(seg_rows)}</table></div>'
+        '<p class="fn">Share of each product\'s units bought by each customer segment, '
+        'from your own orders - what a store reads from what its visitors browse and '
+        'buy. Each row adds to 100%. How big each segment is across the market, and '
+        'what it values most, is what MR-06 sells.</p></section>')
+    return sales + buyers
 
 
 def _tests(record: dict) -> str:
@@ -520,6 +619,12 @@ padding:0}}
 .sw[aria-pressed="true"]{{outline:2px solid var(--accent);outline-offset:1.5px}}
 .sw-consulytics{{background:linear-gradient(135deg,#fff 52%,#ff0000 52%)}}
 .sw-dark{{background:#0d0d0c}}.sw-slate{{background:#22242a}}.sw-light{{background:#f4f5f7}}
+.perf tr.why .wt{{position:sticky;left:8px;max-width:calc(100vw - 96px)}}
+.prods .lead{{margin:0 0 10px 18px;color:var(--ink);font-size:13px;line-height:1.6}}
+.perf tr.tot th,.perf tr.tot td{{font-weight:700;border-top:2px solid var(--line)}}
+.perf tr.tot th{{color:var(--ink)}}
+td.v.down{{color:var(--bad)}}
+.segs td.seg{{min-width:92px}}
 .funnel{{padding:14px 18px}}
 .frow{{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap}}
 .frow+.frow{{margin-top:12px;padding-top:12px;border-top:1px solid var(--line, #e1e0d9)}}
@@ -545,6 +650,7 @@ padding:0}}
 {run_chart}
 <h2 class="sec">Every measure, month {round_}{against}</h2>
 <div class="grid">{"".join(cards)}</div>
+{_products(record)}
 {_campaigns(record)}
 {_tests(record)}
 {scorecard_section}

@@ -538,6 +538,10 @@ def monthly_catalogue(con, team_id: str, current: dict) -> list[dict]:
 
     supplier = float(next(sp for sp in params.suppliers
                           if sp["code"] == "B")["cost_index"])
+    # Last month's result for each line, beside the price that produced it.
+    team = world.teams.get(team_id) if world is not None else None
+    last = {r["code"]: r for r in ((team.history[-1].get("products") or [])
+                                   if team is not None and team.history else [])}
     rows = []
     for code in active:
         sku = params.sku(code)
@@ -561,6 +565,7 @@ def monthly_catalogue(con, team_id: str, current: dict) -> list[dict]:
             "cost_mixed": founding_mod.unit_cost(sku, "mixed", tier, params, supplier),
             "margin": (net - cost) / net if net > 0 else 0.0,
             "changed": code in grid,
+            "last": last.get(code),
         })
     # Grouped by category so the grid reads like a range review rather than a
     # SKU dump; within a category the biggest sellers come first.

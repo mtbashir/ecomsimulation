@@ -10,7 +10,7 @@ it is the only genuinely zero-sum one.
 """
 from __future__ import annotations
 
-from .. import targeting
+from .. import mix, targeting
 
 
 def anchor(value: float, zero: float, fifty: float, hundred: float) -> float:
@@ -125,6 +125,11 @@ def run(world, params, resolved, ctx) -> None:
                                                ctx["resolved"][tid],
                                                world.run_id, world.round),
         }
+        # Sales, margin and contribution by product, and who bought each:
+        # the team's own order data, adding up to the P&L above.
+        record["products"] = mix.product_lines(team, params, ctx)
+        record["order_segments"] = dict(ctx.get("order_segments", {}).get(tid, {}))
+        record["segment_names"] = {s["code"]: s["name"] for s in params.segments}
         record["ab_tests"] = targeting.ab_tests(team.history + [record])
         team.history.append(record)
         ctx.setdefault("scorecard", {})[tid] = _scorecard(team, params, record)

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from html import escape
 
+from . import mix
 from .decisions import REGISTRY
 from .modules.m09_basket import BUNDLE_UNITS, _unit_net_price
 from .targeting import CHANNELS, CHANNEL_NAMES
@@ -462,6 +463,17 @@ def _campaigns(team, params, sub: dict, h: dict, room: dict, open_codes) -> str:
     return " ".join(lines)
 
 
+def _products(h: dict) -> str:
+    """What sold, what earned, what lost and who bought - from the month's
+    product P&L, so a portfolio conversation starts from the numbers."""
+    lines = mix.headline(h.get("products") or [], h.get("order_segments") or {},
+                         h.get("segment_names") or {})
+    if not lines:
+        return ""
+    return (f'<p class="strat prod"><b>Products.</b> '
+            f'{escape(" ".join(lines))}</p>')
+
+
 def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
             scores: dict | None = None, flags: dict | None = None) -> str:
     """The debrief block for the console. Empty when no submissions are known."""
@@ -503,6 +515,7 @@ def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
             f'<p class="strat"><b>Strategy.</b> {strategy}</p>'
             f'<p class="strat camp"><b>Campaigns &amp; customers.</b> '
             f'{_campaigns(t, params, sub, h, room, open_codes)}</p>'
+            f'{_products(h)}'
             f'<div class="cols"><dl>{took_html}</dl>'
             f'<div>{lists}</div></div>{left}</div>')
     return ('<section class="wide"><h2>Debrief &middot; what each team decided '
@@ -523,6 +536,7 @@ padding:14px 16px 8px;margin:0 0 22px;background:#fff}
 background:#e7f3e7;color:#006300;vertical-align:2px}
 .db.bottom .pill{background:#fbe9e9;color:#d03b3b}
 .db .strat.camp{background:#eef3fb}
+.db .strat.prod{background:#f3f7ef}
 .db .strat{font-size:14px;line-height:1.55;margin:8px 0 10px;padding:8px 10px;
 background:#f3f2ee;border-radius:6px}
 table.t.res{margin:6px 0 0;font-size:13px}
@@ -538,5 +552,5 @@ table.t.res td:first-child,table.t.res th:first-child{text-align:left}
 .db .mute{color:#898781}
 .obs{font-size:13px;margin:0 0 8px} .obs ul{margin:4px 0 0;padding-left:18px}
 .obs.good b{color:#006300} .obs.watch b{color:#d03b3b}
-@media(prefers-color-scheme:dark){.db{border-top-color:#3a3a37;border-right-color:#3a3a37;border-bottom-color:#3a3a37;background:#1f1f1d}.db dt{color:#c3c2b7}.db .strat{background:#232321}.db .strat.camp{background:#1e2430}}
+@media(prefers-color-scheme:dark){.db{border-top-color:#3a3a37;border-right-color:#3a3a37;border-bottom-color:#3a3a37;background:#1f1f1d}.db dt{color:#c3c2b7}.db .strat{background:#232321}.db .strat.camp{background:#1e2430}.db .strat.prod{background:#1f261c}}
 """

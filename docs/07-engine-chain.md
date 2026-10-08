@@ -376,6 +376,28 @@ a threshold slightly above natural basket lifts AOV; far above kills conversion
 gross_revenue[i] = orders[i] × AOV[i]
 ```
 
+**Product mix (`ecomsim.mix`).** The `mix_effect` term is now explicit: the
+basket is the team's own product mix at its own net prices, so revenue and
+cost of goods are summed product by product.
+
+```
+share[p]  = catalogue[p] × customer_pull[p] × price_pull[p]          (renormalised)
+customer_pull[p] = Σ_s orders_by_segment[i,s] × affinity[p,s]
+                 ÷ Σ_s stores_mix[s] × affinity[p,s]
+price_pull[p]    = (rel_price[p] ÷ range_avg_rel_price)^(-4 × Σ_s buyers[p,s] × w_price[s])
+units[p]  = orders × units_per_order × ship × (share[p]·(1−H) + push[p] + uplift × pack[p])
+revenue   = Σ_p shipped[p] × net_price[p] − pack saving,   AOV = revenue ÷ orders
+```
+
+`affinity` comes from each product's main and second buyer segments
+(audiences.csv), tilted by tier against each segment's willingness to pay.
+`stores_mix` is the size-weighted customer mix of all teams, so identical teams
+sell exactly the catalogue mix and the baseline does not move. `push` is one
+unit of the promoted product per order a product campaign brings in. Stock is
+consumed per product and a line that runs out sells what it had. Purchase
+orders are split by last month's demand per product (M3), and M17 records a
+per-product P&L that adds up to M14.
+
 ---
 
 ## M10 — Fulfilment & delivery

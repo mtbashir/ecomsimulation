@@ -950,3 +950,13 @@ def test_scoring_guide_publishes_the_anchors_the_engine_uses(game):
     brief = _team(app, pw).get("/brief").data.decode()
     assert "14% scores nothing, 24% half, 32% full" in brief
     assert "0.8x scores nothing" not in brief          # the stale calibration
+
+
+def test_price_grid_shows_last_months_product_results(game):
+    app, pw, path = game
+    _trading(app, path)
+    page = _team(app, pw).get("/submit").data.decode()
+    assert "sold &middot;" in page and "of sales" in page, (
+        "each line carries last month's units, share and contribution")
+    report = _team(app, pw).get("/results/1").data.decode()
+    assert "Sales by product" in report

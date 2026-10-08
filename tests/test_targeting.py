@@ -95,12 +95,13 @@ def test_broad_campaigns_play_the_same_game_as_none():
 
 
 def test_zero_slope_switches_the_whole_layer_off():
+    # A campaign that names products also tilts which products sell (the
+    # hero unit, ecomsim.mix) - a separate lever with its own switch.
+    off = {"targeting_traffic_slope": 0, "targeting_cvr_slope": 0, "mix_hero_units": 0}
     sharp_all = lambda w, r, t: {"3.10": campaigns.sharp(w_params[0], w.teams[t].active_skus)}
     w_params = [P.load()]
-    none = _play(lambda w, r, t: {}, overrides={"targeting_traffic_slope": 0,
-                                                "targeting_cvr_slope": 0})
-    aimed = _play(sharp_all, overrides={"targeting_traffic_slope": 0,
-                                        "targeting_cvr_slope": 0})
+    none = _play(lambda w, r, t: {}, overrides=off)
+    aimed = _play(sharp_all, overrides=off)
     for tid in none.teams:
         assert (aimed.teams[tid].history[-1]["revenue_net"]
                 == pytest.approx(none.teams[tid].history[-1]["revenue_net"], rel=1e-9))

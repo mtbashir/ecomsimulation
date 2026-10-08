@@ -58,6 +58,11 @@ freeship_coef,M9,0.12,0.05,0.22,0.0,0.40,coefficient,,AOV uplift from a free-shi
 freeship_cr_penalty,M8,0.40,0.20,0.60,0.0,1.0,coefficient,,Conversion lost per basket of threshold beyond half a basket above a typical order
 freeship_free_cr_lift,M8,0.04,0.02,0.08,0.0,0.15,coefficient,,Conversion gained from free delivery on every order
 freeship_free_aov_drop,M9,0.03,0.01,0.06,0.0,0.10,ratio,,Smaller baskets when delivery is free on every order
+mix_affinity_primary,M9,3.0,2.0,4.5,1.0,8.0,multiplier,,How strongly a product's main buyer segment over-indexes on it against the rest of the market
+mix_affinity_secondary,M9,1.8,1.2,3.0,1.0,5.0,multiplier,,The same for a product's second buyer segment
+mix_affinity_other,M9,0.6,0.3,1.0,0.1,1.0,multiplier,,Every other segment's draw on a product; 1.0 would make the customer mix irrelevant to what sells
+mix_price_elasticity,M9,4.0,2.0,6.0,0.0,10.0,coefficient,,How far a product's share of the basket moves with its price against the rest of the range; scaled by its buyers' price weight
+mix_hero_units,M9,1.0,0.5,1.5,0.0,2.4,units,,Units of the promoted product in each order a product campaign brings in; the rest of the basket follows the store's mix
 sla_overflow_coef,M10,0.6,0.3,0.9,0.0,1.0,coefficient,,SLA attainment loss per unit of capacity overflow
 cod_share_base,M10,0.62,0.30,0.75,0.0,0.90,ratio,,Above 0.90 the cash model degenerates
 rto_base,M10,0.18,0.08,0.28,0.0,0.40,ratio,,Above 0.40 disabling COD becomes trivially correct

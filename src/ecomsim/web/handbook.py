@@ -52,7 +52,10 @@ ENTRIES = {
         tradeoff="Price against volume, line by line. Sourcing is cost against lead "
                  "time - a cheaper line you cannot restock quickly is a line you "
                  "will run out of.",
-        watch="Gross margin and conversion rate in the report; the market price "
+        watch="Gross margin and conversion rate in the report, and Sales by "
+              "product: which lines sold, what each earned after delivery and "
+              "marketing, and who bought them. A line priced below the rest of "
+              "your range takes a bigger share of the basket. The market price "
               "column in the grid tells you where you sit against the reference.",
         mistake="Cutting price on lines that barely sell. The grid weights the "
                 "average by volume for a reason: a deep cut on a slow line moves "
@@ -218,11 +221,15 @@ ENTRIES = {
         related=["7.5", "7.1", "1.1"]),
     "7.1": dict(
         does="How many units to buy this month. Leave it blank and the system "
-             "orders to your safety-stock target.",
+             "orders to your safety-stock target. Either way the order is split "
+             "across your products by last month's sales, topping up the lines "
+             "that ran short first.",
         tradeoff="Too little and a good month sells out; too much and cash sits in "
                  "the warehouse.",
         watch="In-stock rate, lost sales to stock-outs, weeks of cover, cash.",
-        mistake="Ordering to last month's sales in a month demand is about to move.",
+        mistake="Ordering to last month's sales in a month demand is about to move "
+                "- a product you are about to push, discount or pack needs the extra "
+                "stock bought a month ahead.",
         related=["7.5", "7.2", "11.2"]),
     "7.5": dict(
         does="The weeks of demand you hold on top of forecast.",

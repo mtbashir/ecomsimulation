@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import math
 
-from .. import rng
+from .. import mix, rng
 
 SUPPLIER_DEFAULT = "B"
 GAP_DAMPING = 0.5
@@ -209,11 +209,11 @@ def _commit_po(team, world, params, ctx, supplier, events, units, round_days) ->
     # was invisible. A PO that takes longer than the month misses the month.
     arrives = world.round + max(1, math.ceil(lead_days / round_days))
 
-    skus = team.active_skus or [s["code"] for s in params.skus]
-    total_w = sum(float(params.sku(c)["revenue_weight"]) for c in skus) or 1.0
-    alloc = {
-        c: units * float(params.sku(c)["revenue_weight"]) / total_w for c in skus
-    }
+    # Split by what the team's own customers bought last month, filling the
+    # lines that ran short first - not by the catalogue, which would restock
+    # a store selling twice the usual hair oil with the usual hair oil.
+    alloc = mix.allocate(team, params, units)
+    skus = list(alloc)
     d = ctx["resolved"][team.team_id]
     cost = sum(
         alloc[c] * float(params.sku(c)["unit_cost"]) * float(supplier["cost_index"])
@@ -245,11 +245,10 @@ def _expected_orders(team, params) -> float:
 
 
 def _instock_ratio(team, params) -> float:
-    """Revenue-weighted, not a share of SKUs (docs/10 definitional decisions)."""
-    skus = team.active_skus or [s["code"] for s in params.skus]
-    total_w = sum(float(params.sku(c)["revenue_weight"]) for c in skus) or 1.0
-    in_stock = sum(
-        float(params.sku(c)["revenue_weight"])
-        for c in skus if team.inventory.get(c, 0.0) > 0
-    )
-    return in_stock / total_w
+    """Demand-weighted, not a share of SKUs (docs/10 definitional decisions).
+
+    Weighted by what this team's customers buy, so a gap on its best seller
+    costs more than a gap on a line it barely sells.
+    """
+    shares = mix.demand_shares(team, params)
+    return min(1.0, sum(s for c, s in shares.items() if team.inventory.get(c, 0.0) > 0))

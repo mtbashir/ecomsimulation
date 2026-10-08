@@ -62,8 +62,8 @@ story.append(Paragraph("Monthly results: what every KPI means and how it is calc
 story.append(Paragraph(
   "Every number in your monthly report is calculated by the simulation engine from the decisions you submitted "
   "and the market's response. This guide gives each KPI in the order the report shows it — Growth, Marketing, "
-  "Commercial, Operations, Customer, Finance — followed by the profit and loss lines they are built from and "
-  "the paid-campaign table. Formulas are written exactly as the engine computes them. Fixed numbers inside "
+  "Commercial, Operations, Customer, Finance — followed by the profit and loss lines they are built from, "
+  "the paid-campaign table and sales by product. Formulas are written exactly as the engine computes them. Fixed numbers inside "
   "the formulas (for example 2.424 units per order or a 1.2% COD fee) are the simulation's assumptions, not "
   "measured market data.", st["lead"]))
 
@@ -244,6 +244,43 @@ section(story, 8, "Paid campaigns", "The campaign table opens in Session 7, one 
         "changes how much traffic and conversion each rupee buys; the table shows the result.", camp,
         note="Campaign ROAS here is not multiplied by 1.32: it is the simulation's own measurement. The blended "
              "Reported ROAS in the Marketing block is the platforms' over-stated version.")
+
+prod = [
+ ("Units", "How many of this product went out.",
+  "Orders × 2.424 units × its share of the basket, plus the extra units its 3-pack adds, "
+  "× the free-delivery basket effect - capped by its own stock", UP),
+ ("Share of units · vs typical", "What is selling more, and how unusual that is.",
+  "Units ÷ all units<br/>vs typical = share ÷ the share a store selling the same range, at one "
+  "price position, to the other stores' customer mix would sell − 1", "Context"),
+ ("Basket share", "Why a line sells more or less (not shown as a column; the reasons line names it).",
+  "Catalogue share × customer pull × price pull, re-scaled to 100%<br/>"
+  "Customer pull = Σ your orders by segment × how strongly that segment buys the product ÷ the same for "
+  "the other stores' customers<br/>Price pull = (its net price ÷ market price, against your range average)"
+  "<sup>−e</sup>; e is larger when its buyers are price-driven<br/>A campaign naming products adds one unit "
+  "of a promoted product to every order it brings in", "Context"),
+ ("Net sales", "What the line actually earned in revenue.",
+  "Units × net price − pack saving on units sold in packs<br/>− its share of returns (by sales × the product's "
+  "return propensity) − failed deliveries and prepaid discount (by sales)", UP),
+ ("Gross margin", "Profit after the product's own cost.",
+  "Net sales − its share of cost of goods and write-off, by its own landed cost<br/>GM % = Gross margin ÷ Net sales", UP),
+ ("Contribution before marketing", "What the line earns once it is delivered and paid for.",
+  "Gross margin − delivery, packing and courier, shared by items in the parcel (a 3-pack is one item) "
+  "− payment and marketplace fees, shared by net sales<br/>CM % = Contribution ÷ Net sales", UP),
+ ("Marketing", "The marketing charged to the line.",
+  "Spend on campaigns that name it (split across the products named by basket share) + its share "
+  "of all other marketing, by net sales", "Context"),
+ ("Contribution after marketing", "Whether the line pays for itself.",
+  "Contribution before marketing − Marketing. All products add up to the P&amp;L's Contribution", UP),
+ ("Who bought it", "The customer segments behind each line.",
+  "Share of its units bought by each segment = your orders in the segment × how strongly that segment buys "
+  "the product ÷ Σ over segments<br/>Your orders by segment: new customers as you won them; repeat orders lean "
+  "to the segments that come back more often", "Context"),
+]
+section(story, 9, "Sales by product", "One row per product, below the KPI blocks in the report. Every column adds up "
+        "to the P&amp;L, so a portfolio decision - re-price, push, pack or drop a line - can be read against the money.", prod,
+        note="Stock for each line is bought on last month's sales of that line and lands a month later: a product you "
+             "are about to push, discount or pack needs more stock (7.1) or more safety cover (7.5) a month ahead. "
+             "How big each segment is across the market, and what it values most, is in MR-06.")
 
 def footer(c, d):
     c.saveState()
