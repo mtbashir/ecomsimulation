@@ -1049,7 +1049,8 @@ def team_workbook(con, team_id: str, round_: int) -> tuple[bytes, str] | None:
     return data, f"{slug}_month_{round_}.xlsx"
 
 
-def instructor_console(con, round_: int) -> str | None:
+def instructor_console(con, round_: int, workbook_url=None,
+                       workbooks_zip: str | None = None) -> str | None:
     world = db.load_world(con, round_)
     if world is None:
         return None
@@ -1060,8 +1061,26 @@ def instructor_console(con, round_: int) -> str | None:
         submitted = db.submissions(con, round_)
         open_codes = [s.code for s in open_decisions(con, round_)]
         return console.render(world, load_params(con), Path(tmp),
-                              submissions=submitted,
-                              open_codes=open_codes).read_text(encoding="utf-8")
+                              submissions=submitted, open_codes=open_codes,
+                              workbook_url=workbook_url,
+                              workbooks_zip=workbooks_zip).read_text(encoding="utf-8")
+
+
+def all_workbooks(con, round_: int) -> bytes | None:
+    """Every team's workbook for the month, in one zip for the instructor."""
+    import zipfile
+
+    world = db.load_world(con, round_)
+    if world is None:
+        return None
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for team_id in sorted(world.teams):
+            made = team_workbook(con, team_id, round_)
+            if made is not None:
+                data, filename = made
+                z.writestr(f"{team_id}_{filename}", data)
+    return buf.getvalue()
 
 
 def export_decisions(con, round_: int) -> str:

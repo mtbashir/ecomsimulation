@@ -482,7 +482,8 @@ def _products(h: dict) -> str:
 
 
 def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
-            scores: dict | None = None, flags: dict | None = None) -> str:
+            scores: dict | None = None, flags: dict | None = None,
+            workbook_url=None) -> str:
     """The debrief block for the console. Empty when no submissions are known."""
     if submissions is None:
         return ""
@@ -517,7 +518,9 @@ def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
             f'{"" if name_of(t) == t.team_id else f" <span class=tid>{t.team_id}</span>"}'
             f'{" <span class=pill>top</span>" if tag == "top" else ""}'
             f'{" <span class=pill>bottom</span>" if tag == "bottom" else ""}'
-            f'<span class="tid"> &middot; {escape(str(h.get("binding_constraint", "")).replace("_", " "))}</span></h3>'
+            f'<span class="tid"> &middot; {escape(str(h.get("binding_constraint", "")).replace("_", " "))}</span>'
+            + (f' <a class="xl" href="{escape(workbook_url(t.team_id))}">Excel</a>' if workbook_url else '')
+            + '</h3>'
             f'{_results(t, h, room, score)}'
             f'<p class="strat"><b>Strategy.</b> {strategy}</p>'
             f'<p class="strat camp"><b>Campaigns &amp; customers.</b> '
@@ -543,6 +546,8 @@ padding:14px 16px 8px;margin:0 0 22px;background:#fff}
 background:#e7f3e7;color:#006300;vertical-align:2px}
 .db.bottom .pill{background:#fbe9e9;color:#d03b3b}
 .db .strat.camp{background:#eef3fb}
+.db h3 .xl{float:right;font-size:12px;font-weight:600;color:#2a78d6;text-decoration:none;
+border:1px solid #d6d5ce;border-radius:6px;padding:2px 9px}
 .db .strat.prod{background:#f3f7ef}
 .db .strat{font-size:14px;line-height:1.55;margin:8px 0 10px;padding:8px 10px;
 background:#f3f2ee;border-radius:6px}

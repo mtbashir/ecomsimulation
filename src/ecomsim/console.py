@@ -96,7 +96,8 @@ def _targeting(ranked, params, name_of) -> str:
 
 
 def render(world, params, out_dir: str | Path, submissions: dict | None = None,
-           open_codes: list[str] | None = None) -> Path:
+           open_codes: list[str] | None = None, workbook_url=None,
+           workbooks_zip: str | None = None) -> Path:
     round_ = world.round
     teams = list(world.teams.values())
     cards = {t.team_id: scoring.final_score(t, params, world.teams) for t in teams}
@@ -139,6 +140,21 @@ def render(world, params, out_dir: str | Path, submissions: dict | None = None,
             for t in ranked if flags[t.team_id])
         watch = f'<section class="wide"><h2>Trigger watch</h2><ul class="note">{items}</ul></section>'
 
+    downloads = ""
+    if workbook_url:
+        links = "".join(
+            f'<a class="wbk" href="{escape(workbook_url(t.team_id))}">{escape(name_of(t))}'
+            f'{"" if name_of(t) == t.team_id else f" <span class=tid>{t.team_id}</span>"}</a>'
+            for t in ranked)
+        every = (f'<a class="wbk all" href="{escape(workbooks_zip)}">All teams (.zip)</a>'
+                 if workbooks_zip else "")
+        downloads = (
+            '<section class="wide"><h2>Results workbooks &middot; for review</h2>'
+            f'<div class="wbks">{every}{links}</div>'
+            f'<p class="note">Every month to round {round_} as Excel, one workbook per team: '
+            'P&amp;L, KPIs as formulas, sales and stock by product, cash, campaigns and '
+            'customer segments. Teams cannot download these.</p></section>')
+
     html = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -170,6 +186,11 @@ font-variant-numeric:tabular-nums}}
 padding:8px 10px;border-radius:5px;margin:0 0 12px;font-size:13px;color:#52514e}}
 .flag.crit{{background:rgba(208,59,59,.12);border-left-color:#d03b3b}}
 details{{margin-top:12px}} summary{{cursor:pointer;font-size:13px;color:#52514e}}
+.wbks{{display:flex;flex-wrap:wrap;gap:8px}}
+.wbk{{display:inline-block;padding:6px 11px;border:1px solid #d6d5ce;border-radius:7px;
+background:#fff;color:#2a78d6;font-size:13px;font-weight:600;text-decoration:none}}
+.wbk.all{{background:#2a78d6;border-color:#2a78d6;color:#fff}}
+.wbk .tid{{font-weight:400}}
 table.t{{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}}
 table.t th,table.t td{{text-align:right;padding:5px 7px;
 border-bottom:1px solid #e1e0d9;font-variant-numeric:tabular-nums}}
@@ -191,7 +212,7 @@ table.t th,table.t td{{border-color:#2c2c2a}} table.t thead th{{color:#c3c2b7}}
 <h1>Round {round_}</h1>
 <p class="sub">Instructor console &middot; {len(teams)} teams &middot;
 config {params.config_hash()}</p>
-{board}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags)}{watch}{_targeting(ranked, params, name_of)}
+{downloads}{board}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags, workbook_url)}{watch}{_targeting(ranked, params, name_of)}
 </div></body></html>"""
 
     out = Path(out_dir) / f"console_r{round_}.html"

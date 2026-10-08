@@ -962,19 +962,33 @@ def test_price_grid_shows_last_months_product_results(game):
     assert "Sales by product" in report
 
 
-def test_results_workbook_downloads_for_the_team_and_the_instructor(game):
+def test_results_workbooks_are_for_the_instructor_only(game):
+    import io
+    import zipfile
     app, pw, path = game
     _trading(app, path)
     team = _team(app, pw)
-    page = team.get("/results/1").data.decode()
-    assert "/results/1.xlsx" in page, "the report offers the workbook"
-    r = team.get("/results/1.xlsx")
-    assert r.status_code == 200 and r.data[:2] == b"PK"
-    assert "attachment" in r.headers["Content-Disposition"]
-    assert team.get("/results/2.xlsx").status_code == 404, "a month not yet run"
-    assert "results/1.xlsx" in team.get("/").data.decode()
+    assert ".xlsx" not in team.get("/results/1").data.decode(), "no download on the team report"
+    assert ".xlsx" not in team.get("/").data.decode(), "nor on the dashboard"
+    assert team.get("/results/1.xlsx").status_code == 404
+    assert team.get("/admin/report/team_02/1.xlsx").status_code in (302, 403)
+
     admin = app.test_client()
     admin.post("/login", data={"username": "admin", "password": "admin-pw"})
-    assert admin.get("/admin/report/team_02/1.xlsx").data[:2] == b"PK"
-    assert team.get("/admin/report/team_02/1.xlsx").status_code in (302, 403), (
-        "a team cannot download another team's workbook")
+    console = admin.get("/admin/console/1").data.decode()
+    assert "Results workbooks" in console
+    assert "/admin/report/team_01/1.xlsx" in console and "/admin/workbooks/1.zip" in console
+    r = admin.get("/admin/report/team_02/1.xlsx")
+    assert r.status_code == 200 and r.data[:2] == b"PK"
+    z = zipfile.ZipFile(io.BytesIO(admin.get("/admin/workbooks/1.zip").data))
+    assert len(z.namelist()) == 3 and all(n.endswith(".xlsx") for n in z.namelist())
+    assert admin.get("/admin/workbooks/5.zip").status_code == 404
+
+
+def test_team_workbooks_can_be_opened_to_teams(game):
+    app, pw, path = game
+    _trading(app, path)
+    app.config["TEAM_WORKBOOKS"] = True
+    team = _team(app, pw)
+    assert "/results/1.xlsx" in team.get("/results/1").data.decode()
+    assert team.get("/results/1.xlsx").data[:2] == b"PK"

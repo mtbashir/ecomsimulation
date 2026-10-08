@@ -364,6 +364,7 @@ def register_routes(app: Flask) -> None:
             heading=heading, note=note,
             submitted=submitted,
             rounds=list(range(1, game["round"] + 1)),
+            team_workbooks=app.config["TEAM_WORKBOOKS"],
             position=service.company_position(g.db, tid),
             research=_research_bought(g.db, tid, game["round"]),
             kpis=service.headline_kpis(g.db, tid),
@@ -787,11 +788,18 @@ def register_routes(app: Flask) -> None:
             handbook_url=url_for("handbook"),
             group_order=sorted(by_group, key=lambda gr: int(gr[1:])))
 
+    # Teams do not download their workbook for now: the instructor reviews it
+    # first, from the console. ECOMSIM_TEAM_WORKBOOKS=1 opens it to teams.
+    team_workbooks = os.environ.get("ECOMSIM_TEAM_WORKBOOKS") == "1"
+    app.config["TEAM_WORKBOOKS"] = team_workbooks
+
     @app.route("/results/<int:round_>")
     @login_required("team")
     def results(round_):
-        html = service.team_report(g.db, session["team_id"], round_,
-                                   download=url_for("results_xlsx", round_=round_))
+        html = service.team_report(
+            g.db, session["team_id"], round_,
+            download=url_for("results_xlsx", round_=round_)
+            if app.config["TEAM_WORKBOOKS"] else None)
         if html is None:
             abort(404)
         return Response(html, mimetype="text/html")
@@ -799,6 +807,8 @@ def register_routes(app: Flask) -> None:
     @app.route("/results/<int:round_>.xlsx")
     @login_required("team")
     def results_xlsx(round_):
+        if not app.config["TEAM_WORKBOOKS"]:
+            abort(404)
         return _workbook(session["team_id"], round_)
 
     def _workbook(team_id, round_):
@@ -1054,10 +1064,22 @@ def register_routes(app: Flask) -> None:
     @app.route("/admin/console/<int:round_>")
     @login_required("admin")
     def admin_console(round_):
-        html = service.instructor_console(g.db, round_)
+        html = service.instructor_console(
+            g.db, round_,
+            workbook_url=lambda team: url_for("results_admin_xlsx", team=team, round_=round_),
+            workbooks_zip=url_for("admin_workbooks", round_=round_))
         if html is None:
             abort(404)
         return Response(html, mimetype="text/html")
+
+    @app.route("/admin/workbooks/<int:round_>.zip")
+    @login_required("admin")
+    def admin_workbooks(round_):
+        data = service.all_workbooks(g.db, round_)
+        if data is None:
+            abort(404)
+        return Response(data, mimetype="application/zip", headers={
+            "Content-Disposition": f'attachment; filename="results_workbooks_month_{round_}.zip"'})
 
     @app.route("/admin/export/<int:round_>.csv")
     @login_required("admin")
