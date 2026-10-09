@@ -226,10 +226,13 @@ ENTRIES = {
                 "if nothing goes wrong.",
         related=["7.5", "7.1", "1.1"]),
     "7.1": dict(
-        does="How many units to buy this month. Leave it blank and the system "
-             "orders to your safety-stock target. Either way the order is split "
-             "across your products by last month's sales, topping up the lines "
-             "that ran short first.",
+        does="How many units to buy this month, in total or product by product. "
+             "A total - or a blank, which orders to your safety-stock target - is "
+             "split across your products by last month's sales, topping up the "
+             "lines that ran short first. Product by product, you name the units "
+             "for each line and a line you leave blank gets none; an order below "
+             "the supplier's minimum is scaled up to it, every line in proportion. "
+             "Each line's closing stock and weeks of cover sit beside it on the form.",
         tradeoff="Too little and a good month sells out; too much and cash sits in "
                  "the warehouse.",
         watch="In-stock rate, lost sales to stock-outs, weeks of cover, cash.",

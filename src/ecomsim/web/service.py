@@ -19,6 +19,8 @@ from ..engine import run_round
 from ..io_csv import LIST_DECISIONS
 from . import db
 
+PURCHASE = "7.1"           # stock to buy: a total, or units product by product
+
 
 def load_params(con):
     """Parameters with the instructor's overrides applied.
@@ -177,6 +179,17 @@ def coerce(code: str, raw):
         if sum(shares.values()) > 1.5:
             shares = {k: v / 100 for k, v in shares.items()}
         return shares if sum(shares.values()) > 0 else None
+    if code == PURCHASE and isinstance(raw, dict):
+        # Stock bought product by product: {sku: units}. A blank line is none.
+        out = {}
+        for sku, units in raw.items():
+            text = str(units or "").replace(",", "").strip()
+            if text:
+                try:
+                    out[sku] = float(text)
+                except ValueError:
+                    raise ValueError(f"{sku}: {text!r} is not a number of units")
+        return out or None
     if code in LIST_DECISIONS:
         if isinstance(raw, list):
             return [v for v in raw if v]
@@ -227,6 +240,11 @@ def validate(code: str, value) -> str | None:
                     f"they must add up to 100%")
         if any(float(v) < 0 for v in value.values()):
             return f"{spec.name}: a share cannot be negative"
+        return None
+    if code == PURCHASE and isinstance(value, dict):
+        for sku, units in value.items():
+            if float(units) < 0:
+                return f"{spec.name}: {sku} cannot be negative"
         return None
     if spec.kind == "select" and spec.options:
         allowed = {o[0] for o in spec.options}
@@ -603,6 +621,56 @@ def shelf_totals(rows: list[dict]) -> dict:
     }
 
 
+def purchase_rows(con, team_id: str, current: dict, standing: dict | None = None) -> dict:
+    """The stock tile: each product's closing stock and cover beside what to buy.
+
+    A team buys in total - split by the engine across products by what sold -
+    or product by product. Closing stock, cover and stock on order come from
+    last month's record, the same figures as Stock by product in the report.
+    """
+    from .. import mix
+    params = load_params(con)
+    shelf = monthly_catalogue(con, team_id, current)
+    world = db.load_world(con)
+    team = world.teams.get(team_id) if world is not None else None
+    last = team.history[-1] if team is not None and team.history else {}
+    stock = {r["code"]: r for r in last.get("stock") or []}
+
+    code = str(current.get("7.2") or (standing or {}).get("7.2") or "B")
+    supplier = next((sp for sp in params.suppliers if sp["code"] == code),
+                    next(sp for sp in params.suppliers if sp["code"] == "B"))
+    base = float(next(sp for sp in params.suppliers if sp["code"] == "B")["cost_index"])
+    index = float(supplier["cost_index"]) / base
+
+    value = current.get(PURCHASE)
+    chosen = value if isinstance(value, dict) else {}
+    rows = []
+    for line in shelf:
+        held = stock.get(line["code"])
+        cover, tone = mix.cover_state(held) if held else ("", "")
+        rows.append({
+            "code": line["code"], "name": line["name"], "category": line["category"],
+            "cost": line["cost"] * index,
+            "sold": held["sold"] if held else None,
+            "missed": max(0.0, held.get("wanted", held["sold"]) - held["sold"]) if held else 0.0,
+            "close": held["close"] if held else None,
+            "cover": cover, "tone": tone,
+            "on_order": held["on_order"] if held else 0.0,
+            "lands": held.get("next_arrival") if held else None,
+            "buy": chosen.get(line["code"]),
+        })
+    entered = sum(float(u) for u in chosen.values())
+    return {
+        "rows": rows, "mode": "lines" if chosen else "total",
+        "total": None if chosen or value in (None, "") else float(value),
+        "entered": entered,
+        "cost": sum(float(chosen.get(r["code"]) or 0) * r["cost"] for r in rows),
+        "supplier": supplier["name"], "moq": float(supplier["moq_units"]),
+        "month": len(team.history) if team is not None else 0,
+        "has_stock": bool(stock),
+    }
+
+
 BUNDLE_UNITS = 3          # a bundle is a three-pack of one product
 
 
@@ -663,6 +731,11 @@ def decision_summary(spec, value, catalogue_rows=None) -> str:
         return f"{float(value) * 100:,.4g}%"
     if spec.kind == "curr":
         return f"PKR {float(value):,.0f}"
+    if spec.code == PURCHASE and isinstance(value, dict):
+        total = sum(float(u) for u in value.values())
+        lines = sum(1 for u in value.values() if float(u) > 0)
+        return (f"{total:,.0f} units, product by product "
+                f"({lines} product{'' if lines == 1 else 's'})")
     if spec.kind == "num":
         return f"{float(value):,.4g}{' ' + spec.unit if spec.unit else ''}"
     if spec.kind == "select":
@@ -1169,6 +1242,8 @@ def export_decisions(con, round_: int) -> str:
         for code, value in sorted(decisions.items()):
             if code == targeting.DECISION:
                 value = json.dumps(value)
+            elif code == PURCHASE and isinstance(value, dict):
+                value = ";".join(f"{sku}:{float(units):g}" for sku, units in value.items())
             elif isinstance(value, list):
                 value = ";".join(str(v) for v in value)
             w.writerow([team_id, code, value])

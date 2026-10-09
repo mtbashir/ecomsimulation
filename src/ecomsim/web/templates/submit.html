@@ -67,7 +67,7 @@
       {%- set u = '' if s.unit in ('%', '') else
           (s.unit[4:] if s.unit.startswith('PKR') else s.unit) %}
       <span class="t-val">{{ summaries[s.code] or 'carried forward' }}
-        {%- if u %} <span class="note">&middot; {{ u }}</span>{% endif %}</span>
+        {%- if u and not (s.code == '7.1' and val is mapping) %} <span class="note">&middot; {{ u }}</span>{% endif %}</span>
     </span>
   </summary>
   <div class="t-body">
@@ -234,6 +234,53 @@
     <input name="{{ s.code }}" type="text" value="{{ val }}"
            placeholder="One or two sentences.">
 
+  {% elif s.code == '7.1' and purchase %}
+    {% set lines = purchase.mode == 'lines' %}
+    <div class="buy-mode">
+      <label><input type="radio" name="buy_mode" value="total" {% if not lines %}checked{% endif %}>
+        <span><b>Total units</b><br><span class="note">split across your products by what
+        sold, filling the lines that ran short first</span></span></label>
+      <label><input type="radio" name="buy_mode" value="lines" {% if lines %}checked{% endif %}>
+        <span><b>Product by product</b><br><span class="note">you name the units for each
+        line; a line left blank gets no new stock</span></span></label>
+    </div>
+    <div class="buy-total">
+      <input name="{{ s.code }}" type="text" inputmode="decimal"
+             value="{{ '{:,.0f}'.format(purchase.total) if purchase.total is not none else '' }}"
+             placeholder="leave blank and we order for you"></div>
+    <table class="catalogue buy">
+    <thead><tr><th class="c-name">Product</th>
+      <th class="r">Sold{% if purchase.month %} in month {{ purchase.month }}{% endif %}</th>
+      <th class="r">Closing stock</th><th class="r">Weeks of cover</th>
+      <th class="r">On order</th><th class="r c-buy">Units to buy</th></tr></thead>
+    <tbody>
+    {% for r in purchase.rows %}
+    <tr>
+      <td class="c-name"><strong>{{ r.name }}</strong>
+        <span class="lm">{{ r.category|replace("_", " ")|title }} &middot; PKR
+        {{ '{:,.0f}'.format(r.cost) }} a unit{% if r.missed >= 0.5 %} &middot;
+        <b class="short">{{ '{:,.0f}'.format(r.missed) }} wanted but not in stock</b>{% endif %}</span></td>
+      <td class="num">{{ '{:,.0f}'.format(r.sold) if r.sold is not none else '–' }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r.close) if r.close is not none else '–' }}</td>
+      <td class="num cover {{ r.tone }}">{{ r.cover|safe if r.cover else '–' }}</td>
+      <td class="num">{% if r.on_order >= 0.5 %}{{ '{:,.0f}'.format(r.on_order) }}
+        {%- if r.lands %} <span class="note">lands M{{ r.lands }}</span>{% endif %}{% else %}–{% endif %}</td>
+      <td class="r"><input type="text" inputmode="decimal" class="buy-input"
+          name="buy_{{ r.code }}" data-cost="{{ '%.2f'|format(r.cost) }}"
+          value="{{ '{:,.0f}'.format(r.buy) if r.buy is not none else '' }}"></td></tr>
+    {% endfor %}
+    </tbody></table>
+    <div class="hint buy-sum"><span class="buy-lines" {% if not lines %}hidden{% endif %}>Product by product:
+      <b class="buy-units">{{ '{:,.0f}'.format(purchase.entered) }}</b> units, about
+      PKR <b class="buy-cost">{{ '{:,.0f}'.format(purchase.cost) }}</b> at {{ purchase.supplier }}'s
+      costs.</span> {{ purchase.supplier }}'s minimum order is
+      <b class="buy-moq" data-moq="{{ '%.0f'|format(purchase.moq) }}">{{ '{:,.0f}'.format(purchase.moq) }}</b>
+      units; a smaller order is scaled up to it, every product in the same proportion.
+      <span class="buy-short" {% if not lines or not purchase.entered or purchase.entered >= purchase.moq %}hidden{% endif %}><b class="short">Below the minimum.</b></span>
+      {% if purchase.has_stock %}Weeks of cover is closing stock &divide; a week of
+      last month's sales; red is under 2 weeks, amber over 12. Stock on order lands at
+      the start of the month shown.{% endif %}</div>
+
   {% else %}
     <input name="{{ s.code }}" type="text" inputmode="decimal" value="{{ val }}"
            placeholder="{% set ph = carried.get(s.code) if keeps and carried.get(s.code) is number else s.default_when_disabled %}{{ '{:,.0f}'.format(ph) if ph is not none else 'leave blank and we order for you' }}">
@@ -255,7 +302,9 @@
   <label class="keep"><input type="checkbox" name="keep_{{ s.code }}" value="1">
     Keep last month's setting{% if kept[s.code] %}: <b>{{ kept[s.code] }}</b>{% endif %}</label>
   {% endif %}
-  {% if s.code in previous and s.kind != 'grid' %}
+  {% if s.code == '7.1' and previous_purchase %}
+  <div class="hint">Last month: {{ previous_purchase }}</div>
+  {% elif s.code in previous and s.kind != 'grid' %}
   <div class="hint">Last month:
     {{ previous[s.code]|join(', ') if previous[s.code] is iterable
        and previous[s.code] is not string and previous[s.code] is not mapping
@@ -286,6 +335,41 @@
 </div>
 </form>
 
+<script>
+// Stock: the mode in use is the one you can type in, and the product-by-product
+// total and cost follow as you type. The server reads the ticked mode either way.
+(function () {
+  var tile = document.querySelector(".buy-mode");
+  if (!tile) return;
+  var body = tile.parentNode;
+  var num = function (el) { return parseFloat((el.value || "").replace(/,/g, "")) || 0; };
+  var total = body.querySelector(".buy-total input");
+  var lines = [].slice.call(body.querySelectorAll(".buy-input"));
+  var moq = parseFloat(body.querySelector(".buy-moq").dataset.moq) || 0;
+  function sum() {
+    var units = 0, cost = 0;
+    lines.forEach(function (el) { units += num(el); cost += num(el) * parseFloat(el.dataset.cost); });
+    body.querySelector(".buy-units").textContent = Math.round(units).toLocaleString();
+    body.querySelector(".buy-cost").textContent = Math.round(cost).toLocaleString();
+    var byLine = body.querySelector("input[name=buy_mode][value=lines]").checked;
+    body.querySelector(".buy-short").hidden = !(byLine && units > 0 && units < moq);
+  }
+  function mode() {
+    var byLine = body.querySelector("input[name=buy_mode][value=lines]").checked;
+    total.disabled = byLine;
+    body.querySelector(".buy-total").classList.toggle("off", byLine);
+    body.querySelector("table.buy").classList.toggle("off", !byLine);
+    body.querySelector(".buy-lines").hidden = !byLine;
+    lines.forEach(function (el) { el.disabled = !byLine; });
+    sum();
+  }
+  [].forEach.call(body.querySelectorAll("input[name=buy_mode]"), function (r) {
+    r.addEventListener("change", mode);
+  });
+  lines.forEach(function (el) { el.addEventListener("input", sum); });
+  mode();
+})();
+</script>
 <script>
 // Margin follows the sourcing and the price as you type. The server recomputes
 // on save either way, so the page is correct with this blocked - just slower.

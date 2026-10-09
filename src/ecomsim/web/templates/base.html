@@ -510,6 +510,16 @@ table.catalogue td{vertical-align:top;padding:9px 8px}
 table.catalogue th{white-space:nowrap}
 .cat-row{opacity:.55}.cat-row.on{opacity:1}
 .price-input.price-input{max-width:92px;text-align:right;padding:6px 8px}
+.buy-mode{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin:6px 0 10px}
+.buy-mode label{display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer}
+.buy-mode input{width:auto;margin:3px 0 0}
+.buy-total{max-width:260px;margin-bottom:10px}
+.buy-total.off,table.buy.off .c-buy,table.buy.off .buy-input{opacity:.4}
+table.buy .c-name{width:38%}
+table.buy .c-buy{width:120px}
+.buy-input{max-width:100px;text-align:right;padding:6px 8px}
+table.buy td.cover.down{color:var(--bad, #b3231e);font-weight:600}
+table.buy td.cover.warn{color:var(--warn, #8a6414);font-weight:600}
 .margin-cell{font-variant-numeric:tabular-nums;font-weight:650;white-space:nowrap}
 .margin-cell.thin{color:var(--warn-ink)}.margin-cell.loss{color:var(--bad-ink)}
 .tick{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--track);

@@ -15,6 +15,7 @@ from html import escape
 
 from . import mix
 from .decisions import REGISTRY
+from .modules.m03_supply import purchase_plan
 from .modules.m09_basket import BUNDLE_UNITS, _unit_net_price
 from .targeting import CHANNELS, CHANNEL_NAMES
 
@@ -100,8 +101,11 @@ def _decisions(team, params, sub: dict) -> list[tuple[str, str]]:
             rows.append((_label(code), escape(str(sub[code]))))
     if "9.2" in sub:
         rows.append((_label("9.2"), f"{float(sub['9.2'] or 0):.0%}"))
-    if "7.1" in sub and sub["7.1"] not in (None, ""):
-        rows.append((_label("7.1"), f"{float(sub['7.1']):,.0f} units"))
+    bought, lines = purchase_plan(sub.get("7.1"))
+    if bought is not None:
+        rows.append((_label("7.1"), f"{bought:,.0f} units"
+                     + (f", product by product ({sum(1 for u in lines.values() if u > 0)} "
+                        "products)" if lines else "")))
     if "7.5" in sub:
         rows.append((_label("7.5"), f"{float(sub['7.5']):g} weeks"))
     if "7.4" in sub:
@@ -216,9 +220,9 @@ def _observations(team, params, sub, h, room, open_codes) -> tuple[list[str], li
         watch.append("Cash on delivery switched off: far fewer orders in a COD market.")
 
     demand_units = h["orders"] * params["units_per_order"]
-    if "7.1" in sub and sub["7.1"] not in (None, "") and \
-            float(sub["7.1"]) < 0.6 * demand_units:
-        watch.append(f"Bought only {float(sub['7.1']):,.0f} units against about "
+    bought, _ = purchase_plan(sub.get("7.1"))
+    if bought is not None and bought < 0.6 * demand_units:
+        watch.append(f"Bought only {bought:,.0f} units against about "
                      f"{demand_units:,.0f} a month of demand: stock-out risk next month.")
     elif h.get("weeks_cover", 99) < 3:
         watch.append(f"Stock covers only {h['weeks_cover']:.1f} weeks of sales.")

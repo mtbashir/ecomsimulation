@@ -151,8 +151,8 @@ def _learn_lead_time(team, events) -> None:
 def _place_orders(team, world, params, ctx, d, supplier, events, round_days) -> None:
     """Place the team's order, or fall back to the order-up-to policy.
 
-    When decision 7.1 is enabled the team names the quantity and lives with it.
-    Otherwise the engine orders to cycle + pipeline + safety, working from the
+    When decision 7.1 is enabled the team names the quantity - in total, or
+    product by product - and lives with it. Otherwise the engine orders to cycle + pipeline + safety, working from the
     same imperfect forecast the team would have seen.
 
     Structural decision: a PO a team cannot pay for is DELAYED, not cancelled.
@@ -162,11 +162,11 @@ def _place_orders(team, world, params, ctx, d, supplier, events, round_days) -> 
     # Order up to cycle + pipeline + safety. The decision sets SAFETY stock;
     # cycle and lead-time cover are arithmetic, not a choice. Targeting safety
     # alone leaves every team structurally short by a round of consumption.
-    manual = d.get("7.1")
-    if manual is not None:
-        units = max(0.0, float(manual))
-        if units > 0:
-            _commit_po(team, world, params, ctx, supplier, events, units, round_days)
+    total, lines = purchase_plan(d.get("7.1"))
+    if total is not None:
+        if total > 0:
+            _commit_po(team, world, params, ctx, supplier, events, total, round_days,
+                       lines=lines)
         return
 
     safety_weeks = float(d.get("7.5", 2.0) or 2.0)
@@ -202,8 +202,37 @@ def _place_orders(team, world, params, ctx, d, supplier, events, round_days) -> 
     _commit_po(team, world, params, ctx, supplier, events, units, round_days)
 
 
-def _commit_po(team, world, params, ctx, supplier, events, units, round_days) -> None:
-    units = max(units, float(supplier["moq_units"]))
+def purchase_plan(value) -> tuple[float | None, dict[str, float] | None]:
+    """Decision 7.1 as (total units, units by product).
+
+    A number is a total, split across the range by what sold. A mapping names
+    the units for each product; its total is their sum and a product it leaves
+    out gets none. Blank is (None, None): the engine orders to the cover target.
+    """
+    if value is None or value == "":
+        return None, None
+    if isinstance(value, dict):
+        lines = {str(c): max(0.0, float(u or 0)) for c, u in value.items()}
+        return sum(lines.values()), lines
+    return max(0.0, float(value)), None
+
+
+def _commit_po(team, world, params, ctx, supplier, events, units, round_days,
+               lines: dict[str, float] | None = None) -> None:
+    moq = float(supplier["moq_units"])
+    asked = units
+    if lines:
+        # Bought product by product: the team's own split, scaled up together
+        # if it falls short of the supplier's minimum order.
+        known = {s["code"] for s in params.skus}
+        lines = {c: u for c, u in lines.items() if c in known and u > 0}
+        asked = sum(lines.values())
+        if asked <= 0:
+            return
+    units = max(asked, moq)
+    ctx.setdefault("purchase", {})[team.team_id] = {
+        "asked": asked, "bought": units, "moq": moq, "supplier": supplier["code"],
+        "by_product": bool(lines)}
 
 
     lead_days = (float(supplier["lead_time_days"]) * team.lead_time_multiplier
@@ -220,7 +249,8 @@ def _commit_po(team, world, params, ctx, supplier, events, units, round_days) ->
     # Split by what the team's own customers bought last month, filling the
     # lines that ran short first - not by the catalogue, which would restock
     # a store selling twice the usual hair oil with the usual hair oil.
-    alloc = mix.allocate(team, params, units)
+    alloc = ({c: u * units / asked for c, u in lines.items()} if lines
+             else mix.allocate(team, params, units))
     skus = list(alloc)
     d = ctx["resolved"][team.team_id]
     cost = sum(

@@ -207,9 +207,10 @@ REGISTRY: dict[str, DecisionSpec] = {
             "7.1", "G7", "Stock to purchase this month", "num", None,
             frozenset({"standard", "advanced", "expert"}),
             unit="units",
-            help="How many units to buy in. Too little and you stock out in a "
-                 "good month; too much and your cash sits in a warehouse. "
-                 "Leave blank and the system orders to your cover target.",
+            help="How many units to buy in - as a total, or product by product. "
+                 "Too little and you stock out in a good month; too much and your "
+                 "cash sits in a warehouse. Leave blank and the system orders to "
+                 "your cover target.",
             guide="Leave blank to order automatically"),
         DecisionSpec(
             "7.5", "G7", "Safety stock cover", "num", 3, ALL,

@@ -136,6 +136,8 @@ def run(world, params, resolved, ctx) -> None:
             record["rules"] = ctx["rules"]
             record["decisions"] = dict(ctx.get("decisions", {}).get(tid, {}))
         record["stock"] = mix.stock_lines(team, params, ctx, world.round)
+        if tid in ctx.get("purchase", {}):
+            record["purchase"] = dict(ctx["purchase"][tid])
         record["cash_flow"] = dict(ctx.get("cash_flow", {}).get(tid, {}))
         record["ab_tests"] = targeting.ab_tests(team.history + [record])
         team.history.append(record)

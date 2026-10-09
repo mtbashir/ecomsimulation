@@ -106,6 +106,18 @@ def _coerce(code: str, raw: str):
         return out
     if code in LIST_DECISIONS:
         return [v.strip() for v in raw.replace(",", ";").split(";") if v.strip()]
+    if code == "7.1" and ":" in raw:
+        # Stock bought product by product: "SKU-03:1200;SKU-08:800".
+        out = {}
+        for part in raw.split(";"):
+            if not part.strip():
+                continue
+            sku, _, units = part.partition(":")
+            try:
+                out[sku.strip()] = float(units.replace(",", "").strip())
+            except ValueError:
+                raise SubmissionError(f"{code}: {part!r} needs units, e.g. SKU-03:1200")
+        return out
     kind = spec.kind
     if kind in {"num", "pct", "curr"}:
         try:

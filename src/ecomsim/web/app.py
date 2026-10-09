@@ -751,6 +751,13 @@ def register_routes(app: Flask) -> None:
                         # The boxes arrive filled in; re-sending the mix already
                         # running is not a decision the team took.
                         raw = None
+                elif (spec.code == service.PURCHASE
+                      and request.form.get("buy_mode") == "lines"):
+                    # Stock bought product by product; a blank line buys none.
+                    raw = {row["code"]: request.form.get(f"buy_{row['code']}") or ""
+                           for row in service.monthly_catalogue(g.db, tid, current)}
+                    if not any(v.strip() for v in raw.values()):
+                        raw = None
                 elif spec.code in service.LIST_DECISIONS:
                     raw = request.form.getlist(spec.code)
                 else:
@@ -823,6 +830,11 @@ def register_routes(app: Flask) -> None:
                 else ""),
             totals=service.shelf_totals(shelf),
             bundles=service.bundle_rows(g.db, tid, current),
+            purchase=(service.purchase_rows(g.db, tid, current, standing)
+                      if any(s.code == service.PURCHASE for s in specs) else None),
+            previous_purchase=(service.decision_summary(
+                REGISTRY[service.PURCHASE], previous.get(service.PURCHASE))
+                if service.PURCHASE in previous else ""),
             handbook={s.code: service.handbook_entry(s) for s in specs},
             funnel=service.funnel_now(g.db, tid),
             handbook_url=url_for("handbook"),

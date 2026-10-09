@@ -407,6 +407,26 @@ def stock_lines(team, params, ctx, round_: int) -> list[dict]:
     return rows
 
 
+def cover_state(line: dict) -> tuple[str, str]:
+    """How a product's closing stock reads against its sales: (label, tone).
+
+    Weeks of cover is closing stock over a week of last month's sales. Under
+    two weeks is thin; over twelve is cash sitting on a shelf. A line that
+    ended empty while customers still wanted it ran out.
+    """
+    close, sold = line.get("close", 0.0), line.get("sold", 0.0)
+    if close < 0.5 and line.get("wanted", sold) > sold + 0.5:
+        return "ran out", "down"
+    if sold <= 0:
+        return ("no sales" if close >= 0.5 else "&mdash;"), ""
+    weeks = close * 4.33 / sold
+    if weeks < 2:
+        return f"{weeks:.1f}", "down"
+    if weeks > 12:
+        return f"{weeks:.1f}", "warn"
+    return f"{weeks:.1f}", ""
+
+
 # --- What the buyer orders next --------------------------------------------------------
 
 def demand_shares(team, params) -> dict[str, float]:
