@@ -481,9 +481,30 @@ def _products(h: dict) -> str:
             f'{escape(" ".join(lines))}</p>')
 
 
+def _decision_quality(t, h: dict, rejected: set, memo_url) -> str:
+    """Rules v2: this month's decision-quality marks, and the memo verdict."""
+    from .scoring import KEEP_SHARE, _decision_quality as marks
+    d = h.get("decisions")
+    if not d:
+        return ""
+    target = -(-int(d.get("open", 0)) * 3 // 4)
+    rnd = int(h.get("round", 0))
+    counts = (t.team_id, rnd) not in rejected
+    memo = ("no memo" if not d.get("memo") else
+            "memo counts (2)" if counts else "memo judged not to match (0)")
+    toggle = ""
+    if memo_url and d.get("memo"):
+        toggle = (f'<form method="post" action="{escape(memo_url(t.team_id, rnd))}" class="mt">'
+                  f'<input type="hidden" name="ok" value="{0 if counts else 1}">'
+                  f'<button type="submit">{"Memo does not match" if counts else "Memo matches"}</button></form>')
+    return (f'<p class="strat dq"><b>Decision quality this month: '
+            f'{marks(t, h, rejected):.1f} of 10.</b> {int(d.get("taken", 0))} of '
+            f'{int(d.get("open", 0))} decisions taken (full marks at {target}); {memo}.{toggle}</p>')
+
+
 def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
             scores: dict | None = None, flags: dict | None = None,
-            workbook_url=None) -> str:
+            workbook_url=None, memo_rejected: set | None = None, memo_url=None) -> str:
     """The debrief block for the console. Empty when no submissions are known."""
     if submissions is None:
         return ""
@@ -526,6 +547,7 @@ def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
             f'<p class="strat camp"><b>Campaigns &amp; customers.</b> '
             f'{_campaigns(t, params, sub, h, room, open_codes)}</p>'
             f'{_products(h)}'
+            f'{_decision_quality(t, h, memo_rejected or set(), memo_url)}'
             f'<div class="cols"><dl>{took_html}</dl>'
             f'<div>{lists}</div></div>{left}</div>')
     return ('<section class="wide"><h2>Debrief &middot; what each team decided '
@@ -549,6 +571,10 @@ background:#e7f3e7;color:#006300;vertical-align:2px}
 .db h3 .xl{float:right;font-size:12px;font-weight:600;color:#2a78d6;text-decoration:none;
 border:1px solid #d6d5ce;border-radius:6px;padding:2px 9px}
 .db .strat.prod{background:#f3f7ef}
+.db .strat.dq{background:#f6f2fb}
+.db form.mt{display:inline;margin-left:8px}
+.db form.mt button{font-size:12px;padding:2px 9px;border-radius:6px;border:1px solid #d6d5ce;
+background:#fff;cursor:pointer}
 .db .strat{font-size:14px;line-height:1.55;margin:8px 0 10px;padding:8px 10px;
 background:#f3f2ee;border-radius:6px}
 table.t.res{margin:6px 0 0;font-size:13px}

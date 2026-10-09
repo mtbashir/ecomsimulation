@@ -79,13 +79,23 @@ class Params:
         return next(c for c in self.channels if c["code"] == code)
 
     def sku(self, code: str) -> dict:
-        return next(s for s in self.skus if s["code"] == code)
+        # Indexed once: the product mix looks a product up tens of thousands
+        # of times a game, and a list scan each time was most of the engine.
+        index = self.__dict__.get("_sku_index")
+        if index is None or len(index) != len(self.skus):
+            index = self.__dict__["_sku_index"] = {s["code"]: s for s in self.skus}
+        if code not in index:
+            raise StopIteration(code)
+        return index[code]
 
     def study(self, code: str) -> dict:
         return next(s for s in self.studies if s["code"] == code)
 
     def audience(self, sku: str) -> dict | None:
-        return next((a for a in self.audiences if a["code"] == sku), None)
+        index = self.__dict__.get("_audience_index")
+        if index is None or len(index) != len(self.audiences):
+            index = self.__dict__["_audience_index"] = {a["code"]: a for a in self.audiences}
+        return index.get(sku)
 
     def platform(self, channel: str) -> dict | None:
         return next((p for p in self.platforms if p["channel"] == channel), None)

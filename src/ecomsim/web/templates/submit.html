@@ -3,16 +3,23 @@
 <div class="crumbs">Decisions &middot; month {{ round }}</div>
 <div class="head">
   <div><h1>Month {{ round }} decisions</h1>
-    <p>Every lever is optional. A tile you do not open keeps what you had last
-    month &mdash; that is still a decision, and the red bar is there so it is a
-    decision you took rather than one you missed.</p></div>
+    {% if keeps %}
+    <p>Every lever is optional. A lever you leave alone keeps last month's
+    setting. Decisions you take count towards decision quality: change a lever,
+    or tick <b>Keep</b> to confirm last month's setting as this month's
+    decision.</p>
+    {% else %}
+    <p>Every lever is optional. A lever you leave blank runs on its default
+    this month, not on last month's setting.</p>
+    {% endif %}</div>
 </div>
 
 <form method="post">
 <div class="tally">
-  <div><b class="num">{{ taken }}</b> of {{ summaries|length }} changed this month</div>
-  <div class="key"><span><i class="dot set"></i>changed</span>
-    <span><i class="dot"></i>carried forward</span></div>
+  <div><b class="num">{{ taken }}</b> of {{ counted }} decisions taken this month
+    {% if keeps %}<span class="note">&middot; full decision marks at {{ target }}</span>{% endif %}</div>
+  <div class="key"><span><i class="dot set"></i>taken</span>
+    <span><i class="dot"></i>{{ 'keeps last month' if keeps else 'runs on default' }}</span></div>
   <div style="margin-left:auto;display:flex;gap:8px">
     <button type="submit">Submit month {{ round }}</button>
     <a class="btn ghost" href="{{ url_for('home') }}">Cancel</a></div>
@@ -153,7 +160,7 @@
     adds nothing.</div>
 
   {% elif s.kind == 'shares' %}
-    {% set chosen = val if val is mapping else default_shares.get(s.code, {}) %}
+    {% set chosen = val if val is mapping else (carried.get(s.code) if keeps and carried.get(s.code) is mapping else default_shares.get(s.code, {})) %}
     <div class="shares">
     {% for o in catalogues.get(s.code, []) %}
       <div class="share-row">
@@ -171,14 +178,14 @@
   {% elif s.kind == 'select' and s.default_when_disabled is sameas true
           or s.kind == 'select' and s.default_when_disabled is sameas false %}
     <select name="{{ s.code }}">
-      <option value="">&mdash; keep {{ standing.get(s.code, 'current choice') }} &mdash;</option>
+      <option value="">&mdash; {{ 'keep' if keeps else 'default:' }} {{ standing.get(s.code, 'current choice') }} &mdash;</option>
       <option value="yes" {% if val is sameas true %}selected{% endif %}>Yes</option>
       <option value="no" {% if val is sameas false %}selected{% endif %}>No</option>
     </select>
 
   {% elif s.kind == 'select' and s.catalogue %}
     <select name="{{ s.code }}">
-      <option value="">&mdash; keep {{ standing.get(s.code, 'current choice') }} &mdash;</option>
+      <option value="">&mdash; {{ 'keep' if keeps else 'default:' }} {{ standing.get(s.code, 'current choice') }} &mdash;</option>
       {% for o in catalogues.get(s.code, []) %}
       <option value="{{ o.value }}" {% if val == o.value %}selected{% endif %}>
         {{ o.label }}{% if o.note %} &mdash; {{ o.note }}{% endif %}</option>
@@ -188,7 +195,7 @@
   {% elif s.kind == 'select' and s.options %}
     <select name="{{ s.code }}">
       {% if s.options[0][0] != '' %}
-      <option value="">&mdash; keep {{ standing.get(s.code, 'current choice') }} &mdash;</option>
+      <option value="">&mdash; {{ 'keep' if keeps else 'default:' }} {{ standing.get(s.code, 'current choice') }} &mdash;</option>
       {% endif %}
       {% for value, label, note in s.options %}
       <option value="{{ value }}" {% if val == value %}selected{% endif %}>
@@ -211,16 +218,14 @@
     <div class="with-suffix">
       <input name="{{ s.code }}" type="text" inputmode="decimal"
              value="{{ '%0.4g'|format(val * 100) if val not in ('', None) else '' }}"
-             placeholder="{{ '%0.4g'|format(s.default_when_disabled * 100)
-                             if s.default_when_disabled is not none else '0' }}">
+             placeholder="{% set ph = carried.get(s.code) if keeps and carried.get(s.code) is number else s.default_when_disabled %}{{ '%0.4g'|format(ph * 100) if ph is not none else '0' }}">
       <span class="suffix">%</span></div>
 
   {% elif s.kind == 'curr' %}
     <div class="with-prefix"><span class="prefix">PKR</span>
       <input name="{{ s.code }}" type="text" inputmode="decimal"
              value="{{ '{:,.0f}'.format(val) if val not in ('', None) else '' }}"
-             placeholder="{{ '{:,.0f}'.format(s.default_when_disabled)
-                             if s.default_when_disabled is not none else '' }}"></div>
+             placeholder="{% set ph = carried.get(s.code) if keeps and carried.get(s.code) is number else s.default_when_disabled %}{{ '{:,.0f}'.format(ph) if ph is not none else '' }}"></div>
     {% if campaigns_open and s.code in ('3.1', '3.2', '3.4') %}
     <div class="hint">Who this budget reaches is set under
       <a href="{{ url_for('campaigns') }}">Campaign setup</a>.</div>
@@ -232,9 +237,7 @@
 
   {% else %}
     <input name="{{ s.code }}" type="text" inputmode="decimal" value="{{ val }}"
-           placeholder="{{ '{:,.0f}'.format(s.default_when_disabled)
-                           if s.default_when_disabled is not none
-                           else 'leave blank and we order for you' }}">
+           placeholder="{% set ph = carried.get(s.code) if keeps and carried.get(s.code) is number else s.default_when_disabled %}{{ '{:,.0f}'.format(ph) if ph is not none else 'leave blank and we order for you' }}">
   {% endif %}
 
   {% if funnel and s.code in ('7.1', '7.5') %}
@@ -249,6 +252,11 @@
     {{ '{:,.0f}'.format(funnel.lost_to_stockout) }} orders were lost to stock-outs.{% endif %}</div>
   {% endif %}
   {% if s.guide %}<div class="hint">{{ s.guide }}</div>{% endif %}
+  {% if keeps and s.code in kept %}
+  <label class="keep"><input type="checkbox" name="keep_{{ s.code }}" value="1">
+    Keep last month's setting{% if kept[s.code] %}: <b>{{ kept[s.code] }}</b>{% endif %}
+    <span class="note">&middot; counts as a decision</span></label>
+  {% endif %}
   {% if s.code in previous and s.kind != 'grid' %}
   <div class="hint">Last month:
     {{ previous[s.code]|join(', ') if previous[s.code] is iterable

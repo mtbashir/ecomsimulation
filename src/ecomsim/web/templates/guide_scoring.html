@@ -4,10 +4,12 @@
 <div class="head">
   <div><p class="eyebrow">Handbook</p>
     <h1>How you are scored</h1>
-    <p>100 points across six pillars. Every measure is marked against fixed,
-    published targets &mdash; not against the other teams &mdash; so every team in
-    the room can score well. Market share is the only measure that depends on
-    your rivals.</p></div>
+    <p>100 points across six pillars. Most measures are marked against fixed,
+    published targets, so every team in the room can score well on them. Two
+    depend on your rivals: market share, and profitability, where the best team
+    in the room sets full marks{% if rules_from > 1 %} from month {{ rules_from }}{% endif %}.
+    Decision quality is earned every month from the decisions you take and your
+    board memo.</p></div>
   <div class="cta"><a class="btn ghost" href="{{ url_for('handbook') }}">Decision handbook</a></div>
 </div>
 
@@ -86,9 +88,10 @@ they stand at the end</b>.</p>
     <p>Runway is a band, not &ldquo;most wins&rdquo;: more than 9 months of
     idle cash scores less than 3 to 9 months. Running out scores nothing on the
     whole cash pillar.</p></div>
-  <div><h3>Ignoring the memo</h3>
-    <p>Decision quality is your instructor's judgement of your board memos:
-    what you decided, why, and the number that will prove you right.</p></div>
+  <div><h3>Coasting</h3>
+    <p>Leaving the levers alone keeps last month's settings, but it earns no
+    decision-quality marks: those come from decisions you take - a change, or a
+    ticked Keep - and a board memo that says what you decided and why.</p></div>
 </div>
 </section>
 {% endblock %}

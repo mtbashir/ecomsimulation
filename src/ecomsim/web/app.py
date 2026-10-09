@@ -16,7 +16,7 @@ from flask import (
     request, send_file, session, url_for,
 )
 
-from .. import founding
+from .. import founding, version
 from .. import charts
 from .. import targeting
 from ..decisions import REGISTRY
@@ -170,8 +170,12 @@ def create_app(database: str | Path | None = None) -> Flask:
 
     @app.context_processor
     def _inject():
-        return {"game": db.game(g.db), "user": session.get("user"),
-                "role": session.get("role"), "group_names": GROUP_NAMES}
+        out = {"game": db.game(g.db), "user": session.get("user"),
+               "role": session.get("role"), "group_names": GROUP_NAMES}
+        if session.get("role") == "admin":
+            # Which engine and rules this game runs on, on every admin page.
+            out["engine_label"] = version.rules_label(db.rules_from(g.db))
+        return out
 
     register_routes(app)
     return app
@@ -237,6 +241,18 @@ def login_required(role: str | None = None):
     return deco
 
 
+def _shares_changed(raw: dict, shown: dict) -> bool:
+    """Whether a submitted mix differs from the one the form showed."""
+    for key, typed in raw.items():
+        try:
+            got = float(str(typed).replace("%", "").strip() or 0) / 100
+        except ValueError:
+            return True
+        if abs(got - float(shown.get(key, 0.0) or 0.0)) > 0.005:
+            return True
+    return False
+
+
 def _endpoint_role(app: Flask, path: str) -> str | None:
     """The role a path demands, or None if it is open to any signed-in user."""
     try:
@@ -292,7 +308,7 @@ def register_routes(app: Flask) -> None:
             return {"nav_at": request.endpoint, "open_count": 0, "theme": theme,
                     "themes": db.THEMES}
         game = db.game(g.db)
-        count = len(service.open_decisions(g.db, game["open_round"])) \
+        count = len(service.form_decisions(g.db, game["open_round"])) \
             if game["open_round"] else 0
         record = db.founding(g.db, session["team_id"])
         brand = (record or {}).get("config", {}).get("brand_name")
@@ -457,7 +473,8 @@ def register_routes(app: Flask) -> None:
         """The published scorecard: pillars, measures and anchors, rendered
         from the table the engine scores against."""
         from ..scoring import published
-        return render_template("guide_scoring.html", pillars=published())
+        rf = db.rules_from(g.db)
+        return render_template("guide_scoring.html", pillars=published(rf), rules_from=rf)
 
     @app.get("/campaigns")
     @login_required("team")
@@ -664,11 +681,10 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("home"))
 
         tid = session["team_id"]
-        specs = service.open_decisions(g.db, rnd)
         # Discounting is set per product in the range grid now, so the single
         # site-wide lever no longer gets a tile of its own. The engine still
         # reads it - it is what the file runner and the archetypes use.
-        specs = [s for s in specs if s.code != "2.2"]
+        specs = service.form_decisions(g.db, rnd)
         # 12.1 keeps its tile - it is a decision, and the red bar has to say
         # whether it was taken - but the tile is a link to the research desk,
         # so the form carries no field for it and must not be able to clear it.
@@ -679,6 +695,10 @@ def register_routes(app: Flask) -> None:
                                   tuple(int(p) for p in s.code.split("."))))
         current = db.submission(g.db, rnd, tid) or {}
         previous = db.submission(g.db, rnd - 1, tid) or {}
+        # Rules v2: what each lever runs on if left alone (last month's
+        # setting). Empty before v2, when a blank lever runs on its default.
+        standing = service.standing_values(g.db, tid, rnd)
+        keeps = rnd >= db.rules_from(g.db)
         params = service.load_params(g.db)
         # Readable choices for every lever backed by a reference table, so the
         # form can offer names and prices instead of codes.
@@ -725,6 +745,12 @@ def register_routes(app: Flask) -> None:
                            for o in catalogues.get(spec.code, [])}
                     if not any(v.strip() for v in raw.values()):
                         raw = None
+                    elif spec.code not in current and not _shares_changed(
+                            raw, standing.get(spec.code)
+                            or service.default_shares(params, spec.catalogue)):
+                        # The boxes arrive filled in; re-sending the mix already
+                        # running is not a decision the team took.
+                        raw = None
                 elif spec.code in service.LIST_DECISIONS:
                     raw = request.form.getlist(spec.code)
                 else:
@@ -748,6 +774,12 @@ def register_routes(app: Flask) -> None:
                 for code in ELSEWHERE:
                     if current.get(code):
                         values[code] = current[code]
+                # A ticked "keep" records last month's setting as this month's
+                # decision - it runs the same either way, but it counts.
+                for spec in specs:
+                    if (keeps and spec.code not in values and spec.code in standing
+                            and request.form.get(f"keep_{spec.code}")):
+                        values[spec.code] = standing[spec.code]
                 db.submit(g.db, rnd, tid, values, session["user"])
                 with g.db:
                     db.log(g.db, session["user"], "submit", f"r{rnd}: {len(values)} decisions")
@@ -765,16 +797,24 @@ def register_routes(app: Flask) -> None:
                                              catalogues.get(s.code))
             for s in specs
         }
-        taken = sum(1 for s in specs if s.code in current)
+        counted = [s for s in specs if s.code != "12.5"]   # the memo has its own marks
+        taken = sum(1 for s in counted if s.code in current)
+        kept = {s.code: service.decision_summary(s, standing[s.code], catalogues.get(s.code))
+                for s in specs if s.code in standing}
         return render_template(
             "submit.html", round=rnd, by_group=by_group,
             current=current, previous=previous, catalogues=catalogues,
             default_shares={s.code: service.default_shares(params, s.catalogue)
                             for s in specs if s.kind == "shares"},
+            # What "leave it" means, named: last month's setting under rules
+            # v2, the default before.
             standing={s.code: service.standing_choice(
-                          s, previous, catalogues.get(s.code, []))
+                          s, standing if keeps else {}, catalogues.get(s.code, []))
                       for s in specs if s.kind == "select"},
+            carried=standing,
             shelf=shelf, summaries=summaries, taken=taken,
+            counted=len(counted), target=-(-len(counted) * 3 // 4),
+            keeps=keeps, kept=kept,
             campaigns_open=any(s.code == targeting.DECISION for s in specs),
             standing_campaigns=(
                 "carried forward: " + (service.campaign_summary(
@@ -1067,10 +1107,19 @@ def register_routes(app: Flask) -> None:
         html = service.instructor_console(
             g.db, round_,
             workbook_url=lambda team: url_for("results_admin_xlsx", team=team, round_=round_),
-            workbooks_zip=url_for("admin_workbooks", round_=round_))
+            workbooks_zip=url_for("admin_workbooks", round_=round_),
+            memo_url=lambda team, rnd: url_for("admin_memo", round_=rnd, team=team))
         if html is None:
             abort(404)
         return Response(html, mimetype="text/html")
+
+    @app.post("/admin/memo/<int:round_>/<team>")
+    @login_required("admin")
+    def admin_memo(round_, team):
+        """The instructor's verdict on a team's memo: does it match the month?"""
+        db.set_memo_review(g.db, round_, team, request.form.get("ok") == "1",
+                           session["user"])
+        return redirect(url_for("admin_console", round_=round_) + f"#{team}")
 
     @app.route("/admin/workbooks/<int:round_>.zip")
     @login_required("admin")

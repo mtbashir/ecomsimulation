@@ -89,6 +89,15 @@ CREATE TABLE IF NOT EXISTS round_log (
   note        TEXT
 );
 
+-- The instructor's verdict on a board memo. Absent means a written memo
+-- counts; ok = 0 means the instructor judged it does not match the month.
+CREATE TABLE IF NOT EXISTS memo_review (
+  round     INTEGER NOT NULL,
+  team_id   TEXT    NOT NULL,
+  ok        INTEGER NOT NULL,
+  PRIMARY KEY (round, team_id)
+);
+
 CREATE TABLE IF NOT EXISTS audit (
   id      INTEGER PRIMARY KEY,
   at      TEXT NOT NULL,
@@ -125,10 +134,15 @@ def migrate(con) -> None:
         ("account", "briefing_seen_at", "TEXT"),
         ("account", "theme", "TEXT"),
         ("game", "epoch", "INTEGER NOT NULL DEFAULT 0"),
+        ("game", "rules_from", "INTEGER"),
     ]:
         have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
         if column not in have:
             con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+    # A game already under way when the rules changed keeps the months it has
+    # played on the rules it played them under; the new ones start next month.
+    con.execute("UPDATE game SET rules_from = CASE WHEN round >= 1 THEN round + 1 "
+                "ELSE 1 END WHERE rules_from IS NULL")
 
 
 def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
@@ -143,7 +157,7 @@ def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
         con.execute(
             "INSERT OR REPLACE INTO game "
             "(id, name, preset, round, total_rounds, open_round, start_mode, "
-            "created_at) VALUES (1, ?, ?, 0, ?, NULL, ?, ?)",
+            "rules_from, created_at) VALUES (1, ?, ?, 0, ?, NULL, ?, 1, ?)",
             (name, preset, rounds, start_mode, _now()))
         con.execute(
             "INSERT OR REPLACE INTO account "
@@ -306,6 +320,38 @@ WORDS = ["indus", "ravi", "chenab", "jhelum", "sutlej", "hunza", "swat", "bolan"
 
 def game(con) -> sqlite3.Row:
     return con.execute("SELECT * FROM game WHERE id = 1").fetchone()
+
+
+def rules_from(con) -> int:
+    """The first month this game runs on the current rules (1 for a new game).
+
+    An archived game opened read-only may predate the column: every month it
+    played was on the old rules, so the new ones start after its last month.
+    """
+    row = game(con)
+    if row is None:
+        return 1
+    if "rules_from" in row.keys() and row["rules_from"] is not None:
+        return int(row["rules_from"])
+    return int(row["round"]) + 1 if int(row["round"]) >= 1 else 1
+
+
+def memo_rejected(con) -> set[tuple[str, int]]:
+    """(team, month) memos the instructor judged do not match the decisions."""
+    try:
+        rows = con.execute("SELECT team_id, round FROM memo_review WHERE ok = 0").fetchall()
+    except sqlite3.OperationalError:      # an archived game from before reviews
+        return set()
+    return {(r["team_id"], r["round"]) for r in rows}
+
+
+def set_memo_review(con, round_: int, team_id: str, ok: bool, actor: str = "admin") -> None:
+    with con:
+        con.execute(
+            "INSERT INTO memo_review (round, team_id, ok) VALUES (?, ?, ?) "
+            "ON CONFLICT (round, team_id) DO UPDATE SET ok = excluded.ok",
+            (round_, team_id, int(ok)))
+        log(con, actor, "memo.review", f"r{round_} {team_id}: {'counts' if ok else 'does not count'}")
 
 
 def set_game(con, **fields) -> None:

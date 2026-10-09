@@ -41,6 +41,9 @@ class TeamState:
     ux_score: float = 0.50
     # The tech stack chosen at founding caps how good the store can get.
     ux_ceiling: float = 0.75
+    # What each lever ran on last month, carried into this month for any lever
+    # the team leaves alone (rules v2). Empty before the first v2 month.
+    standing: dict = field(default_factory=dict)
     rating: float = 4.10
     nps: float = 24.0
 
@@ -121,4 +124,7 @@ class WorldState:
     market_spend: dict[str, float] = field(default_factory=dict)
     market_avg_price: float = 3_000.0
     market_avg_aov: float = 3_000.0
+    # The month this game's rules v2 start: 1 for a new game, the next month
+    # for a game already under way when the rules changed (see ecomsim.version).
+    rules_from: int = 1
     category_scale: float = 1.0

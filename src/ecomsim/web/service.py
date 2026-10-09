@@ -12,7 +12,7 @@ import json
 
 from dataclasses import asdict
 
-from .. import (bootstrap, console, founding as founding_mod, params as P,
+from .. import (bootstrap, console, founding as founding_mod, params as P, version,
                 report, scoring, targeting)
 from ..decisions import REGISTRY, Resolver
 from ..engine import run_round
@@ -47,6 +47,14 @@ def open_decisions(con, round_: int) -> list:
         if manual.get(code, by_preset):
             out.append(spec)
     return sorted(out, key=_reading_order)
+
+
+def form_decisions(con, round_: int) -> list:
+    """The decisions a team sees on its form this month - and so the ones
+    decision quality counts. The site-wide discount (2.2) has no tile: it is
+    set product by product in the range grid, and the engine still reads it
+    for the file runner and the scripted strategies."""
+    return [s for s in open_decisions(con, round_) if s.code != "2.2"]
 
 
 def _reading_order(spec):
@@ -524,6 +532,11 @@ def monthly_catalogue(con, team_id: str, current: dict) -> list[dict]:
     record = db.founding(con, team_id)
     world = db.load_world(con)
     grid = current.get("1.1") or {}
+    # Rules v2: a line the team does not touch this month keeps last month's
+    # price, discount and sourcing, so that is what the grid starts from.
+    g_ = db.game(con)
+    rnd = g_["open_round"] or (g_["round"] + 1)
+    carried = standing_values(con, team_id, rnd).get("1.1") or {}
 
     if record is not None:
         f = founding_from_dict(record["config"], params)
@@ -546,12 +559,14 @@ def monthly_catalogue(con, team_id: str, current: dict) -> list[dict]:
     for code in active:
         sku = params.sku(code)
         founded = founding_mod.sourcing_of(f, code) if f else "mixed"
-        sourcing = (grid.get(code) or {}).get("sourcing") or founded
+        cell, held = grid.get(code) or {}, carried.get(code) or {}
+        sourcing = cell.get("sourcing") or held.get("sourcing") or founded
         cost = founding_mod.unit_cost(sku, sourcing, tier, params, supplier)
-        standing = ((f.prices or {}).get(code) if f else None) \
-            or founding_mod.reference_price(sku, tier)
-        price = float((grid.get(code) or {}).get("price") or standing)
-        discount = float((grid.get(code) or {}).get("discount") or 0.0)
+        standing = float(held.get("price") or ((f.prices or {}).get(code) if f else None)
+                         or founding_mod.reference_price(sku, tier))
+        price = float(cell.get("price") or standing)
+        discount = float(cell["discount"] if cell.get("discount") is not None
+                         else held.get("discount") or 0.0)
         net = price * (1 - discount)
         rows.append({
             "code": code, "name": sku["name"], "category": sku["category"],
@@ -694,9 +709,16 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
 
     submitted = db.submissions(con, nxt)
     n_submitted = len(submitted)   # before standing campaigns are carried in
-    for team_id in world.teams:
-        _carry_campaigns(con, submitted, team_id, nxt)
-    run_round(world, params, submitted, preset=g["preset"])
+    world.rules_from = db.rules_from(con)
+    if nxt < world.rules_from:
+        # Rules v1: only campaigns carry; every other lever left blank runs
+        # on its default, as the months already played did.
+        for team_id in world.teams:
+            _carry_campaigns(con, submitted, team_id, nxt)
+    else:
+        _seed_standing(con, world, g["preset"], nxt)
+    run_round(world, params, submitted, preset=g["preset"],
+              open_codes=[s.code for s in form_decisions(con, nxt)])
 
     db.save_round(con, nxt, world, params.config_hash())
     db.set_game(con, round=nxt, open_round=None)
@@ -706,11 +728,53 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
 
     if out_dir is not None:
         for team in world.teams.values():
-            card = scoring.final_score(team, params, world.teams) if nxt >= 2 else None
+            card = (scoring.final_score(team, params, world.teams, db.memo_rejected(con))
+                    if nxt >= 2 else None)
             report.render(team, nxt, out_dir / f"round_{nxt}", card)
         console.render(world, params, out_dir / f"round_{nxt}")
 
     return {"round": nxt, "submitted": n_submitted, "teams": len(world.teams)}
+
+
+def _seed_standing(con, world, preset: str, nxt: int) -> None:
+    """The first rules-v2 month of a game already under way: carry forward
+    what actually ran last month - last month's submission, campaigns carried
+    as they were, every other lever it left blank on its default."""
+    from ..engine import NOT_CARRIED
+    if nxt <= 1:
+        return
+    resolver = Resolver(preset=preset, round_=nxt - 1)
+    for team_id, team in world.teams.items():
+        if getattr(team, "standing", None):
+            continue
+        last = dict(db.submission(con, nxt - 1, team_id) or {})
+        holder = {team_id: last}
+        _carry_campaigns(con, holder, team_id, nxt - 1)
+        ran = resolver.resolve(holder[team_id])
+        team.standing = {k: v for k, v in ran.items() if k not in NOT_CARRIED}
+
+
+def standing_values(con, team_id: str, round_: int) -> dict:
+    """What each lever will run on this month if the team leaves it alone.
+
+    Under rules v2 that is last month's setting; before, the default. The
+    form shows it, and a "keep" tick submits it as this month's decision.
+    """
+    from ..engine import NOT_CARRIED
+    if round_ < db.rules_from(con):
+        return {}
+    world = db.load_world(con)
+    team = world.teams.get(team_id) if world is not None else None
+    if team is not None and getattr(team, "standing", None):
+        return dict(team.standing)
+    if round_ <= 1:
+        return {}
+    g = db.game(con)
+    last = dict(db.submission(con, round_ - 1, team_id) or {})
+    holder = {team_id: last}
+    _carry_campaigns(con, holder, team_id, round_ - 1)
+    ran = Resolver(preset=g["preset"], round_=round_ - 1).resolve(holder[team_id])
+    return {k: v for k, v in ran.items() if k not in NOT_CARRIED}
 
 
 def standing_campaigns(con, team_id: str, round_: int):
@@ -1024,7 +1088,8 @@ def team_report(con, team_id: str, round_: int, download: str | None = None) -> 
     brand = (db.founding(con, team_id) or {}).get("config", {}).get("brand_name")
     if brand and brand != "Unnamed":
         team.brand_name = brand
-    card = scoring.final_score(team, params, world.teams) if round_ >= 2 else None
+    card = (scoring.final_score(team, params, world.teams, db.memo_rejected(con))
+            if round_ >= 2 else None)
     with tempfile.TemporaryDirectory() as tmp:
         return report.render(team, round_, Path(tmp), card,
                              download=download).read_text(encoding="utf-8")
@@ -1050,7 +1115,7 @@ def team_workbook(con, team_id: str, round_: int) -> tuple[bytes, str] | None:
 
 
 def instructor_console(con, round_: int, workbook_url=None,
-                       workbooks_zip: str | None = None) -> str | None:
+                       workbooks_zip: str | None = None, memo_url=None) -> str | None:
     world = db.load_world(con, round_)
     if world is None:
         return None
@@ -1063,7 +1128,10 @@ def instructor_console(con, round_: int, workbook_url=None,
         return console.render(world, load_params(con), Path(tmp),
                               submissions=submitted, open_codes=open_codes,
                               workbook_url=workbook_url,
-                              workbooks_zip=workbooks_zip).read_text(encoding="utf-8")
+                              workbooks_zip=workbooks_zip,
+                              memo_rejected=db.memo_rejected(con), memo_url=memo_url,
+                              footer=version.rules_label(db.rules_from(con))
+                              ).read_text(encoding="utf-8")
 
 
 def all_workbooks(con, round_: int) -> bytes | None:
@@ -1596,11 +1664,12 @@ def final_table(con) -> list[dict]:
     brands = {tid: (rec.get("config") or {}).get("brand_name")
               for tid, rec in db.foundings(con).items()}
     names = {r["team_id"]: r["display_name"] for r in db.accounts(con, "team")}
+    rejected = db.memo_rejected(con)
     rows = []
     for tid, team in world.teams.items():
         h = team.history[-1] if team.history else {}
         brand = brands.get(tid)
-        score = (scoring.final_score(team, params, world.teams)
+        score = (scoring.final_score(team, params, world.teams, rejected)
                  if len(team.history) >= 2 else None)
         rows.append({
             "team_id": tid, "team": names.get(tid, tid),

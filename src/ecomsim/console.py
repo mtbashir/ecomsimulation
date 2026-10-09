@@ -97,10 +97,12 @@ def _targeting(ranked, params, name_of) -> str:
 
 def render(world, params, out_dir: str | Path, submissions: dict | None = None,
            open_codes: list[str] | None = None, workbook_url=None,
-           workbooks_zip: str | None = None) -> Path:
+           workbooks_zip: str | None = None, memo_rejected: set | None = None,
+           memo_url=None, footer: str = "") -> Path:
     round_ = world.round
     teams = list(world.teams.values())
-    cards = {t.team_id: scoring.final_score(t, params, world.teams) for t in teams}
+    cards = {t.team_id: scoring.final_score(t, params, world.teams, memo_rejected)
+             for t in teams}
     ranked = sorted(teams, key=lambda t: -cards[t.team_id]["total"])
 
     def name_of(t):
@@ -186,6 +188,7 @@ font-variant-numeric:tabular-nums}}
 padding:8px 10px;border-radius:5px;margin:0 0 12px;font-size:13px;color:#52514e}}
 .flag.crit{{background:rgba(208,59,59,.12);border-left-color:#d03b3b}}
 details{{margin-top:12px}} summary{{cursor:pointer;font-size:13px;color:#52514e}}
+.ver{{margin-top:26px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px}}
 .wbks{{display:flex;flex-wrap:wrap;gap:8px}}
 .wbk{{display:inline-block;padding:6px 11px;border:1px solid #d6d5ce;border-radius:7px;
 background:#fff;color:#2a78d6;font-size:13px;font-weight:600;text-decoration:none}}
@@ -212,7 +215,8 @@ table.t th,table.t td{{border-color:#2c2c2a}} table.t thead th{{color:#c3c2b7}}
 <h1>Round {round_}</h1>
 <p class="sub">Instructor console &middot; {len(teams)} teams &middot;
 config {params.config_hash()}</p>
-{downloads}{board}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags, workbook_url)}{watch}{_targeting(ranked, params, name_of)}
+{downloads}{board}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags, workbook_url, memo_rejected, memo_url)}{watch}{_targeting(ranked, params, name_of)}
+{f'<p class="note ver">{escape(footer)}</p>' if footer else ''}
 </div></body></html>"""
 
     out = Path(out_dir) / f"console_r{round_}.html"

@@ -13,6 +13,28 @@ Six pillars, 100 points, weights published to students before Round 0.
 
 ---
 
+## Rules v2 (engine 2.0.0)
+
+Adopted mid-semester in the first live cohort, after a team that never changed
+a default led the table at month 2 while three teams sat on full profitability
+marks. Each game records the month v2 starts (`game.rules_from`): 1 for a new
+game, the next month for a game already under way. A month carries the rules
+it ran under in its own record, so months played before the switch score
+exactly as they were published and are never recalculated.
+
+| | Rules v1 | Rules v2 |
+|---|---|---|
+| P1 Profitability | Fixed thresholds per measure | Each margin as a share of the best team's over the same months; best = full points; a negative margin earns 0; if no team is positive, the fixed thresholds |
+| P6 Decision quality | Held at 5/10 | Per month: 8 × min(1, decisions taken ÷ (¾ × decisions open)) + 2 for a board memo the instructor has not rejected; months weighted as other flow measures |
+| A lever left blank | Runs on its default | Keeps last month's setting (price grid line by line); a ticked Keep records it as a decision |
+
+Decisions open are those the form shows that month, the memo excluded (it has
+its own 2 marks). Not carried: research (12.1), the memo (12.5), a manual stock
+order (7.1) and AI investments (11.x) - one-off purchases, not standing
+settings. In a game that switched, P1 is the fixed-threshold P1 on the v1
+months and the relative P1 on the v2 months, weighted by the months' round
+weights; P6 is 5 for each v1 month.
+
 ## Two structural decisions
 
 ### 1. Criterion-referenced, not norm-referenced

@@ -1,11 +1,14 @@
 """End-of-game scorecard (docs/08-scoring.md).
 
 Flow metrics are weighted by round, w[t] = t / sum(1..T), so Round 12 carries
-~15% and Round 1 ~1.3%. Stock metrics are read terminally. Every anchor is
-criterion-referenced; market share is the sole relative metric.
+~15% and Round 1 ~1.3%. Stock metrics are read terminally.
 
-P6 (decision quality) is memo- and prediction-based and cannot be scored in a
-scripted harness; it is held at 50/100 for every team here.
+Two rule sets (ecomsim.version). Under rules v1 every anchor is
+criterion-referenced, market share is the sole relative metric, and decision
+quality is held at 5 of 10. Under rules v2 profitability is marked against the
+best team in the room and decision quality is earned from decisions taken and
+the board memo. Each month carries the rules it ran under, so a game that
+switched mid-semester scores its early months exactly as they were published.
 """
 from __future__ import annotations
 
@@ -70,8 +73,19 @@ RUNWAY_BAND = ("under 1.5 months scores nothing; 1.5–3 months 30%; "
                "Too much idle cash is marked down like too little.")
 
 
-def published() -> list[tuple]:
-    """(pillar, points, summary, [(measure, points, where the marks are)]) for pages."""
+RELATIVE = ("Against the best team in the room: the best earns full marks, every "
+            "other team the same share as its margin is of the best's (a negative "
+            "margin earns nothing)")
+
+
+def published(rules_from: int = 1) -> list[tuple]:
+    """(pillar, points, summary, [(measure, points, where the marks are)]) for pages.
+
+    `rules_from` is the month this game's rules v2 start: profitability and
+    decision quality are described as they are marked from then, with the
+    earlier months' rule alongside when the game switched mid-run.
+    """
+    early = f"months 1–{rules_from - 1}" if rules_from > 1 else ""
     out = []
     for name, pts, summary, measures in SCORECARD:
         rows = []
@@ -83,7 +97,24 @@ def published() -> list[tuple]:
                 where = f"{z} scores nothing, {f} half, {h} full"
                 if a[2] < a[0]:
                     where += " (lower is better)"
+            if name == "Profitability":
+                fixed = where
+                where = RELATIVE + (f". For {early}: {fixed}" if early else "")
             rows.append((label, mpts, where))
+        if name == "Profitability":
+            summary = ("Margins over the run, weighted by each month's revenue, marked "
+                       "against the best team in the room.")
+        if name == "Decision quality":
+            summary = ("Earned every month from the decisions you take and your board memo"
+                       + (f"; {early} are held at 5 of 10 for every team." if early else "."))
+            rows = [("Decisions taken", 8,
+                     f"Full marks for taking {int(KEEP_SHARE * 100)}% of the decisions open "
+                     "that month - changing a lever, or ticking Keep to confirm last month's "
+                     "setting - and in proportion below"),
+                    ("Board memo", 2,
+                     "2 points when your memo says what you decided this month and why; "
+                     "0 if there is none, or if your instructor judges it does not match "
+                     "your decisions")]
         out.append((name, pts, summary, rows))
     return out
 
@@ -130,17 +161,83 @@ def _share(history: list[dict], key: str, base: str) -> float:
     return sum(h[base] * h[key] for h in history) / total
 
 
-def final_score(team, params, all_teams: dict) -> dict:
+PROFIT = (("cm_pre", "contribution_pre_marketing_pct"), ("ebitda", "ebitda_margin_pct"),
+          ("gm", "gross_margin_pct"))
+KEEP_SHARE = 0.75        # rules v2: full decision marks at three-quarters of those open
+
+
+def _v2(record: dict) -> bool:
+    """Whether a month ran on rules v2. A month recorded earlier did not."""
+    return int(record.get("rules", 1) or 1) >= 2
+
+
+def _profit_fixed(months: list[dict]) -> float:
+    """Rules v1: margins against the published thresholds."""
+    return sum(_mark(key, _margin(months, field)) for key, field in PROFIT) / 100
+
+
+def _profit_relative(team, all_teams: dict, idx: list[int]) -> float:
+    """Rules v2: each margin as a share of the best team's over the same months.
+
+    The best team earns the measure's full points and every other team the
+    same fraction of them as its margin is of the best: 10% against a best of
+    40% earns a quarter. A negative margin earns nothing. If no team made a
+    positive margin there is no best to measure against, and the measure falls
+    back to its published thresholds.
+    """
+    def margins(t):
+        months = [t.history[i] for i in idx if i < len(t.history)]
+        return {key: _margin(months, field) for key, field in PROFIT} if months else None
+
+    own = margins(team)
+    peers = [m for m in (margins(t) for t in (all_teams or {}).values()) if m] + [own]
+    total = 0.0
+    for key, _ in PROFIT:
+        pts = _ANCHORS[key][0]
+        best = max(m[key] for m in peers)
+        if best > 0:
+            total += pts * max(0.0, own[key]) / best
+        else:
+            total += _mark(key, own[key]) / 100
+    return total
+
+
+def _decision_quality(team, record: dict, rejected: set) -> float:
+    """Decision quality for one month, out of 10.
+
+    Rules v1 held it at 5 for everyone. Rules v2: 8 for decisions taken - full
+    marks at three-quarters of the decisions open that month, in proportion
+    below - and 2 for a board memo, unless the instructor judged it does not
+    match the month's decisions.
+    """
+    if not _v2(record):
+        return 5.0
+    d = record.get("decisions") or {}
+    open_ = float(d.get("open") or 0)
+    taken = min(1.0, float(d.get("taken") or 0) / (KEEP_SHARE * open_)) if open_ else 0.0
+    key = (getattr(team, "team_id", ""), int(record.get("round", 0)))
+    memo = 2.0 if d.get("memo") and key not in rejected else 0.0
+    return 8.0 * taken + memo
+
+
+def final_score(team, params, all_teams: dict, memo_rejected: set | None = None) -> dict:
     h = team.history
     T = len(h)
     w = _weights(T)
     first, last = h[0], h[-1]
     insolvent = any(x["insolvent"] for x in h)
 
-    # P1 Profitability (25) - all flow
-    p1 = (_mark("cm_pre", _margin(h, "contribution_pre_marketing_pct"))
-          + _mark("ebitda", _margin(h, "ebitda_margin_pct"))
-          + _mark("gm", _margin(h, "gross_margin_pct"))) / 100
+    # P1 Profitability (25) - all flow. Each month is marked on the rules it
+    # ran under: months before rules v2 against the fixed thresholds, months
+    # from v2 against the best team; the two parts weighted as the months are.
+    new = [i for i, x in enumerate(h) if _v2(x)]
+    old = [i for i in range(T) if i not in new]
+    if not new:
+        p1 = _profit_fixed(h)
+    else:
+        w_old = sum(w[i] for i in old)
+        p1 = ((w_old * _profit_fixed([h[i] for i in old]) if old else 0.0)
+              + (1 - w_old) * _profit_relative(team, all_teams, new))
 
     # P2 Growth (20)
     # Revenue multiple is where the business ended against where it started,
@@ -207,8 +304,10 @@ def final_score(team, params, all_teams: dict) -> dict:
                                 + _mark("free_cash", free_cash)
                                 + _mark("net_margin", ccc)) / 100
 
-    # P6 Decision quality (10) - not scorable in a scripted harness
-    p6 = 10 * 0.5
+    # P6 Decision quality (10), month by month on the rules each month ran
+    # under, weighted as the other flow measures are.
+    rejected = memo_rejected or set()
+    p6 = sum(w[i] * _decision_quality(team, x, rejected) for i, x in enumerate(h))
 
     total = p1 + p2 + p3 + p4 + p5 + p6
     return {"total": total, "p1": p1, "p2": p2, "p3": p3, "p4": p4, "p5": p5,

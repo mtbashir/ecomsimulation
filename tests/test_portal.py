@@ -504,8 +504,8 @@ def test_a_decision_not_taken_is_marked_and_counted(game):
     team = _team(app, pw)
 
     page = team.get("/submit").data.decode()
-    assert "changed this month" in page
-    assert "carried forward" in page, "an untouched lever says so on its face"
+    assert "decisions taken this month" in page
+    assert "keeps last month" in page, "an untouched lever says so on its face"
     assert page.count('class="tile set"') == 0, "nothing has been changed yet"
 
     team.post("/submit", data={"3.1": "750000"}, follow_redirects=True)
@@ -946,10 +946,24 @@ def test_scoring_guide_publishes_the_anchors_the_engine_uses(game):
     for _name, _pts, _s, rows in published():
         for label, _p, where in rows:
             assert label in page
-    assert "14% scores nothing, 24% half, 32% full" in page
+    # a new game is on rules v2 from month 1: profitability against the best team
+    assert "Against the best team in the room" in page
+    assert "92% scores nothing, 94% half, 95.8% full" in page   # delivery: still fixed
+    assert "Decisions taken" in page and "Board memo" in page
     brief = _team(app, pw).get("/brief").data.decode()
-    assert "14% scores nothing, 24% half, 32% full" in brief
+    assert "Against the best team in the room" in brief
     assert "0.8x scores nothing" not in brief          # the stale calibration
+
+
+def test_a_game_that_switched_rules_says_so(game):
+    from ecomsim.web import db as D
+    app, pw, path = game
+    con = _trading(app, path)
+    D.set_game(con, rules_from=3)
+    page = _team(app, pw).get("/guide/scoring").data.decode()
+    assert "from month 3" in page
+    assert "For months 1–2: 14% scores nothing, 24% half, 32% full" in page
+    assert "months 1–2 are held at 5 of 10" in page
 
 
 def test_price_grid_shows_last_months_product_results(game):
