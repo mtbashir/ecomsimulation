@@ -949,7 +949,9 @@ def test_scoring_guide_publishes_the_anchors_the_engine_uses(game):
     # a new game is on rules v2 from month 1: profitability against the best team
     assert "Against the best team in the room" in page
     assert "92% scores nothing, 94% half, 95.8% full" in page   # delivery: still fixed
-    assert "Decisions taken" in page and "Board memo" in page
+    # decision quality is described, not its arithmetic
+    assert "clear strategy" in page and "proper thinking behind it" in page
+    assert "of the decisions open" not in page and "in proportion below" not in page
     brief = _team(app, pw).get("/brief").data.decode()
     assert "Against the best team in the room" in brief
     assert "0.8x scores nothing" not in brief          # the stale calibration
@@ -963,7 +965,7 @@ def test_a_game_that_switched_rules_says_so(game):
     page = _team(app, pw).get("/guide/scoring").data.decode()
     assert "from month 3" in page
     assert "For months 1–2: 14% scores nothing, 24% half, 32% full" in page
-    assert "months 1–2 are held at 5 of 10" in page
+    assert "For months 1–2, every team is held at 5 of 10" in page
 
 
 def test_price_grid_shows_last_months_product_results(game):

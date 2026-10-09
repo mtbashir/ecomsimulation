@@ -105,16 +105,11 @@ def published(rules_from: int = 1) -> list[tuple]:
             summary = ("Margins over the run, weighted by each month's revenue, marked "
                        "against the best team in the room.")
         if name == "Decision quality":
-            summary = ("Earned every month from the decisions you take and your board memo"
-                       + (f"; {early} are held at 5 of 10 for every team." if early else "."))
-            rows = [("Decisions taken", 8,
-                     f"Full marks for taking {int(KEEP_SHARE * 100)}% of the decisions open "
-                     "that month - changing a lever, or ticking Keep to confirm last month's "
-                     "setting - and in proportion below"),
-                    ("Board memo", 2,
-                     "2 points when your memo says what you decided this month and why; "
-                     "0 if there is none, or if your instructor judges it does not match "
-                     "your decisions")]
+            summary = ("Based on the clear strategy your team has, and on taking each "
+                       "decision with proper thinking behind it. Your board memo is where "
+                       "you show that thinking: what you decided this month and why"
+                       + (f". For {early}, every team is held at 5 of 10." if early else "."))
+            rows = []
         out.append((name, pts, summary, rows))
     return out
 

@@ -813,7 +813,7 @@ def register_routes(app: Flask) -> None:
                       for s in specs if s.kind == "select"},
             carried=standing,
             shelf=shelf, summaries=summaries, taken=taken,
-            counted=len(counted), target=-(-len(counted) * 3 // 4),
+            counted=len(counted),
             keeps=keeps, kept=kept,
             campaigns_open=any(s.code == targeting.DECISION for s in specs),
             standing_campaigns=(

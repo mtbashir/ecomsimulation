@@ -5,9 +5,9 @@
   <div><h1>Month {{ round }} decisions</h1>
     {% if keeps %}
     <p>Every lever is optional. A lever you leave alone keeps last month's
-    setting. Decisions you take count towards decision quality: change a lever,
-    or tick <b>Keep</b> to confirm last month's setting as this month's
-    decision.</p>
+    setting. Look at each one against your strategy: change it, or tick
+    <b>Keep</b> when you have weighed it and last month's setting is still
+    right.</p>
     {% else %}
     <p>Every lever is optional. A lever you leave blank runs on its default
     this month, not on last month's setting.</p>
@@ -16,8 +16,7 @@
 
 <form method="post">
 <div class="tally">
-  <div><b class="num">{{ taken }}</b> of {{ counted }} decisions taken this month
-    {% if keeps %}<span class="note">&middot; full decision marks at {{ target }}</span>{% endif %}</div>
+  <div><b class="num">{{ taken }}</b> of {{ counted }} decisions taken this month</div>
   <div class="key"><span><i class="dot set"></i>taken</span>
     <span><i class="dot"></i>{{ 'keeps last month' if keeps else 'runs on default' }}</span></div>
   <div style="margin-left:auto;display:flex;gap:8px">
@@ -254,8 +253,7 @@
   {% if s.guide %}<div class="hint">{{ s.guide }}</div>{% endif %}
   {% if keeps and s.code in kept %}
   <label class="keep"><input type="checkbox" name="keep_{{ s.code }}" value="1">
-    Keep last month's setting{% if kept[s.code] %}: <b>{{ kept[s.code] }}</b>{% endif %}
-    <span class="note">&middot; counts as a decision</span></label>
+    Keep last month's setting{% if kept[s.code] %}: <b>{{ kept[s.code] }}</b>{% endif %}</label>
   {% endif %}
   {% if s.code in previous and s.kind != 'grid' %}
   <div class="hint">Last month:

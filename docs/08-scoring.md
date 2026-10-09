@@ -28,6 +28,13 @@ exactly as they were published and are never recalculated.
 | P6 Decision quality | Held at 5/10 | Per month: 8 × min(1, decisions taken ÷ (¾ × decisions open)) + 2 for a board memo the instructor has not rejected; months weighted as other flow measures |
 | A lever left blank | Runs on its default | Keeps last month's setting (price grid line by line); a ticked Keep records it as a decision |
 
+Teams see decision quality described, not its arithmetic: a clear strategy, and
+each decision taken with proper thinking behind it, shown in the board memo. The
+form counts the decisions a team has taken but never says how many earn full
+marks; the threshold and each month's tally are on the instructor console only.
+Partial coverage is proportional: with 32 decisions open (full marks at 24),
+16 taken earns 5.3 of 8, 11 earns 3.7, 8 earns 2.7.
+
 Decisions open are those the form shows that month, the memo excluded (it has
 its own 2 marks). Not carried: research (12.1), the memo (12.5), a manual stock
 order (7.1) and AI investments (11.x) - one-off purchases, not standing
