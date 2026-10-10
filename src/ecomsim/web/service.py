@@ -668,6 +668,10 @@ def purchase_rows(con, team_id: str, current: dict, standing: dict | None = None
         "supplier": supplier["name"], "moq": float(supplier["moq_units"]),
         "month": len(team.history) if team is not None else 0,
         "has_stock": bool(stock),
+        # Stock of products outside the range: counted in units in stock,
+        # never sellable.
+        "outside": sum(r["close"] for code, r in stock.items()
+                       if code not in {line["code"] for line in shelf}),
     }
 
 
@@ -761,6 +765,57 @@ def params_sku_price(code: str) -> float:
 _SKU_PRICES: dict[str, float] | None = None
 
 
+OFF_RANGE = "off_range"
+
+
+def off_range_stock(con) -> dict:
+    """Stock each team holds of products outside its range, and its refund.
+
+    Every founded team in a game that started before the launch order received
+    the going-concern template's opening order, which carried the default
+    catalogue's products whatever range the team chose. Those it does not sell
+    can never sell. The refund is what the order charged for them: catalogue
+    cost at the standard supplier, the price every team paid.
+    """
+    world = db.load_world(con)
+    g = db.game(con)
+    nxt = g["round"] + 1
+    if world is None:
+        return {"teams": [], "round": nxt, "scheduled": {}}
+    params = load_params(con)
+    base = next(sp for sp in params.suppliers if sp["code"] == "B")
+    names = {r["team_id"]: r["display_name"] for r in db.accounts(con, "team")}
+    teams = []
+    for tid, team in sorted(world.teams.items()):
+        rng = set(team.active_skus or [])
+        lines = []
+        for code, units in sorted(team.inventory.items()):
+            if code in rng or units < 0.5:
+                continue
+            sku = params.sku(code)
+            refund = (units * float(sku["unit_cost"]) * float(base["cost_index"])
+                      * params["cogs_scale"])
+            lines.append({"sku": code, "name": sku["name"], "units": units,
+                          "refund": refund})
+        if lines:
+            teams.append({"team_id": tid, "name": names.get(tid, tid), "lines": lines,
+                          "units": sum(l["units"] for l in lines),
+                          "refund": sum(l["refund"] for l in lines)})
+    return {"teams": teams, "round": nxt,
+            "scheduled": db.stock_returns(con, nxt, OFF_RANGE)}
+
+
+def schedule_off_range_returns(con, actor: str = "admin") -> dict:
+    """Send every team's off-range stock back for a full refund next month."""
+    held = off_range_stock(con)
+    rows = [{"team_id": t["team_id"], "sku": l["sku"], "units": l["units"],
+             "refund": l["refund"], "fee": 0.0}
+            for t in held["teams"] for l in t["lines"]]
+    if rows:
+        db.schedule_returns(con, held["round"], rows, OFF_RANGE, actor)
+    return held
+
+
 def first_world(con, params, g):
     """The world as it stands before month 1: every team as it was set up."""
     world = bootstrap.new_world(
@@ -849,6 +904,9 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
             _carry_campaigns(con, submitted, team_id, nxt)
     else:
         _seed_standing(con, world, g["preset"], nxt)
+    for team_id, plan in db.stock_returns(con, nxt).items():
+        if team_id in world.teams:
+            world.teams[team_id].stock_returns = plan
     run_round(world, params, submitted, preset=g["preset"],
               open_codes=[s.code for s in form_decisions(con, nxt)])
 

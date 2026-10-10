@@ -64,7 +64,11 @@ def run(world, params, resolved, ctx) -> None:
         )
 
         opening = team.cash
-        team.cash += inflow - outflow
+        # Stock returned to the supplier this month (M3) is refunded in cash.
+        # It is money back, not money the business made, so it is kept out of
+        # receipts and out of operating cash flow below.
+        refund = ctx.get("supplier_refund", {}).get(tid, 0.0)
+        team.cash += inflow - outflow + refund
 
         draw = 0.0
         if team.cash < 0:
@@ -82,6 +86,7 @@ def run(world, params, resolved, ctx) -> None:
                          - ctx.get("capex", {}).get(tid, 0.0),
             "interest": pnl["interest"],
             "capex": ctx.get("capex", {}).get(tid, 0.0),
+            "supplier_refund": refund,
             "credit_draw": draw, "closing": team.cash,
             "purchases_ordered": po_cost,
             "owed_to_suppliers": sum(team.payables.values()),

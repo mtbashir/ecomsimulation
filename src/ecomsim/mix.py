@@ -373,14 +373,20 @@ def landed_unit_cost(team, params, ctx, code: str) -> float:
 def stock_lines(team, params, ctx, round_: int) -> list[dict]:
     """Each product's stock movement this month.
 
-    Opening + received + back from failed deliveries - sold = closing, which
-    holds exactly: nothing else moves stock. On order is everything bought and
-    not yet landed, this month's purchase included.
+    Opening + received + back from failed deliveries - sold - returned to the
+    supplier = closing, which holds exactly: nothing else moves stock. On order
+    is everything bought and not yet landed, this month's purchase included.
     """
     tid = team.team_id
     moves = ctx.get("stock_moves", {}).get(tid) or {}
     sales = ctx.get("sku_sales", {}).get(tid) or {}
-    codes = list(dict.fromkeys(active(team, params) + list(team.inventory)))
+    # The range, plus any other product with stock or a movement this month -
+    # stock outside the range stays listed until it has gone.
+    moved = {c for kind in ("open", "received", "returned", "to_supplier")
+             for c, u in (moves.get(kind) or {}).items() if u > 0.5}
+    codes = list(dict.fromkeys(
+        active(team, params)
+        + [c for c, u in team.inventory.items() if u > 0.5 or c in moved]))
     pending = getattr(team, "_pending_rto_units", None) or {}
     rows = []
     for c in codes:
@@ -398,6 +404,7 @@ def stock_lines(team, params, ctx, round_: int) -> list[dict]:
             "open": moves.get("open", {}).get(c, 0.0),
             "received": moves.get("received", {}).get(c, 0.0),
             "returned": moves.get("returned", {}).get(c, 0.0),
+            "to_supplier": moves.get("to_supplier", {}).get(c, 0.0),
             "sold": sold, "wanted": sales.get(c, {}).get("want", sold),
             "close": close, "ordered": ordered, "on_order": on_order,
             "next_arrival": arrives, "back_next_month": pending.get(c, 0.0),

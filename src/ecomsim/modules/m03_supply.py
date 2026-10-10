@@ -25,9 +25,11 @@ def run(world, params, resolved, ctx) -> None:
         opening = dict(team.inventory)
         received = _land_arrivals(team, world.round)
         returned = _return_rto_units(team)
+        to_supplier = _return_to_supplier(team, ctx)
         # The month's stock movements, product by product, for the workbook.
         ctx.setdefault("stock_moves", {})[tid] = {
-            "open": opening, "received": received, "returned": returned}
+            "open": opening, "received": received, "returned": returned,
+            "to_supplier": to_supplier}
 
         supplier = dict(_supplier(params, d))
         ctx.setdefault("supplier_quality", {})[tid] = float(supplier["quality_index"])
@@ -117,6 +119,32 @@ def _return_rto_units(team) -> dict[str, float]:
             team.inventory[sku] = team.inventory.get(sku, 0.0) + units
         team._pending_rto_units = {}
     return dict(pending or {})
+
+
+def _return_to_supplier(team, ctx) -> dict[str, float]:
+    """Send stock back to the supplier, at the refund agreed for it.
+
+    The app sets `team.stock_returns` before the month runs; it is used once.
+    Each line's refund and restocking fee scale with the units actually on the
+    shelf, so a line that sold or shrank since the return was agreed refunds
+    only what goes back. The refund lands in this month's cash (M15); any fee
+    is a cost in this month's P&L (M14).
+    """
+    plan = getattr(team, "stock_returns", None) or {}
+    sent, refund, fee = {}, 0.0, 0.0
+    for sku, line in plan.items():
+        agreed = float(line.get("units", 0.0))
+        units = min(agreed, team.inventory.get(sku, 0.0))
+        if agreed <= 0 or units <= 0:
+            continue
+        team.inventory[sku] = team.inventory.get(sku, 0.0) - units
+        sent[sku] = units
+        refund += float(line.get("refund", 0.0)) * units / agreed
+        fee += float(line.get("fee", 0.0)) * units / agreed
+    team.stock_returns = {}
+    ctx.setdefault("supplier_refund", {})[team.team_id] = refund
+    ctx.setdefault("restocking_fee", {})[team.team_id] = fee
+    return sent
 
 
 def _publish_forecast(team, world, params, ctx) -> None:

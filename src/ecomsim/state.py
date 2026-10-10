@@ -62,6 +62,9 @@ class TeamState:
     # A founded team's launch order (founding.place_launch_order); empty for a
     # going concern, and absent from worlds saved before it existed.
     launch_order: dict = field(default_factory=dict)
+    # Stock going back to the supplier at the start of the next month run:
+    # {sku: {"units", "refund", "fee"}}. Set by the app, used up by M3.
+    stock_returns: dict = field(default_factory=dict)
     warehouse_capacity: float = 6_000.0
     cs_agents: int = 4
     cs_backlog: float = 0.0

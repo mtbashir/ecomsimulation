@@ -76,6 +76,41 @@
 </div>
 </section>
 
+{% if off_range.teams %}
+<section>
+<h2>Stock outside each team's range</h2>
+<p class="note" style="max-width:90ch">Products a team does not sell, so it can
+never sell this stock. In this game it came with the opening stock order every
+team was given, which carried the default catalogue whatever range a team chose.
+Returning it sends it back to the supplier at the start of month
+{{ off_range.round }} and refunds what the order charged for it, in that month's
+cash. Months already run are not changed.</p>
+<table>
+<tr><th>Team</th><th>Products</th><th class="r">Units</th><th class="r">Refund (PKR)</th>
+  <th>Status</th></tr>
+{% for t in off_range.teams %}
+<tr><td>{{ t.name }}</td>
+  <td>{{ t.lines|map(attribute='name')|join(', ') }}</td>
+  <td class="r">{{ '{:,.0f}'.format(t.units) }}</td>
+  <td class="r">{{ '{:,.0f}'.format(t.refund) }}</td>
+  <td>{{ 'Returns in month %d'|format(off_range.round) if t.team_id in off_range.scheduled
+         else 'Held' }}</td></tr>
+{% endfor %}
+<tr><td><b>All teams</b></td><td></td>
+  <td class="r"><b>{{ '{:,.0f}'.format(off_range.teams|sum(attribute='units')) }}</b></td>
+  <td class="r"><b>{{ '{:,.0f}'.format(off_range.teams|sum(attribute='refund')) }}</b></td><td></td></tr>
+</table>
+<form method="post" action="{{ url_for('admin_returns') }}" style="margin-top:10px"
+      onsubmit="return confirm('Return this stock to the supplier and refund it when month {{ off_range.round }} runs?')">
+  {% if off_range.scheduled %}
+  <button type="submit" name="cancel" value="1" class="ghost">Cancel the returns</button>
+  {% else %}
+  <button type="submit">Return to supplier, refunded in month {{ off_range.round }}</button>
+  {% endif %}
+</form>
+</section>
+{% endif %}
+
 {% if setting_up %}
 <section>
 <h2>Setup round</h2>

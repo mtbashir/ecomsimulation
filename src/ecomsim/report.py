@@ -392,12 +392,15 @@ def _products(record: dict) -> str:
     return sales + buyers
 
 
-def _stock(record: dict) -> str:
+def _stock(record: dict, team=None) -> str:
     """Each product's stock: what came in, what sold, what is left and how
     long it lasts - the shelf a portfolio and buying decision starts from."""
     lines = record.get("stock") or []
     if not lines:
         return ""
+    rng = set(getattr(team, "active_skus", None) or [])
+    outside = {r["code"] for r in lines if rng and r["code"] not in rng}
+    sent = any(r.get("to_supplier", 0.0) >= 0.5 for r in lines)
     order = {r["code"]: i for i, r in enumerate(record.get("products") or [])}
     lines = sorted(lines, key=lambda r: (order.get(r["code"], len(order)), r["name"]))
     month = int(record.get("round") or 0)
@@ -408,6 +411,8 @@ def _stock(record: dict) -> str:
     body = []
     for r in lines:
         cover, tone = mix.cover_state(r)
+        if r["code"] in outside:
+            cover, tone = "not in your range", "warn"
         missed = max(0.0, r.get("wanted", r["sold"]) - r["sold"])
         lands = (f' <span class="d flat">M{r["next_arrival"]}</span>'
                  if r.get("next_arrival") and r["on_order"] >= 0.5 else "")
@@ -416,26 +421,31 @@ def _stock(record: dict) -> str:
             f'</span> {escape(r["name"])}</th>'
             f'<td class="v">{n(r["open"])}</td><td class="v">{n(r["received"])}</td>'
             f'<td class="v">{n(r["returned"])}</td><td class="v">{n(r["sold"])}</td>'
-            f'<td class="v {"down" if missed >= 0.5 else ""}">{n(missed)}</td>'
+            + (f'<td class="v">{n(r.get("to_supplier", 0.0))}</td>' if sent else '')
+            + f'<td class="v {"down" if missed >= 0.5 else ""}">{n(missed)}</td>'
             f'<td class="v">{n(r["close"])}</td>'
             f'<td class="v {tone}">{cover}</td>'
             f'<td class="v">{n(r["on_order"])}{lands}</td>'
             f'<td class="v">{_fmt(r["value"], "pkr")}</td></tr>')
     tot = {k: sum(r.get(k, 0.0) for r in lines)
-           for k in ("open", "received", "returned", "sold", "close", "on_order", "value")}
+           for k in ("open", "received", "returned", "sold", "to_supplier", "close",
+                     "on_order", "value")}
     tot["missed"] = sum(max(0.0, r.get("wanted", r["sold"]) - r["sold"]) for r in lines)
     weeks = tot["close"] * 4.33 / tot["sold"] if tot["sold"] > 0 else None
     body.append(
         f'<tr class="tot"><th>All products</th><td class="v">{n(tot["open"])}</td>'
         f'<td class="v">{n(tot["received"])}</td><td class="v">{n(tot["returned"])}</td>'
-        f'<td class="v">{n(tot["sold"])}</td><td class="v">{n(tot["missed"])}</td>'
+        f'<td class="v">{n(tot["sold"])}</td>'
+        + (f'<td class="v">{n(tot["to_supplier"])}</td>' if sent else '')
+        + f'<td class="v">{n(tot["missed"])}</td>'
         f'<td class="v">{n(tot["close"])}</td>'
         f'<td class="v">{"&mdash;" if weeks is None else f"{weeks:.1f}"}</td>'
         f'<td class="v">{n(tot["on_order"])}</td>'
         f'<td class="v">{_fmt(tot["value"], "pkr")}</td></tr>')
 
     bought = record.get("purchase") or {}
-    note = ""
+    note = (" Opening + received + back from failed deliveries &minus; sold &minus; returned"
+            " to supplier = closing stock." if sent else "")
     if bought and bought.get("bought", 0) > bought.get("asked", 0) + 0.5:
         note = (f' This month you asked for {bought["asked"]:,.0f} units; Supplier '
                 f'{escape(str(bought["supplier"]))}\'s minimum order is '
@@ -447,7 +457,8 @@ def _stock(record: dict) -> str:
         '<section class="prods"><div class="sx"><table class="perf">'
         '<tr><th>Product</th><th class="v">Opening</th><th class="v">Received</th>'
         '<th class="v">Back from failed deliveries</th><th class="v">Sold</th>'
-        '<th class="v">Demand missed</th><th class="v">Closing stock</th>'
+        + ('<th class="v">Returned to supplier</th>' if sent else '')
+        + '<th class="v">Demand missed</th><th class="v">Closing stock</th>'
         '<th class="v">Weeks of cover</th><th class="v">On order &middot; lands</th>'
         '<th class="v">Stock value</th></tr>'
         f'{"".join(body)}</table></div>'
@@ -457,7 +468,27 @@ def _stock(record: dict) -> str:
         'Under 2 weeks is shown in red, over 12 weeks - cash sitting on the shelf - in '
         'amber. Demand missed is units customers wanted that were not in stock. On order '
         'is stock bought and not yet landed, with the month it lands. Stock value is '
-        f'closing stock at landed cost.{note}</p></section>')
+        f'closing stock at landed cost.{note}{_outside_note(record, team, outside)}</p></section>')
+
+
+def _outside_note(record: dict, team, outside: set) -> str:
+    """Why a product the team does not sell is on its shelf, and where it went."""
+    if not outside:
+        return ""
+    if getattr(team, "launch_order", None):
+        why = (" Products marked <em>not in your range</em> are ones you have dropped;"
+               " their stock goes back to the supplier.")
+    else:
+        why = (" Products marked <em>not in your range</em> came with the opening stock"
+               " order every team was given, which carried the default catalogue"
+               " whatever range a team chose. You cannot sell them.")
+    for h in (getattr(team, "history", None) or []):
+        refund = (h.get("cash_flow") or {}).get("supplier_refund", 0.0)
+        if refund and int(h.get("round", 0)) >= int(record.get("round", 0)):
+            why += (f" They went back to the supplier at the start of month {h['round']},"
+                    f" refunded PKR {refund:,.0f} in that month's cash.")
+            break
+    return why
 
 
 def _tests(record: dict) -> str:
@@ -729,7 +760,7 @@ td.v.warn{{color:var(--warn)}}
 <h2 class="sec">Every measure, month {round_}{against}</h2>
 <div class="grid">{"".join(cards)}</div>
 {_products(record)}
-{_stock(record)}
+{_stock(record, team)}
 {_campaigns(record)}
 {_tests(record)}
 {scorecard_section}

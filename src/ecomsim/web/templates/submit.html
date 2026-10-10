@@ -277,6 +277,9 @@
       <b class="buy-moq" data-moq="{{ '%.0f'|format(purchase.moq) }}">{{ '{:,.0f}'.format(purchase.moq) }}</b>
       units; a smaller order is scaled up to it, every product in the same proportion.
       <span class="buy-short" {% if not lines or not purchase.entered or purchase.entered >= purchase.moq %}hidden{% endif %}><b class="short">Below the minimum.</b></span>
+      {% if purchase.outside >= 0.5 %}<b>{{ '{:,.0f}'.format(purchase.outside) }} units in
+      stock are products outside your range</b>, which you cannot sell; they are in the
+      units-in-stock figure below.{% endif %}
       {% if purchase.has_stock %}Weeks of cover is closing stock &divide; a week of
       last month's sales; red is under 2 weeks, amber over 12. Stock on order lands at
       the start of the month shown.{% endif %}</div>

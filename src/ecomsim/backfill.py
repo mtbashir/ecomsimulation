@@ -68,7 +68,11 @@ def stock(prev, now, record: dict, params, d: dict, month: int) -> list[dict]:
     pending = dict(getattr(now, "_pending_rto_units", None) or {})
     wanted = {p["code"]: p.get("short", 0.0) for p in record.get("products") or []}
     supplier = m03._supplier(params, d)
-    codes = list(dict.fromkeys(mix.active(now, params) + list(now.inventory)))
+    moved = {c for side in (prev.inventory, received, returned)
+             for c, u in side.items() if u > 0.5}
+    codes = list(dict.fromkeys(
+        mix.active(now, params)
+        + [c for c, u in now.inventory.items() if u > 0.5 or c in moved]))
     rows = []
     for c in codes:
         opening = prev.inventory.get(c, 0.0)
@@ -80,7 +84,7 @@ def stock(prev, now, record: dict, params, d: dict, month: int) -> list[dict]:
             "code": c, "name": params.sku(c)["name"],
             "category": params.sku(c)["category"],
             "open": opening, "received": received.get(c, 0.0),
-            "returned": returned.get(c, 0.0),
+            "returned": returned.get(c, 0.0), "to_supplier": 0.0,
             "sold": sold, "wanted": sold + wanted.get(c, 0.0), "close": close,
             "ordered": sum(po["units"].get(c, 0.0) for po in now.open_pos
                            if po.get("placed") == month),

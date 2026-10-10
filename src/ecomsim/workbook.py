@@ -273,7 +273,8 @@ def _pnl_lines(h, params) -> dict:
         "payment": -_p(h, "payment_costs"),
         "commission": -_p(h, "commission"),
         "research": -_p(h, "research"), "holding": -_p(h, "holding"),
-        "ageing": -_p(h, "ageing"), "interest": -_p(h, "interest"),
+        "ageing": -_p(h, "ageing"), "restocking": -_p(h, "restocking"),
+        "interest": -_p(h, "interest"),
     }
     if "cogs_sold" in p:
         out.update(cogs_sold=-_p(h, "cogs_sold"), write_off=-_p(h, "write_off"),
@@ -301,7 +302,7 @@ def _pnl_lines(h, params) -> dict:
                   "quality_assurance"):
             out[k] = None
         out["unsplit"] = -(_p(h, "below_line") - _p(h, "research") - _p(h, "holding")
-                           - _p(h, "ageing"))
+                           - _p(h, "ageing") - _p(h, "restocking"))
     return out
 
 
@@ -382,6 +383,9 @@ def _pnl(book, params, history, months):
                     note="A monthly charge on the value of all stock you hold"),
              s.line("ageing", "Write-down of ageing stock", col("ageing"),
                     note="Stock held beyond the obsolescence horizon is written down")]
+    if any(col("restocking")):
+        over.append(s.line("restocking", "Restocking fee on stock returned", col("restocking"),
+                           note="What the supplier keeps when you send stock back"))
     eb = s.line("ebitda", "EBITDA", total(con, *over), bold=True)
     s.line("ebitda_pct", "EBITDA margin %", eb / net, kind="pct", note="Scored: Profitability pillar")
     it = s.line("interest", "Interest on credit drawn", col("interest"),
@@ -626,7 +630,8 @@ def _stock(book, h, month):
         ws.write(1, 0, "Stock detail by product is not available for this month. "
                        f"Units in stock at month end: {h.get('inventory_units', 0):,.0f}.", book.f("intro"))
         return
-    ws.write(1, 0, "Opening + received + back from failed deliveries - sold = closing. A total purchase is split "
+    ws.write(1, 0, "Opening + received + back from failed deliveries - sold - returned to supplier = closing. "
+                   "A total purchase is split "
                    "across products by last month's demand, topping up lines that ran short first; a purchase "
                    "made product by product lands as entered."
                    + (" This month ran before stock was recorded by product: it is rebuilt exactly from the "
@@ -642,19 +647,20 @@ def _stock(book, h, month):
         ("Received (purchases landed)", "int", lambda r, x: x["received"], "sum"),
         ("Back from failed deliveries", "int", lambda r, x: x["returned"], "sum"),
         ("Sold", "int", lambda r, x: x["sold"], "sum"),
-        ("Closing stock", "int", lambda r, x: (f"B{r}+C{r}+D{r}-E{r}", x["close"]), "sum"),
+        ("Returned to supplier", "int", lambda r, x: x.get("to_supplier", 0.0), "sum"),
+        ("Closing stock", "int", lambda r, x: (f"B{r}+C{r}+D{r}-E{r}-F{r}", x["close"]), "sum"),
         ("Demand (units wanted)", "int", lambda r, x: x["wanted"], "sum"),
-        ("Short of demand", "int", lambda r, x: (f"MAX(0,G{r}-E{r})", max(0.0, x["wanted"] - x["sold"])), "sum"),
-        ("Weeks of cover", "num1", lambda r, x: (f"IFERROR(F{r}*4.33/E{r},0)",
+        ("Short of demand", "int", lambda r, x: (f"MAX(0,H{r}-E{r})", max(0.0, x["wanted"] - x["sold"])), "sum"),
+        ("Weeks of cover", "num1", lambda r, x: (f"IFERROR(G{r}*4.33/E{r},0)",
                                                  x["close"] * 4.33 / x["sold"] if x["sold"] else 0), "ratio"),
         ("Landed cost a unit", "pkr", lambda r, x: x["unit_cost"], None),
-        ("Stock value", "pkr", lambda r, x: (f"F{r}*J{r}", x["close"] * x["unit_cost"]), "sum"),
+        ("Stock value", "pkr", lambda r, x: (f"G{r}*K{r}", x["close"] * x["unit_cost"]), "sum"),
         ("Ordered this month", "int", lambda r, x: x["ordered"], "sum"),
         ("On order, not yet landed", "int", lambda r, x: x["on_order"], "sum"),
         ("Next arrival (month)", "int", lambda r, x: x.get("next_arrival"), None),
         ("Back next month (in transit)", "int", lambda r, x: x.get("back_next_month", 0.0), "sum"),
     ]
-    widths = [22, 11, 13, 13, 10, 11, 12, 11, 10, 11, 12, 12, 13, 11, 13]
+    widths = [22, 11, 13, 13, 10, 11, 11, 12, 11, 10, 11, 12, 12, 13, 11, 13]
     end = _table(book, ws, top, cols, rows, widths)
     ws.write(end, 0, "All products", book.f("label_b"))
     for j, (_, kind, _, how) in enumerate(cols):
@@ -663,7 +669,7 @@ def _stock(book, h, month):
             ws.write_formula(end, j, f"=SUM({col}{first}:{col}{last})", book.f(kind, "calc", True),
                              _clean(_sum_of(cols[j], rows, first)))
     sold = sum(x["sold"] for x in rows)
-    ws.write_formula(end, 8, f"=IFERROR(F{end + 1}*4.33/E{end + 1},0)", book.f("num1", "calc", True),
+    ws.write_formula(end, 9, f"=IFERROR(G{end + 1}*4.33/E{end + 1},0)", book.f("num1", "calc", True),
                      _clean(sum(x["close"] for x in rows) * 4.33 / sold if sold else 0))
     ws.freeze_panes(top + 1, 1)
     ws.autofilter(top, 0, last - 1, len(cols) - 1)
@@ -706,11 +712,12 @@ def _products_by_month(book, history, months):
         ("Opening stock", "int", lambda r, x: x[2].get("open"), None),
         ("Received", "int", lambda r, x: x[2].get("received"), None),
         ("Back from failed deliveries", "int", lambda r, x: x[2].get("returned"), None),
+        ("Returned to supplier", "int", lambda r, x: x[2].get("to_supplier"), None),
         ("Closing stock", "int", lambda r, x: x[2].get("close"), None),
         ("On order", "int", lambda r, x: x[2].get("on_order"), None),
         ("Stock value", "pkr", lambda r, x: x[2].get("value"), None),
     ]
-    widths = [7, 22, 11, 10, 12, 12, 12, 12, 14, 11, 14, 11, 10, 13, 11, 10, 12]
+    widths = [7, 22, 11, 10, 12, 12, 12, 12, 14, 11, 14, 11, 10, 13, 11, 11, 10, 12]
     end = _table(book, ws, 3, cols, items, widths)
     ws.freeze_panes(4, 2)
     ws.autofilter(3, 0, end - 1, len(cols) - 1)
@@ -784,9 +791,14 @@ def _cash(book, history, months, pl, team=None, params=None):
                 note="Delivery, payment fees, marketing, commission, overheads - the P&L's costs below gross profit")
     it = s.line("interest", "Interest", get("interest", -1))
     cx = s.line("capex", "Investments (AI modules, capability)", get("capex", -1))
+    parts = [op, rc, sp, oc, it, cx]
+    if any(f.get("supplier_refund") for f in flows):
+        parts.append(s.line("refund", "Refund for stock returned to the supplier",
+                            get("supplier_refund"),
+                            note="Stock sent back to the supplier this month, refunded in cash"))
     cd = s.line("credit", "Credit drawn this month", get("credit_draw"),
                 note="Drawn automatically when cash would go below zero, up to the credit limit")
-    closing_formula = total(op, rc, sp, oc, it, cx, cd)
+    closing_formula = total(*parts, cd)
     s.ws.write(s.r, 0, "Closing cash", book.f("label_b"))
     vals = []
     for i, h in enumerate(history):
@@ -799,7 +811,8 @@ def _cash(book, history, months, pl, team=None, params=None):
             s.ws.write_number(s.r, s.first + i, v, book.f("pkr", "input", True))
         vals.append(v)
     s.ws.write(s.r, s.first + len(months),
-               "Opening + received - paid out + credit drawn"
+               "Opening + received - paid out"
+               + (" + refunds" if len(parts) > 6 else "") + " + credit drawn"
                + ("" if all(have) else ". Months without the lines show the closing balance only"),
                book.f("note"))
     s.rows["closing"], s.values["closing"] = s.r, vals

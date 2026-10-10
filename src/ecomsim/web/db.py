@@ -98,6 +98,21 @@ CREATE TABLE IF NOT EXISTS memo_review (
   PRIMARY KEY (round, team_id)
 );
 
+-- Stock going back to the supplier when a month runs: what, how much is
+-- refunded, and any restocking fee. Kept, so a re-run applies it again.
+CREATE TABLE IF NOT EXISTS stock_return (
+  round     INTEGER NOT NULL,
+  team_id   TEXT    NOT NULL,
+  sku       TEXT    NOT NULL,
+  units     REAL    NOT NULL,
+  refund    REAL    NOT NULL,
+  fee       REAL    NOT NULL DEFAULT 0,
+  reason    TEXT    NOT NULL,
+  actor     TEXT,
+  at        TEXT,
+  PRIMARY KEY (round, team_id, sku)
+);
+
 CREATE TABLE IF NOT EXISTS audit (
   id      INTEGER PRIMARY KEY,
   at      TEXT NOT NULL,
@@ -356,6 +371,49 @@ def launch_order(con) -> bool:
     return int(row["round"]) < 1
 
 
+def schedule_returns(con, round_: int, rows: list[dict], reason: str,
+                     actor: str = "admin") -> None:
+    """Agree stock returns that will happen when `round_` runs.
+
+    Each row: team_id, sku, units, refund, fee. Re-scheduling a line replaces it.
+    """
+    with con:
+        for r in rows:
+            con.execute(
+                "INSERT INTO stock_return (round, team_id, sku, units, refund, fee, reason, "
+                "actor, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT (round, team_id, sku) DO UPDATE SET units = excluded.units, "
+                "refund = excluded.refund, fee = excluded.fee, reason = excluded.reason, "
+                "actor = excluded.actor, at = excluded.at",
+                (round_, r["team_id"], r["sku"], float(r["units"]), float(r["refund"]),
+                 float(r.get("fee", 0.0)), reason, actor, _now()))
+        log(con, actor, "stock.return",
+            f"r{round_}: {len(rows)} lines, refund {sum(r['refund'] for r in rows):,.0f} ({reason})")
+
+
+def cancel_returns(con, round_: int, reason: str, actor: str = "admin") -> None:
+    with con:
+        con.execute("DELETE FROM stock_return WHERE round = ? AND reason = ?", (round_, reason))
+        log(con, actor, "stock.return.cancel", f"r{round_} ({reason})")
+
+
+def stock_returns(con, round_: int, reason: str | None = None) -> dict:
+    """{team_id: {sku: {"units", "refund", "fee"}}} agreed for `round_`."""
+    try:
+        sql = "SELECT * FROM stock_return WHERE round = ?"
+        args: tuple = (round_,)
+        if reason is not None:
+            sql, args = sql + " AND reason = ?", (round_, reason)
+        rows = con.execute(sql, args).fetchall()
+    except sqlite3.OperationalError:          # an archive older than the table
+        return {}
+    out: dict = {}
+    for r in rows:
+        out.setdefault(r["team_id"], {})[r["sku"]] = {
+            "units": r["units"], "refund": r["refund"], "fee": r["fee"]}
+    return out
+
+
 def memo_rejected(con) -> set[tuple[str, int]]:
     """(team, month) memos the instructor judged do not match the decisions."""
     try:
@@ -588,7 +646,7 @@ def new_game(con, db_path: str | Path, name: str, teams: int, rounds: int,
     old = game(con)
     with con:
         for table in ("submission", "decision_window", "founding", "round_log",
-                      "audit"):
+                      "memo_review", "stock_return", "audit"):
             con.execute(f"DELETE FROM {table}")
         con.execute("DELETE FROM account WHERE role = 'team'")
         con.execute(

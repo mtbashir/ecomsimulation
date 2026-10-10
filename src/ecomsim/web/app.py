@@ -894,7 +894,8 @@ def register_routes(app: Flask) -> None:
             teams=teams, audit=db.audit(g.db, 12),
             overrides=db.overrides(g.db),
             setting_up=(game["start_mode"] == "founding" and game["round"] == 0),
-            foundings=foundings)
+            foundings=foundings,
+            off_range=service.off_range_stock(g.db))
 
     @app.post("/admin/open")
     @login_required("admin")
@@ -919,6 +920,25 @@ def register_routes(app: Flask) -> None:
         flash(f"Round {result['round']} processed "
               f"({result['submitted']} of {result['teams']} teams submitted; "
               f"the rest kept their previous decisions).", "ok")
+        return redirect(url_for("admin"))
+
+    @app.post("/admin/returns")
+    @login_required("admin")
+    def admin_returns():
+        """Return every team's off-range stock to the supplier, refunded in
+        full, when the next month runs. Cancel undoes it until then."""
+        if request.form.get("cancel"):
+            nxt = db.game(g.db)["round"] + 1
+            db.cancel_returns(g.db, nxt, service.OFF_RANGE, session["user"])
+            flash(f"Stock returns for month {nxt} cancelled.", "ok")
+            return redirect(url_for("admin"))
+        held = service.schedule_off_range_returns(g.db, session["user"])
+        if not held["teams"]:
+            flash("No team holds stock outside its range.", "error")
+        else:
+            flash(f"Scheduled: {sum(t['units'] for t in held['teams']):,.0f} units go back "
+                  f"to the supplier when month {held['round']} runs, refunded "
+                  f"PKR {sum(t['refund'] for t in held['teams']):,.0f} in total.", "ok")
         return redirect(url_for("admin"))
 
     @app.post("/admin/rollback")

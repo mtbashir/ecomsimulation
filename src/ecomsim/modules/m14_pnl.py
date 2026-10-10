@@ -91,6 +91,7 @@ def run(world, params, resolved, ctx) -> None:
         )
 
         holding, ageing = _inventory_costs(team, params, ctx, tid)
+        restocking = float(ctx.get("restocking_fee", {}).get(tid, 0.0))
         research = float(ctx.get("research_cost", {}).get(tid, 0.0))
         below_line = (
             params["payroll_base"] + ctx["cs_cost"][tid]
@@ -98,7 +99,7 @@ def run(world, params, resolved, ctx) -> None:
             + params["tech_fixed_cost"] + ctx.get("ongoing_tech_cost", {}).get(tid, 0.0)
             + research
             + float(d.get("5.1", 0) or 0) + float(d.get("7.4", 0) or 0)
-            + holding + ageing
+            + holding + ageing + restocking
         )
         ebitda = contribution - below_line
         interest = team.credit_drawn * params["credit_rate_annual"] * (
@@ -128,6 +129,7 @@ def run(world, params, resolved, ctx) -> None:
             "research": research,
             "holding": holding,
             "ageing": ageing,
+            "restocking": restocking,
             # The lines behind each subtotal, so a workbook can show the sum.
             "cogs_sold": cogs,
             "write_off": write_off,
