@@ -216,7 +216,7 @@ def build(team, params, name: str, round_: int) -> bytes:
     _products(book, latest, months[-1])
     _stock(book, latest, months[-1])
     _products_by_month(book, history, months)
-    _cash(book, history, months, pl)
+    _cash(book, history, months, pl, team, params)
     _campaigns(book, history, months)
     _customers(book, latest, history, months)
     book.wb.close()
@@ -623,11 +623,15 @@ def _stock(book, h, month):
     rows = h.get("stock") or []
     ws.write(0, 0, f"Stock by product, month {month}", book.f("title"))
     if not rows:
-        ws.write(1, 0, "Stock detail by product is recorded from month 2 of the first live game onwards. "
+        ws.write(1, 0, "Stock detail by product is not available for this month. "
                        f"Units in stock at month end: {h.get('inventory_units', 0):,.0f}.", book.f("intro"))
         return
-    ws.write(1, 0, "Opening + received + back from failed deliveries - sold = closing. Your purchase is split "
-                   "across products by last month's demand, topping up lines that ran short first.",
+    ws.write(1, 0, "Opening + received + back from failed deliveries - sold = closing. A total purchase is split "
+                   "across products by last month's demand, topping up lines that ran short first; a purchase "
+                   "made product by product lands as entered."
+                   + (" This month ran before stock was recorded by product: it is rebuilt exactly from the "
+                      "stock and orders saved at the end of each month." if "stock" in (h.get("rebuilt") or [])
+                      else ""),
              book.f("intro"))
     top, n = 3, len(rows)
     first, last = top + 2, top + 1 + n
@@ -714,15 +718,57 @@ def _products_by_month(book, history, months):
 
 # --- Cash ---------------------------------------------------------------------------------
 
-def _cash(book, history, months, pl):
+def setup_cash(team, params, history) -> list[tuple[str, float, str]] | None:
+    """How the starting capital became month 1's opening cash, line by line.
+
+    Only for a team that set up its own business, and only when the lines add
+    up to the opening cash month 1 actually ran on.
+    """
+    from . import founding as F
+    f = getattr(team, "founding", None)
+    first = (history[0].get("cash_flow") or {}) if history else {}
+    if f is None or "opening" not in first or int(history[0].get("round", 1)) != 1:
+        return None
+    tech = F.TECH_STACKS.get(f.tech_stack, F.TECH_STACKS["standard"])[0]
+    fulfil = F.FULFILMENT.get(f.fulfilment, F.FULFILMENT["3pl"])[0]
+    lines = [
+        ("Starting capital", float(params["starting_cash"]),
+         "The capital every team started with"),
+        (f"Website and technology ({f.tech_stack})", -float(tech),
+         "Paid at set-up, in full"),
+        (f"Fulfilment set-up ({'own warehouse' if f.fulfilment == 'own' else '3PL'})",
+         -float(fulfil), "Paid at set-up; a 3PL needs none"),
+        ("Opening stock bought", -float(f.capital_inventory),
+         "The inventory allocation in your set-up plan, paid in cash"),
+    ]
+    if abs(sum(v for _, v, _ in lines) - float(first["opening"])) > 1.0:
+        return None
+    return lines
+
+
+def _cash(book, history, months, pl, team=None, params=None):
     s = Sheet(book, "Cash", months, "Cash: why it is not the same as profit",
               "Profit counts a sale when it is made; cash arrives when the customer or courier pays. "
               "Stock is paid for when the supplier's terms fall due, not when it sells.")
     flows = [h.get("cash_flow") or {} for h in history]
     have = [bool(f) for f in flows]
     get = lambda k, sign=1.0: [sign * float(f.get(k, 0.0)) if ok else None for f, ok in zip(flows, have)]
+    setup = setup_cash(team, params, history) if team is not None and params is not None else None
+    start_row = None
+    if setup:
+        s.section("Setting up, before month 1")
+        refs = [s.line(f"setup_{i}", label, [v] + [None] * (len(months) - 1), note=note)
+                for i, (label, v, note) in enumerate(setup)]
+        s.ws.write(s.r, 0, "Cash at the start of month 1", book.f("label_b"))
+        start = sum(v for _, v, _ in setup)
+        s.ws.write_formula(s.r, s.first, "=" + total(*refs).xl(s.col(0)),
+                           book.f("pkr", "calc", True), _clean(start))
+        s.ws.write(s.r, s.first + len(months), "Month 1's opening cash", book.f("note"))
+        start_row = s.r
+        s.r += 1
     s.section("Cash this month")
-    op = s.line("opening", "Opening cash", get("opening"))
+    op = s.line("opening", "Opening cash", get("opening"),
+                note="Month 1: cash left after setting up. Every later month: last month's closing cash")
     rc = s.line("receipts", "Received from customers and couriers", get("receipts"),
                 note="Prepaid orders settle within days; COD arrives when couriers remit, weeks later")
     sp = s.line("suppliers", "Paid to suppliers", get("supplier_payments", -1),
@@ -750,6 +796,16 @@ def _cash(book, history, months, pl):
                + ("" if all(have) else ". Months without the lines show the closing balance only"),
                book.f("note"))
     s.rows["closing"], s.values["closing"] = s.r, vals
+    # Each opening is the cash it came from: set-up for month 1, last month's
+    # closing after that - so the months chain on the sheet, not just in value.
+    for i, ok in enumerate(have):
+        if not ok:
+            continue
+        source = (f"{s.col(0)}{start_row + 1}" if i == 0 and start_row is not None
+                  else f"{s.col(i - 1)}{s.r + 1}" if i > 0 else None)
+        if source:
+            s.ws.write_formula(s.rows["opening"], s.first + i, "=" + source,
+                               book.f("pkr", "calc"), _clean(flows[i]["opening"]))
     s.r += 1
 
     s.section("Still to come in or go out")
@@ -763,9 +819,28 @@ def _cash(book, history, months, pl):
 
     s.section("Against profit")
     s.line("net_profit", "Net profit (from the P&L)", pl.ref("net_profit", sheet=s), link=True)
-    s.line("sales_cod", "Sales on cash on delivery this month", get("sales_cod"),
-           note="Booked as revenue now, paid in cash later")
+    cod = [float(f["sales_cod"]) if ok and "sales_cod" in f else None
+           for f, ok in zip(flows, have)]
+    s.line("sales_cod", "Sales on cash on delivery this month", cod,
+           note="Booked as revenue now, paid in cash later"
+           + ("" if all(v is not None for v in cod) else
+              ". Not kept for months recorded before the cash detail"))
+    rebuilt = [m for m, h in zip(months, history) if "cash_flow" in (h.get("rebuilt") or [])]
+    if rebuilt:
+        s.r += 1
+        s.ws.write(s.r, 0, f"Month{'s' if len(rebuilt) > 1 else ''} {_span(rebuilt)} ran before each "
+                   "month's cash lines were recorded. They are rebuilt exactly from the balances saved "
+                   "at each month end: cash, money owed each way, credit drawn and investments made.",
+                   book.f("note"))
+        s.r += 1
     return s
+
+
+def _span(months) -> str:
+    months = sorted(months)
+    if len(months) > 1 and months == list(range(months[0], months[-1] + 1)):
+        return f"{months[0]}–{months[-1]}"
+    return ", ".join(str(m) for m in months)
 
 
 # --- Campaigns and customers ------------------------------------------------------------

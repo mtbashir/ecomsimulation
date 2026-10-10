@@ -631,7 +631,7 @@ def purchase_rows(con, team_id: str, current: dict, standing: dict | None = None
     from .. import mix
     params = load_params(con)
     shelf = monthly_catalogue(con, team_id, current)
-    world = db.load_world(con)
+    world = detailed_world(con)
     team = world.teams.get(team_id) if world is not None else None
     last = team.history[-1] if team is not None and team.history else {}
     stock = {r["code"]: r for r in last.get("stock") or []}
@@ -761,6 +761,74 @@ def params_sku_price(code: str) -> float:
 _SKU_PRICES: dict[str, float] | None = None
 
 
+def first_world(con, params, g):
+    """The world as it stands before month 1: every team as it was set up."""
+    world = bootstrap.new_world(
+        params, run_id=g["name"],
+        ai_competitors=g["ai_competitors"], ai_aggression=g["ai_aggression"])
+    if g["start_mode"] == "founding":
+        apply_foundings(con, world, params)
+    else:
+        for row in db.accounts(con, "team"):
+            team = world.teams.get(row["team_id"])
+            if team is not None:
+                team.brand_name = row["display_name"]
+    return world
+
+
+def detailed_world(con, round_: int | None = None):
+    """The saved world, with stock and cash detail for every month.
+
+    Months recorded before the engine kept that detail get it rebuilt from
+    the month-end worlds saved beside them (see ecomsim.backfill). Month 1
+    also needs the world before it, rebuilt from the set-up; that is used only
+    if it reproduces month 1's cash exactly, so a rebuild is never a guess.
+    """
+    from .. import backfill
+    world = db.load_world(con, round_)
+    if world is None:
+        return None
+    gaps = sorted({int(h.get("round", i + 1)) for t in world.teams.values()
+                   for i, h in enumerate(t.history)
+                   if not h.get("stock") or not h.get("cash_flow")})
+    if not gaps:
+        return world
+    params = load_params(con)
+    saved = {m: db.load_world(con, m) for m in sorted(set(gaps) | {m - 1 for m in gaps})
+             if m >= 1}
+    if 1 in gaps and saved.get(1) is not None:
+        start = first_world(con, params, db.game(con))
+        if _opens_month_one(start, saved[1], params):
+            saved[0] = start
+    backfill.fill(world, saved, params, {m: db.submissions(con, m) for m in gaps})
+    return world
+
+
+def _opens_month_one(start, after, params) -> bool:
+    """Whether a rebuilt starting world leads to month 1 as it was recorded.
+
+    Month 1's receipts, worked back from the opening cash, must equal what
+    customers and couriers owed at the start, plus month 1's net revenue, less
+    what they still owed at the end: every sale is paid or still owed.
+    """
+    from .. import backfill
+    for tid, team in after.teams.items():
+        before = start.teams.get(tid)
+        if before is None or not team.history:
+            return False
+        h = team.history[0]
+        got = backfill.cash(before, team, h, 1)["receipts"]
+        want = (sum(before.receivables.values()) + h["pnl"]["net_revenue"]
+                - sum(team.receivables.values()))
+        if abs(got - want) > max(1.0, 1e-7 * abs(want)):
+            return False
+        lines = backfill.stock(before, team, h, params, {}, 1)
+        if any(before.inventory.get(r["code"], 0.0) + r["received"] - r["close"] < -0.5
+               for r in lines):
+            return False
+    return True
+
+
 def process_round(con, actor: str = "admin", out_dir=None) -> dict:
     """Run the next round and persist everything needed to replay or roll back."""
     g = db.game(con)
@@ -769,16 +837,7 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
 
     world = db.load_world(con)
     if world is None:
-        world = bootstrap.new_world(
-            params, run_id=g["name"],
-            ai_competitors=g["ai_competitors"], ai_aggression=g["ai_aggression"])
-        if g["start_mode"] == "founding":
-            apply_foundings(con, world, params)
-        else:
-            for row in db.accounts(con, "team"):
-                team = world.teams.get(row["team_id"])
-                if team is not None:
-                    team.brand_name = row["display_name"]
+        world = first_world(con, params, g)
 
     submitted = db.submissions(con, nxt)
     n_submitted = len(submitted)   # before standing campaigns are carried in
@@ -1148,7 +1207,7 @@ def endowment(con) -> dict:
 
 def team_report(con, team_id: str, round_: int, download: str | None = None) -> str | None:
     """Render one team's report as HTML, without touching disk."""
-    world = db.load_world(con, round_)
+    world = detailed_world(con, round_)
     if world is None or team_id not in world.teams:
         return None
     import tempfile
@@ -1168,13 +1227,14 @@ def team_report(con, team_id: str, round_: int, download: str | None = None) -> 
                              download=download).read_text(encoding="utf-8")
 
 
-def team_workbook(con, team_id: str, round_: int) -> tuple[bytes, str] | None:
+def team_workbook(con, team_id: str, round_: int,
+                  world=None) -> tuple[bytes, str] | None:
     """One team's results, months 1..round_, as an Excel workbook and its
     file name. None when that month has not been run."""
     import re
     from .. import workbook
 
-    world = db.load_world(con, round_)
+    world = world or detailed_world(con, round_)
     if world is None or team_id not in world.teams:
         return None
     team = world.teams[team_id]
@@ -1211,13 +1271,13 @@ def all_workbooks(con, round_: int) -> bytes | None:
     """Every team's workbook for the month, in one zip for the instructor."""
     import zipfile
 
-    world = db.load_world(con, round_)
+    world = detailed_world(con, round_)
     if world is None:
         return None
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for team_id in sorted(world.teams):
-            made = team_workbook(con, team_id, round_)
+            made = team_workbook(con, team_id, round_, world)
             if made is not None:
                 data, filename = made
                 z.writestr(f"{team_id}_{filename}", data)

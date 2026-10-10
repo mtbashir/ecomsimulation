@@ -593,6 +593,9 @@ def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None
 
     html = f"""<!doctype html>
 <html lang="en" data-theme="consulytics"><head><meta charset="utf-8">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/static/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{escape(name)} &mdash; Month {round_}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">

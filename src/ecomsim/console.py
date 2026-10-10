@@ -159,6 +159,9 @@ def render(world, params, out_dir: str | Path, submissions: dict | None = None,
 
     html = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/static/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Instructor console &mdash; Round {round_}</title><style>
 *{{box-sizing:border-box}}

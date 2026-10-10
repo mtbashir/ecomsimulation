@@ -984,6 +984,11 @@ def register_routes(app: Flask) -> None:
                                overrides=db.overrides(g.db),
                                warnings=params.warnings)
 
+    @app.get("/favicon.ico")
+    def favicon():
+        """Browsers ask for this path whatever the page links to."""
+        return app.send_static_file("favicon.ico")
+
     @app.get("/healthz")
     def healthz():
         """Liveness probe for the host. Confirms the database answers."""
