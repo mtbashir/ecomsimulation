@@ -135,6 +135,7 @@ def migrate(con) -> None:
         ("account", "theme", "TEXT"),
         ("game", "epoch", "INTEGER NOT NULL DEFAULT 0"),
         ("game", "rules_from", "INTEGER"),
+        ("game", "launch_order", "INTEGER"),
     ]:
         have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
         if column not in have:
@@ -143,6 +144,10 @@ def migrate(con) -> None:
     # played on the rules it played them under; the new ones start next month.
     con.execute("UPDATE game SET rules_from = CASE WHEN round >= 1 THEN round + 1 "
                 "ELSE 1 END WHERE rules_from IS NULL")
+    # Likewise a founded game already trading keeps the opening it was dealt;
+    # a game not yet started opens with its teams' own launch orders.
+    con.execute("UPDATE game SET launch_order = CASE WHEN round >= 1 THEN 0 ELSE 1 END "
+                "WHERE launch_order IS NULL")
 
 
 def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
@@ -157,7 +162,7 @@ def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
         con.execute(
             "INSERT OR REPLACE INTO game "
             "(id, name, preset, round, total_rounds, open_round, start_mode, "
-            "rules_from, created_at) VALUES (1, ?, ?, 0, ?, NULL, ?, 1, ?)",
+            "rules_from, launch_order, created_at) VALUES (1, ?, ?, 0, ?, NULL, ?, 1, 1, ?)",
             (name, preset, rounds, start_mode, _now()))
         con.execute(
             "INSERT OR REPLACE INTO account "
@@ -334,6 +339,21 @@ def rules_from(con) -> int:
     if "rules_from" in row.keys() and row["rules_from"] is not None:
         return int(row["rules_from"])
     return int(row["round"]) + 1 if int(row["round"]) >= 1 else 1
+
+
+def launch_order(con) -> bool:
+    """Whether this game's founded teams open with their own launch order.
+
+    True for a game set up from now on. A game already trading when this
+    arrived - or an archived one that predates the column - keeps the
+    going-concern opening it was played on.
+    """
+    row = game(con)
+    if row is None:
+        return True
+    if "launch_order" in row.keys() and row["launch_order"] is not None:
+        return bool(row["launch_order"])
+    return int(row["round"]) < 1
 
 
 def memo_rejected(con) -> set[tuple[str, int]]:
@@ -574,7 +594,7 @@ def new_game(con, db_path: str | Path, name: str, teams: int, rounds: int,
         con.execute(
             "UPDATE game SET name = ?, round = 0, total_rounds = ?, "
             "open_round = NULL, start_mode = ?, overrides = ?, epoch = ?, "
-            "created_at = ? WHERE id = 1",
+            "rules_from = 1, launch_order = 1, created_at = ? WHERE id = 1",
             (name, rounds, start_mode,
              old["overrides"] if keep_overrides else "{}",
              old["epoch"] + 1, _now()))

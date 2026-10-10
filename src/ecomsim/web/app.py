@@ -649,6 +649,12 @@ def register_routes(app: Flask) -> None:
             current = (service.founding_from_dict(record["config"], params)
                        if record else founding.Founding.default(params))
 
+        # The launch order the set-up places, quoted from this draft's range.
+        launch = None
+        if db.launch_order(g.db) and current.assortment:
+            alloc, cost = founding.launch_order(current, params)
+            launch = {"units": sum(alloc.values()), "cost": cost,
+                      "terms": params["supplier_terms_days"]}
         return render_template(
             "found.html", f=current, params=params,
             stages=FOUNDING_STAGES,
@@ -666,6 +672,7 @@ def register_routes(app: Flask) -> None:
             research_discount=founding.FOUNDING_RESEARCH_DISCOUNT,
             capital=params["starting_cash"],
             payroll=params["payroll_base"],
+            launch=launch,
             preview=service.founding_preview(g.db, current),
             problems=founding.validate(current, params),
             submitted=bool(record and record["submitted_at"]))

@@ -236,6 +236,14 @@ a large share of your orders.</p>
 spent over the months ahead. Reserve is what keeps you solvent when a month goes
 against you. Inventory must be 25&ndash;60% of capital, technology at most 55%,
 and reserve at least 10%.</p>
+{% if launch %}
+<p class="help">On top of that opening stock you place a <b>launch order</b>: a
+month of stock for the range you choose, about
+{{ '{:,.0f}'.format(launch.units) }} units costing PKR
+{{ '{:,.0f}'.format(launch.cost) }} at your sourcing and positioning. It lands at
+the start of month 1 and is paid on the supplier's {{ '%.0f'|format(launch.terms) }}-day
+terms, in months 1 and 2, so it does not come out of this capital.</p>
+{% endif %}
 {% for slot, label in [('inventory', 'Inventory'), ('marketing', 'Marketing'),
                        ('technology', 'Technology'), ('reserve', 'Reserve')] %}
 <div style="margin:0 0 8px">

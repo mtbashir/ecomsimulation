@@ -428,7 +428,7 @@ def founding_preview(con, f: founding_mod.Founding) -> dict | None:
         params, run_id=f"preview-{g['name']}",
         ai_competitors=g["ai_competitors"], ai_aggression=g["ai_aggression"])
     subject = next(iter(world.teams))
-    founding_mod.apply(f, world.teams[subject], params)
+    founding_mod.apply(f, world.teams[subject], params, launch_order=db.launch_order(con))
     run_round(world, params, {}, preset=g["preset"])
     h = world.teams[subject].history[-1]
     burn = -min(0.0, h["ebitda"])
@@ -459,7 +459,7 @@ def apply_foundings(con, world, params) -> None:
         f = (founding_from_dict(record["config"], params) if record
              else founding_mod.Founding.default(params))
         if not founding_mod.validate(f, params):
-            founding_mod.apply(f, team, params)
+            founding_mod.apply(f, team, params, launch_order=db.launch_order(con))
         team.brand_name = (f.brand_name if record and f.brand_name != "Unnamed"
                            else row["display_name"])
 

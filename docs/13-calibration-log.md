@@ -813,3 +813,32 @@ engine does not yet earn it.
 
 *(2026-09-21: it earns it now. The constraint mix reads 55/43/2 rather than
 99/0/1, but the change that mattered was fixing M5, not raising `k_base`.)*
+
+
+## 2026-10-10 — Founded teams open with their own launch order
+
+Rebuilding the first live game's month-1 cash flow showed every founded team
+carrying the going-concern pipeline into month 1:
+
+- a purchase order of the default catalogue's range (one month of baseline
+  demand, PKR 7.08m), landing in month 1 whatever range the team chose. A team
+  selling homecare and baby lines received 43% of it as products it does not
+  sell, and those units never left its warehouse;
+- PKR 10.47m owed to suppliers over months 1 and 2 (that order plus the tail
+  of an earlier one);
+- PKR 3.05m of COD receivable, received in month 1 for sales never made.
+
+`founding.place_launch_order` replaces it with the team's own launch order:
+the same month of units, split across its own range, at its own landed cost,
+owed once on normal terms. Measured over 12 months on five set-ups (default,
+25% and 60% inventory, premium, value with homecare and baby):
+
+| | Before | After |
+|---|---|---|
+| Month-1 orders | 2,984–3,407 | identical |
+| Month-1 supplier payments | 7.08m every team | 3.5–4.2m (own order, first instalment) |
+| Units of products outside the range | 0–4,155 | 0 |
+| Final score change | | within 0.5 points, except +0.5 for the team that had dead stock |
+
+The founding balance tests (size within 15% of baseline) and I1–I13 pass
+unchanged. Games already trading keep their opening (`game.launch_order = 0`).

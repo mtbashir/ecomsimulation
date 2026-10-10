@@ -59,6 +59,9 @@ class TeamState:
     inventory: dict[str, float] = field(default_factory=dict)
     active_skus: list[str] = field(default_factory=list)
     open_pos: list[dict] = field(default_factory=list)
+    # A founded team's launch order (founding.place_launch_order); empty for a
+    # going concern, and absent from worlds saved before it existed.
+    launch_order: dict = field(default_factory=dict)
     warehouse_capacity: float = 6_000.0
     cs_agents: int = 4
     cs_backlog: float = 0.0

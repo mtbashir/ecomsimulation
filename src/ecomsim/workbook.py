@@ -766,6 +766,13 @@ def _cash(book, history, months, pl, team=None, params=None):
         s.ws.write(s.r, s.first + len(months), "Month 1's opening cash", book.f("note"))
         start_row = s.r
         s.r += 1
+        launch = getattr(team, "launch_order", None)
+        if launch:
+            s.ws.write(s.r, 0, f"Also ordered at set-up: a launch order of {launch['units']:,.0f} units "
+                       f"(PKR {launch['cost']:,.0f}) on {launch['terms_days']:.0f}-day supplier terms. "
+                       "It landed at the start of month 1 and is paid under Paid to suppliers as the "
+                       "terms fall due, so it is not in the set-up cash above.", book.f("note"))
+            s.r += 1
     s.section("Cash this month")
     op = s.line("opening", "Opening cash", get("opening"),
                 note="Month 1: cash left after setting up. Every later month: last month's closing cash")

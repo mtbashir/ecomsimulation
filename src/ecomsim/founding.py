@@ -239,7 +239,7 @@ def validate(f: Founding, params) -> list[str]:
 
 # --- Applying a founding configuration -----------------------------------------
 
-def apply(f: Founding, team, params) -> None:
+def apply(f: Founding, team, params, launch_order: bool = True) -> None:
     """Turn founding choices into a starting position, in place.
 
     Differences show up as the SHAPE of the business - assortment, price tier,
@@ -290,6 +290,57 @@ def apply(f: Founding, team, params) -> None:
     total_w = sum(weights.values()) or 1.0
     team.inventory = {c: units * w / total_w for c, w in weights.items()}
     team.cash -= f.capital_inventory
+    if launch_order:
+        place_launch_order(f, team, params)
+
+
+def place_launch_order(f: Founding, team, params) -> None:
+    """Swap the going-concern template's pipeline for the team's own launch order.
+
+    bootstrap.new_team opens every business mid-cycle: a purchase order of the
+    catalogue's range landing in month 1, suppliers owed for it and for the
+    order before it, and couriers owing COD for earlier sales. None of that
+    belongs to a business founded this month - the order was not its range,
+    the older debt was not its debt, and the COD was for sales it never made.
+
+    What does belong is a launch order: a month of stock for the team's own
+    range, at its own landed cost, ordered at set-up on the supplier's normal
+    terms. It lands at the start of month 1, so the first month trades at the
+    scale the engine is built for (docs/05), and it is owed once, as the terms
+    fall due. Customers and brand awareness stay: founding mode starts at a
+    working scale by design.
+    """
+    from .modules import m15_cash
+
+    team.open_pos, team.payables, team.receivables = [], {}, {}
+    team.cod_receivable = 0.0
+    alloc, cost = launch_order(f, params)
+    team.open_pos.append({"placed": 0, "arrives": 1, "units": alloc, "cost": cost,
+                          "supplier": "B", "launch": True})
+    m15_cash._schedule(team.payables, 0, cost, params["supplier_terms_days"]
+                       / (30.44 * params["round_months"]))
+    units = sum(alloc.values())
+    team.launch_order = {"units": units, "cost": cost, "supplier": "B",
+                         "terms_days": float(params["supplier_terms_days"])}
+
+
+def launch_order(f: Founding, params) -> tuple[dict[str, float], float]:
+    """The launch order a set-up places: units by product, and what it costs.
+
+    A month of baseline demand, split across the team's own range by how much
+    each line sells, at the landed cost its sourcing and tier give it from the
+    standard supplier - the same cost the engine charges when the stock sells.
+    """
+    units = (params["baseline_team_revenue"] / params["aov_base"]
+             * params["units_per_order"])
+    weights = {c: float(params.sku(c)["revenue_weight"]) for c in f.assortment}
+    total = sum(weights.values()) or 1.0
+    alloc = {c: units * w / total for c, w in weights.items()}
+    supplier = next(s for s in params.suppliers if s["code"] == "B")
+    cost = sum(u * float(params.sku(c)["unit_cost"]) * float(supplier["cost_index"])
+               * cost_multiplier(sourcing_of(f, c), f.tier) * params["cogs_scale"]
+               for c, u in alloc.items())
+    return alloc, cost
 
 
 def _blended_cost_index(f: Founding, params) -> float:

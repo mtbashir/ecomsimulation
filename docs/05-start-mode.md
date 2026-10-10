@@ -64,6 +64,25 @@ delivering the ownership and founding lessons it lacks.
 | Available SKU catalogue | 40 (filtered by category choice) |
 | Time to launch | Round 0 is setup; no revenue |
 
+### Opening position of a founded team
+
+A founded team opens month 1 with what its set-up bought, plus one thing it
+did not pay for out of capital: a **launch order**. It is a month of baseline
+demand for the team's own range, at its own landed cost, placed at set-up on
+the supplier's normal terms. It lands at the start of month 1 and is owed once,
+as the terms fall due (months 1 and 2). It keeps month 1 at the scale the
+engine is built for, whatever the inventory allocation, which is what keeps
+founding choices from becoming differences in size.
+
+Customers and brand awareness are carried from the going-concern baseline on
+purpose: building from zero is what this design rejects (above).
+
+Before engine 2.1.0 a founded team instead inherited the going-concern
+template's whole pipeline: an order of the catalogue's range rather than its
+own, suppliers owed for that order and the one before it, and couriers owing
+COD for sales it never made. Games that started trading on that opening keep
+it (`game.launch_order = 0`); a new game opens with the launch order.
+
 ### Round 0 decision set (14 decisions)
 
 | # | Decision | Type | Effect |
