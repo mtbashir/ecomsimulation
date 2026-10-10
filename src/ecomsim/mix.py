@@ -386,7 +386,8 @@ def stock_lines(team, params, ctx, round_: int) -> list[dict]:
              for c, u in (moves.get(kind) or {}).items() if u > 0.5}
     codes = list(dict.fromkeys(
         active(team, params)
-        + [c for c, u in team.inventory.items() if u > 0.5 or c in moved]))
+        + [c for c, u in team.inventory.items() if u > 0.5 or c in moved]
+        + [c for po in team.open_pos for c, u in po["units"].items() if u > 0.5]))
     pending = getattr(team, "_pending_rto_units", None) or {}
     rows = []
     for c in codes:

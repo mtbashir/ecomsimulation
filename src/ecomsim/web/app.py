@@ -758,6 +758,9 @@ def register_routes(app: Flask) -> None:
                         # The boxes arrive filled in; re-sending the mix already
                         # running is not a decision the team took.
                         raw = None
+                elif spec.kind == "range":
+                    raw = {"add": request.form.getlist("range_add"),
+                           "drop": request.form.getlist("range_drop")}
                 elif (spec.code == service.PURCHASE
                       and request.form.get("buy_mode") == "lines"):
                     # Stock bought product by product; a blank line buys none.
@@ -776,7 +779,8 @@ def register_routes(app: Flask) -> None:
                     continue
                 if value is None or value == [] or value == {}:
                     continue           # blank means "use the default"
-                problem = service.validate(spec.code, value)
+                problem = (service.validate_range(g.db, tid, value) if spec.kind == "range"
+                           else service.validate(spec.code, value))
                 if problem:
                     errors.append(problem)
                 else:
@@ -837,6 +841,8 @@ def register_routes(app: Flask) -> None:
                 else ""),
             totals=service.shelf_totals(shelf),
             bundles=service.bundle_rows(g.db, tid, current),
+            range_change=(service.range_rows(g.db, tid, current)
+                          if any(s.kind == "range" for s in specs) else None),
             purchase=(service.purchase_rows(g.db, tid, current, standing)
                       if any(s.code == service.PURCHASE for s in specs) else None),
             previous_purchase=(service.decision_summary(

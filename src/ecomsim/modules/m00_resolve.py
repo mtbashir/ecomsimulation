@@ -9,6 +9,8 @@ price index is relative, so it cannot be computed one team at a time.
 """
 from __future__ import annotations
 
+from .. import assortment
+
 TIER_SCORE = {"economy": 0.38, "standard": 0.62, "premium": 0.88}
 PACKAGING_SCORE = {"basic": 0.25, "branded": 0.55, "premium": 0.85}
 GATEWAY_SUCCESS = {"A": 0.91, "B": 0.84, "C": 0.96}
@@ -46,6 +48,8 @@ def run(world, params, resolved, ctx) -> None:
     for team in world.teams.values():
         tid = team.team_id
         d = ctx["resolved"][tid]
+        # The range first: price, breadth and demand all read it.
+        assortment.start_of_month(team, world, params, ctx, d)
         _administration(team, d)
 
         discount = _clamp(_discount(team, params, d), 0.0, 0.50)

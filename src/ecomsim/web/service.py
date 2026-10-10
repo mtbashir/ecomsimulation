@@ -12,7 +12,8 @@ import json
 
 from dataclasses import asdict
 
-from .. import (bootstrap, console, founding as founding_mod, params as P, version,
+from .. import (assortment, bootstrap, console, founding as founding_mod, params as P,
+               version,
                 report, scoring, targeting)
 from ..decisions import REGISTRY, Resolver
 from ..engine import run_round
@@ -43,8 +44,12 @@ def open_decisions(con, round_: int) -> list:
     g = db.game(con)
     resolver = Resolver(preset=g["preset"], round_=round_)
     manual = db.windows(con, round_)
+    # A game that started before range changes existed never offers them.
+    off = set() if db.range_changes(con) else {assortment.DECISION}
     out = []
     for code, spec in REGISTRY.items():
+        if code in off:
+            continue
         by_preset = resolver.enabled(code) and resolver.unlocked(code)
         if manual.get(code, by_preset):
             out.append(spec)
@@ -179,6 +184,13 @@ def coerce(code: str, raw):
         if sum(shares.values()) > 1.5:
             shares = {k: v / 100 for k, v in shares.items()}
         return shares if sum(shares.values()) > 0 else None
+    if spec.kind == "range":
+        # {"add": [sku], "drop": [sku]} - only what the team ticked.
+        if not isinstance(raw, dict):
+            return None
+        out = {k: [str(c) for c in raw.get(k) or [] if c] for k in ("add", "drop")}
+        out = {k: v for k, v in out.items() if v}
+        return out or None
     if code == PURCHASE and isinstance(raw, dict):
         # Stock bought product by product: {sku: units}. A blank line is none.
         out = {}
@@ -559,6 +571,10 @@ def monthly_catalogue(con, team_id: str, current: dict) -> list[dict]:
     if record is not None:
         f = founding_from_dict(record["config"], params)
         active, tier = f.assortment, f.tier
+        # Once trading, the range is the one the team sells now: founded, plus
+        # products added and less those dropped (decision 1.3).
+        if world is not None and team_id in world.teams and world.teams[team_id].active_skus:
+            active = list(world.teams[team_id].active_skus)
     elif world is not None and team_id in world.teams:
         active, tier, f = world.teams[team_id].active_skus, "mainstream", None
     else:
@@ -619,6 +635,74 @@ def shelf_totals(rows: list[dict]) -> dict:
         "discount": sum(r["discount"] * r["weight"] for r in rows) / weight,
         "gross_margin": (net - cost) / net if net > 0 else 0.0,
     }
+
+
+def range_rows(con, team_id: str, current: dict) -> dict | None:
+    """The range-change tile: what the team sells, what it has ordered, and
+    what else the catalogue offers, with what each would cost."""
+    world = db.load_world(con)
+    if world is None or team_id not in world.teams:
+        return None
+    params = load_params(con)
+    team = world.teams[team_id]
+    value = current.get(assortment.DECISION) or {}
+    add, drop = assortment.changes(value)
+    last = team.history[-1] if team.history else {}
+    sold = {r["code"]: r for r in last.get("products") or []}
+    stock = {r["code"]: r for r in last.get("stock") or []}
+    record = db.founding(con, team_id)
+    f = founding_from_dict(record["config"], params) if record else None
+    tier = f.tier if f else "mainstream"
+    base = float(next(sp for sp in params.suppliers if sp["code"] == "B")["cost_index"])
+    pending = dict(getattr(team, "pending_lines", None) or {})
+    in_range = [{
+        "code": c, "name": params.sku(c)["name"], "category": params.sku(c)["category"],
+        "units": (sold.get(c) or {}).get("units", 0.0),
+        "sales_share": (sold.get(c) or {}).get("sales_share", 0.0),
+        "cm": (sold.get(c) or {}).get("cm", 0.0),
+        "stock": (stock.get(c) or {}).get("close", 0.0),
+        "drop": c in drop} for c in team.active_skus]
+    weights = {s["code"]: float(s["revenue_weight"]) for s in params.skus}
+    total = sum(weights[c] for c in list(team.active_skus) + list(pending)) or 1.0
+    month = assortment.expected_units(team, params)
+    others = []
+    for sku in params.skus:
+        c = sku["code"]
+        if c in team.active_skus or c in pending:
+            continue
+        how = founding_mod.sourcing_of(f, c) if f else "mixed"
+        cost = founding_mod.unit_cost(sku, how, tier, params, base)
+        units = month * weights[c] / (total + weights[c])
+        others.append({
+            "code": c, "name": sku["name"], "category": sku["category"],
+            "price": founding_mod.reference_price(sku, tier), "cost": cost,
+            "units": units, "order_cost": units * cost, "add": c in add})
+    others.sort(key=lambda r: (r["category"], -weights[r["code"]]))
+    return {"in_range": in_range, "others": others,
+            "pending": [{"code": c, "name": params.sku(c)["name"], "month": m}
+                        for c, m in sorted(pending.items(), key=lambda kv: kv[1])],
+            "size": len(team.active_skus) + len(pending),
+            "min": assortment.MIN_RANGE, "max": assortment.MAX_RANGE,
+            "fee": params["range_restocking_fee"]}
+
+
+def validate_range(con, team_id: str, value) -> str | None:
+    """A range change the team's range can take."""
+    rows = range_rows(con, team_id, {})
+    if not rows or not value:
+        return None
+    add, drop = assortment.changes(value)
+    have = {r["code"] for r in rows["in_range"]}
+    offer = {r["code"] for r in rows["others"]}
+    if any(c not in have for c in drop):
+        return "Range changes: you can only drop a product you sell now."
+    if any(c not in offer for c in add):
+        return "Range changes: that product is already in your range or on order."
+    after = rows["size"] - len(drop) + len(add)
+    if not rows["min"] <= after <= rows["max"]:
+        return (f"Range changes: your range would be {after} products; it must stay "
+                f"between {rows['min']} and {rows['max']}.")
+    return None
 
 
 def purchase_rows(con, team_id: str, current: dict, standing: dict | None = None) -> dict:
@@ -735,6 +819,10 @@ def decision_summary(spec, value, catalogue_rows=None) -> str:
         return f"{float(value) * 100:,.4g}%"
     if spec.kind == "curr":
         return f"PKR {float(value):,.0f}"
+    if spec.kind == "range":
+        add, drop = assortment.changes(value)
+        bits = ([f"{len(add)} added"] if add else []) + ([f"{len(drop)} dropped"] if drop else [])
+        return ", ".join(bits)
     if spec.code == PURCHASE and isinstance(value, dict):
         total = sum(float(u) for u in value.values())
         lines = sum(1 for u in value.values() if float(u) > 0)
@@ -897,6 +985,7 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
     submitted = db.submissions(con, nxt)
     n_submitted = len(submitted)   # before standing campaigns are carried in
     world.rules_from = db.rules_from(con)
+    world.range_changes = db.range_changes(con)
     if nxt < world.rules_from:
         # Rules v1: only campaigns carry; every other lever left blank runs
         # on its default, as the months already played did.
@@ -1358,7 +1447,7 @@ def export_decisions(con, round_: int) -> str:
         _carry_campaigns(con, submitted, row["team_id"], round_)
     for team_id, decisions in sorted(submitted.items()):
         for code, value in sorted(decisions.items()):
-            if code == targeting.DECISION:
+            if code == targeting.DECISION or REGISTRY[code].kind == "range":
                 value = json.dumps(value)
             elif code == PURCHASE and isinstance(value, dict):
                 value = ";".join(f"{sku}:{float(units):g}" for sku, units in value.items())

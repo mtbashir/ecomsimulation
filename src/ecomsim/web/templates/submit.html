@@ -66,7 +66,7 @@
          what it does not say #}
       {%- set u = '' if s.unit in ('%', '') else
           (s.unit[4:] if s.unit.startswith('PKR') else s.unit) %}
-      <span class="t-val">{{ summaries[s.code] or 'carried forward' }}
+      <span class="t-val">{{ summaries[s.code] or ('no change' if s.kind == 'range' else 'carried forward') }}
         {%- if u and not (s.code == '7.1' and val is mapping) %} <span class="note">&middot; {{ u }}</span>{% endif %}</span>
     </span>
   </summary>
@@ -157,6 +157,53 @@
     small saving earns most, and past about 12% a pack loses money. Your three
     most attractive packs set the lift in basket size &mdash; more than three
     adds nothing.</div>
+
+  {% elif s.kind == 'range' and range_change %}
+    {% set rc = range_change %}
+    <table class="catalogue rangechg">
+    <thead><tr><th class="c-on">Drop</th><th class="c-name">In your range</th>
+      <th class="r">Sold last month</th><th class="r">Share of sales</th>
+      <th class="r">Contribution</th><th class="r">Stock now</th></tr></thead>
+    <tbody>
+    {% for r in rc.in_range %}
+    <tr><td><input type="checkbox" name="range_drop" value="{{ r.code }}" {% if r.drop %}checked{% endif %}></td>
+      <td class="c-name"><strong>{{ r.name }}</strong>
+        <span class="lm">{{ r.category|replace("_", " ")|title }}</span></td>
+      <td class="num">{{ '{:,.0f}'.format(r.units) }}</td>
+      <td class="num">{{ '{:.0%}'.format(r.sales_share) }}</td>
+      <td class="num {{ 'short' if r.cm < 0 }}">{{ '{:,.0f}'.format(r.cm) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r.stock) }}</td></tr>
+    {% endfor %}
+    </tbody></table>
+    {% if rc.pending %}
+    <div class="hint">Ordered and not yet on sale:
+      {% for r in rc.pending %}<b>{{ r.name }}</b> (on sale from month {{ r.month }}){{ ', ' if not loop.last }}{% endfor %}.</div>
+    {% endif %}
+    <table class="catalogue rangechg" style="margin-top:12px">
+    <thead><tr><th class="c-on">Add</th><th class="c-name">Not in your range</th>
+      <th class="r">Price at your positioning</th><th class="r">Landed cost</th>
+      <th class="r">Margin</th><th class="r">First order</th></tr></thead>
+    <tbody>
+    {% for r in rc.others %}
+    <tr><td><input type="checkbox" name="range_add" value="{{ r.code }}" {% if r.add %}checked{% endif %}></td>
+      <td class="c-name"><strong>{{ r.name }}</strong>
+        <span class="lm">{{ r.category|replace("_", " ")|title }}</span></td>
+      <td class="num">{{ '{:,.0f}'.format(r.price) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r.cost) }}</td>
+      <td class="num">{{ '{:.0%}'.format((r.price - r.cost) / r.price) if r.price else '–' }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r.units) }} units
+        <span class="lm">PKR {{ '{:,.0f}'.format(r.order_cost) }}</span></td></tr>
+    {% endfor %}
+    </tbody></table>
+    <div class="hint">Your range is <b>{{ rc.size }}</b> products (on sale and on
+    order) and must stay between {{ rc.min }} and {{ rc.max }}. <b>Adding</b> a
+    product orders a month of its expected sales now, at your landed cost and on
+    normal supplier terms; it goes on sale when that stock lands, usually next
+    month, at the price shown, which you can change in the price grid once it is
+    on sale. <b>Dropping</b> a product takes it off sale this month; its stock,
+    and any still on its way, goes back to the supplier, refunded less a
+    {{ '{:.0%}'.format(rc.fee) }} restocking fee. A wider range draws a little more
+    of every segment; a product that sells little ties up cash in stock.</div>
 
   {% elif s.kind == 'shares' %}
     {% set chosen = val if val is mapping else (carried.get(s.code) if keeps and carried.get(s.code) is mapping else default_shares.get(s.code, {})) %}

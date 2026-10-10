@@ -25,19 +25,21 @@ def run(world, params, resolved, ctx) -> None:
         opening = dict(team.inventory)
         received = _land_arrivals(team, world.round)
         returned = _return_rto_units(team)
+        supplier = dict(_supplier(params, d))
+        _send_back_off_range(team, world, params, d, supplier)
         to_supplier = _return_to_supplier(team, ctx)
         # The month's stock movements, product by product, for the workbook.
         ctx.setdefault("stock_moves", {})[tid] = {
             "open": opening, "received": received, "returned": returned,
             "to_supplier": to_supplier}
 
-        supplier = dict(_supplier(params, d))
         ctx.setdefault("supplier_quality", {})[tid] = float(supplier["quality_index"])
         ctx.setdefault("supplier", {})[tid] = supplier
 
         _publish_forecast(team, world, params, ctx)
         _learn_lead_time(team, events)
         _place_orders(team, world, params, ctx, d, supplier, events, round_days)
+        _place_listing_order(team, world, params, ctx, d, supplier, events, round_days)
 
         units_available = sum(team.inventory.values())
         ctx.setdefault("stock_capacity", {})[tid] = (
@@ -262,17 +264,7 @@ def _commit_po(team, world, params, ctx, supplier, events, units, round_days,
         "asked": asked, "bought": units, "moq": moq, "supplier": supplier["code"],
         "by_product": bool(lines)}
 
-
-    lead_days = (float(supplier["lead_time_days"]) * team.lead_time_multiplier
-                 * events.get("lead_time_mult", 1.0))
-    noise = 1 + rng.normal(world.run_id, world.round, team.team_id,
-                           "leadtime", 0.0, params["lead_time_noise_sd"])
-    lead_days *= max(0.4, noise)
-    # Ceiling, not rounding. Rounding let a 44-day shipment land inside a
-    # 30-day month, so doubling a supplier's lead time changed nothing and the
-    # whole lead-time dimension - sourcing, supplier choice, the EV-03 shock -
-    # was invisible. A PO that takes longer than the month misses the month.
-    arrives = world.round + max(1, math.ceil(lead_days / round_days))
+    arrives = _arrival(team, world, params, supplier, events, round_days, "leadtime")
 
     # Split by what the team's own customers bought last month, filling the
     # lines that ran short first - not by the catalogue, which would restock
@@ -293,6 +285,70 @@ def _commit_po(team, world, params, ctx, supplier, events, units, round_days,
     })
     ctx.setdefault("po_cost", {})[team.team_id] = \
         ctx.get("po_cost", {}).get(team.team_id, 0.0) + cost
+
+
+def _arrival(team, world, params, supplier, events, round_days, label: str) -> int:
+    """The month an order placed now lands.
+
+    Ceiling, not rounding. Rounding let a 44-day shipment land inside a
+    30-day month, so doubling a supplier's lead time changed nothing and the
+    whole lead-time dimension - sourcing, supplier choice, the EV-03 shock -
+    was invisible. A PO that takes longer than the month misses the month.
+    """
+    lead_days = (float(supplier["lead_time_days"]) * team.lead_time_multiplier
+                 * events.get("lead_time_mult", 1.0))
+    noise = 1 + rng.normal(world.run_id, world.round, team.team_id,
+                           label, 0.0, params["lead_time_noise_sd"])
+    lead_days *= max(0.4, noise)
+    return world.round + max(1, math.ceil(lead_days / round_days))
+
+
+def _place_listing_order(team, world, params, ctx, d, supplier, events,
+                         round_days) -> None:
+    """The first order for each product added to the range this month.
+
+    A month of its expected sales, at the team's landed cost, on the
+    supplier's normal terms. The product goes on sale when it lands. It is a
+    first order for one or two lines, so the minimum order does not apply.
+    """
+    from .. import assortment
+    added = ctx.get("range_adds", {}).get(team.team_id) or []
+    if not added:
+        return
+    alloc = assortment.listing_units(team, params, added)
+    arrives = _arrival(team, world, params, supplier, events, round_days, "listing")
+    cost = sum(
+        alloc[c] * float(params.sku(c)["unit_cost"]) * float(supplier["cost_index"])
+        * landed_index(team, c, d) * fx_multiplier(team, c, events, d)
+        for c in alloc)
+    team.open_pos.append({"placed": world.round, "arrives": arrives, "units": alloc,
+                          "cost": cost, "supplier": supplier["code"], "listing": True})
+    ctx.setdefault("po_cost", {})[team.team_id] = \
+        ctx.get("po_cost", {}).get(team.team_id, 0.0) + cost
+    team.pending_lines = dict(getattr(team, "pending_lines", None) or {})
+    for c in added:
+        team.pending_lines[c] = arrives
+
+
+def _send_back_off_range(team, world, params, d, supplier) -> None:
+    """In a game with range changes, stock of a product the team no longer
+    sells goes back to the supplier, refunded less the restocking fee.
+
+    That covers a product dropped this month, and stock of it still on its way
+    when it was dropped, which comes back the month it lands.
+    """
+    if not getattr(world, "range_changes", False):
+        return
+    keep = set(team.active_skus) | set(getattr(team, "pending_lines", None) or {})
+    rate = params["range_restocking_fee"]
+    plan = dict(getattr(team, "stock_returns", None) or {})
+    for code, units in team.inventory.items():
+        if code in keep or code in plan or units < 0.5:
+            continue
+        cost = (units * float(params.sku(code)["unit_cost"]) * float(supplier["cost_index"])
+                * landed_index(team, code, d) * params["cogs_scale"])
+        plan[code] = {"units": units, "refund": cost * (1 - rate), "fee": cost * rate}
+    team.stock_returns = plan
 
 
 def _expected_orders(team, params) -> float:

@@ -65,6 +65,9 @@ class TeamState:
     # Stock going back to the supplier at the start of the next month run:
     # {sku: {"units", "refund", "fee"}}. Set by the app, used up by M3.
     stock_returns: dict = field(default_factory=dict)
+    # Products added to the range (decision 1.3), waiting for their first
+    # order to land: {sku: month it goes on sale}.
+    pending_lines: dict = field(default_factory=dict)
     warehouse_capacity: float = 6_000.0
     cs_agents: int = 4
     cs_backlog: float = 0.0
@@ -133,4 +136,7 @@ class WorldState:
     # The month this game's rules v2 start: 1 for a new game, the next month
     # for a game already under way when the rules changed (see ecomsim.version).
     rules_from: int = 1
+    # Whether teams may add or drop products during the game (decision 1.3).
+    # Off for a game that started before it existed.
+    range_changes: bool = False
     category_scale: float = 1.0

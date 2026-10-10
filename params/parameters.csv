@@ -127,6 +127,7 @@ forecast_error_sd,M3,0.16,0.05,0.30,0.0,0.60,ratio,,Standard deviation of the de
 forecast_ai_error_reduction,M4,0.40,0.20,0.60,0.0,0.85,ratio,,Forecast error reduction once the forecasting AI module is live
 inventory_holding_rate,M14,0.021,0.008,0.040,0.0,0.080,ratio,,Holding cost per round as a share of average inventory value - storage  capital and shrinkage
 inventory_obsolescence_rounds,M14,6,3,12,2,24,rounds,,Cover beyond this many rounds is written down as ageing stock
+range_restocking_fee,M3,0.20,0.10,0.30,0.0,0.50,ratio,,Share of landed cost a supplier keeps when a dropped product's stock is sent back
 repeat_cr_multiplier,M6,2.6,1.5,4.0,1.0,8.0,multiplier,,How much better a returning customer converts than cold traffic
 segment_focus_coef,M7,0.35,0.2,0.5,0.0,0.8,multiplier,HIGH,How hard a stated segment focus redirects demand; above 0.8 focus decides share on its own
 segment_focus_spill,M7,0.5,0.3,0.7,0.0,1.0,ratio,,Share of the focus tilt paid as a penalty in segments you did not choose

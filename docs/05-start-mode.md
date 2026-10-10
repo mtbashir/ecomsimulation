@@ -139,9 +139,15 @@ squeeze than by elimination in Round 3.
 Most Round 0 choices are changeable later, at a switching cost. A few are
 deliberately sticky.
 
+Range changes (1.3) apply to games set up from engine 2.1.0 on
+(`game.range_changes`); a game already trading keeps the range it founded.
+In a game that allows them, any stock of a product outside the range - one
+dropped, or still landing after it was dropped - goes back to the supplier the
+month it is on the shelf, refunded less the fee.
+
 | Decision | Reversible? | Switching cost |
 |---|---|---|
-| D0.2 Category focus | Yes, from Round 3 | Dead stock write-off, 1 round of assortment disruption |
+| D0.2 Category focus / D0.6 Opening assortment | Yes, from Round 3, product by product (decision 1.3, engine 2.1.0) | An added product waits for its first order to land (about a month, paid on supplier terms); a dropped product's stock goes back at a 20% restocking fee (`range_restocking_fee`). Range stays 12–18 |
 | D0.4 Positioning tier | **Partially** | One tier per 3 rounds; costs 40% of brand equity stock |
 | D0.5 Business model | Yes | Marketplace onboarding takes 1 round |
 | D0.7 Sourcing | Yes | One full supplier lead time |

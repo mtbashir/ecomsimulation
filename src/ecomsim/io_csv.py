@@ -71,6 +71,16 @@ def read_decisions(path: str | Path) -> dict[str, dict]:
 
 def _coerce(code: str, raw: str):
     spec = REGISTRY[code]
+    if spec.kind == "range":
+        # {"add": [...], "drop": [...]} travels as JSON, like campaigns.
+        try:
+            value = json.loads(raw)
+        except ValueError:
+            raise SubmissionError(f'{code}: range changes must be JSON, e.g. '
+                                  f'{{"add": ["SKU-12"], "drop": ["SKU-01"]}}')
+        if not isinstance(value, dict):
+            raise SubmissionError(f"{code}: range changes must be a JSON object")
+        return value
     if spec.kind == "campaigns":
         # A list of campaigns has too much shape for a delimited cell, so it
         # travels as JSON - which is also what the web export writes.

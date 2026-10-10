@@ -116,6 +116,7 @@ def test_a_new_game_resets_both_switches(tmp_path):
     db.new_game(con, path, "Next cohort", 2, 12, "founding", keep_overrides=False)
     assert db.rules_from(con) == 1, "the next cohort plays every month on the current rules"
     assert db.launch_order(con) is True
+    assert db.range_changes(con) is True
 
 
 def _founding_game(tmp_path, launch_order):

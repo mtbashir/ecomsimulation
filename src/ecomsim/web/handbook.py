@@ -71,6 +71,24 @@ ENTRIES = {
         mistake="Claiming premium and pricing like economy. The market reads the "
                 "mismatch as confusion, not a bargain.",
         related=["1.1", "7.4", "8.5"]),
+    "1.3": dict(
+        does="Adds products to your range or drops them, from month 3. An added "
+             "product is ordered at once - a month of its expected sales, at your "
+             "landed cost on normal supplier terms - and goes on sale when that "
+             "stock lands, usually the next month. A dropped product comes off sale "
+             "this month, and its stock goes back to the supplier for a refund "
+             "less a restocking fee. The range stays between 12 and 18 products.",
+        tradeoff="Breadth against focus. Each product added draws a little more of "
+                 "every segment and fills a gap a customer segment cares about; "
+                 "each one also needs its own stock, ties up cash and splits your "
+                 "marketing. Dropping a weak line frees cash but costs the fee on "
+                 "the stock you send back.",
+        watch="Sales by product - each line's share of sales and contribution after "
+              "marketing - and Stock by product, for stock that is not moving.",
+        mistake="Adding a product because it is cheap to stock rather than because "
+                "your customers buy it; or dropping a slow line and keeping the "
+                "stock bought for it, which then cannot be sold.",
+        related=["1.1", "7.1", "12.1"]),
     "1.2": dict(
         does="Offers three-packs of your own products at a pack price. Bundles lift "
              "average order value; the saving against three singles decides how "

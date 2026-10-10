@@ -14,6 +14,7 @@ from __future__ import annotations
 from html import escape
 
 from . import mix
+from .assortment import DECISION, changes
 from .decisions import REGISTRY
 from .modules.m03_supply import purchase_plan
 from .modules.m09_basket import BUNDLE_UNITS, _unit_net_price
@@ -94,6 +95,12 @@ def _decisions(team, params, sub: dict) -> list[tuple[str, str]]:
     if "2.4" in sub:
         v = float(sub["2.4"] or 0)
         rows.append(("Free delivery above", "every order" if v <= 0 else _money(v)))
+    add, drop = changes(sub.get(DECISION))
+    if add or drop:
+        name = lambda c: params.sku(c)["name"] if any(s["code"] == c for s in params.skus) else c
+        rows.append((_label(DECISION), escape(
+            "; ".join(([f"added {', '.join(name(c) for c in add)}"] if add else [])
+                      + ([f"dropped {', '.join(name(c) for c in drop)}"] if drop else [])))))
     if "2.2" in sub and float(sub["2.2"] or 0):
         rows.append(("Site-wide discount", f"{float(sub['2.2']):.0%}"))
     for code in ("1.5", "8.5", "9.3", "9.1", "7.2"):

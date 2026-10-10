@@ -151,6 +151,7 @@ def migrate(con) -> None:
         ("game", "epoch", "INTEGER NOT NULL DEFAULT 0"),
         ("game", "rules_from", "INTEGER"),
         ("game", "launch_order", "INTEGER"),
+        ("game", "range_changes", "INTEGER"),
     ]:
         have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
         if column not in have:
@@ -163,6 +164,9 @@ def migrate(con) -> None:
     # a game not yet started opens with its teams' own launch orders.
     con.execute("UPDATE game SET launch_order = CASE WHEN round >= 1 THEN 0 ELSE 1 END "
                 "WHERE launch_order IS NULL")
+    # And range changes (decision 1.3) arrive for games that have not started.
+    con.execute("UPDATE game SET range_changes = CASE WHEN round >= 1 THEN 0 ELSE 1 END "
+                "WHERE range_changes IS NULL")
 
 
 def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
@@ -177,7 +181,8 @@ def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
         con.execute(
             "INSERT OR REPLACE INTO game "
             "(id, name, preset, round, total_rounds, open_round, start_mode, "
-            "rules_from, launch_order, created_at) VALUES (1, ?, ?, 0, ?, NULL, ?, 1, 1, ?)",
+            "rules_from, launch_order, range_changes, created_at) "
+            "VALUES (1, ?, ?, 0, ?, NULL, ?, 1, 1, 1, ?)",
             (name, preset, rounds, start_mode, _now()))
         con.execute(
             "INSERT OR REPLACE INTO account "
@@ -368,6 +373,20 @@ def launch_order(con) -> bool:
         return True
     if "launch_order" in row.keys() and row["launch_order"] is not None:
         return bool(row["launch_order"])
+    return int(row["round"]) < 1
+
+
+def range_changes(con) -> bool:
+    """Whether teams in this game may add or drop products (decision 1.3).
+
+    True for a game set up from now on; a game already trading when it arrived,
+    or an archive that predates the column, plays on the range it founded.
+    """
+    row = game(con)
+    if row is None:
+        return True
+    if "range_changes" in row.keys() and row["range_changes"] is not None:
+        return bool(row["range_changes"])
     return int(row["round"]) < 1
 
 
@@ -652,7 +671,8 @@ def new_game(con, db_path: str | Path, name: str, teams: int, rounds: int,
         con.execute(
             "UPDATE game SET name = ?, round = 0, total_rounds = ?, "
             "open_round = NULL, start_mode = ?, overrides = ?, epoch = ?, "
-            "rules_from = 1, launch_order = 1, created_at = ? WHERE id = 1",
+            "rules_from = 1, launch_order = 1, range_changes = 1, created_at = ? "
+            "WHERE id = 1",
             (name, rounds, start_mode,
              old["overrides"] if keep_overrides else "{}",
              old["epoch"] + 1, _now()))

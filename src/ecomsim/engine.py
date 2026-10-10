@@ -12,9 +12,11 @@ from .decisions import REGISTRY, Resolver
 from .modules import PIPELINE
 
 MEMO = "12.5"
+RANGE = "1.3"           # range changes (ecomsim.assortment)
 # Not standing settings, so never carried into the next month: research and the
-# memo are this month's; a stock order and an AI investment are one-off buys.
-NOT_CARRIED = {"12.1", MEMO, "7.1", "11.1", "11.2", "11.3", "11.4", "11.5"}
+# memo are this month's; a stock order, a range change and an AI investment are
+# one-off moves.
+NOT_CARRIED = {"12.1", MEMO, "7.1", RANGE, "11.1", "11.2", "11.3", "11.4", "11.5"}
 
 
 def carry(standing: dict, submitted: dict) -> dict:
@@ -57,7 +59,9 @@ def run_round(world, params, submissions: dict[str, dict],
                         overrides=decision_overrides)
     v2 = world.round >= getattr(world, "rules_from", 1)
     if open_codes is None:
-        open_codes = [c for c in REGISTRY if resolver.enabled(c) and resolver.unlocked(c)]
+        # Range changes are offered only in a game that allows them.
+        open_codes = [c for c in REGISTRY if resolver.enabled(c) and resolver.unlocked(c)
+                      and (c != RANGE or getattr(world, "range_changes", False))]
     counted = [c for c in open_codes if c != MEMO]
     resolved, decisions = {}, {}
     for tid, team in world.teams.items():

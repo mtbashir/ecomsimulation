@@ -33,7 +33,7 @@ class DecisionSpec:
     code: str
     group: str
     name: str
-    kind: str          # select | multi | shares | num | pct | curr | per_sku | text | campaigns
+    kind: str          # select | multi | shares | num | pct | curr | per_sku | text | campaigns | range
     default_when_disabled: object
     presets: frozenset[str]  # presets in which this decision is enabled
     unlock_round: int = 1
@@ -91,6 +91,17 @@ REGISTRY: dict[str, DecisionSpec] = {
                  "take it, priced above three singles nobody does, and a deep "
                  "saving gives margin away on units most buyers would have "
                  "bought anyway.",
+            catalogue="skus"),
+
+        DecisionSpec(
+            "1.3", "G1", "Range changes", "range", None,
+            frozenset({"standard", "advanced", "expert"}), unlock_round=3,
+            help="Add a product to your range, or drop one. An added product is "
+                 "ordered now - a month of expected sales, on normal supplier "
+                 "terms - and goes on sale when that stock lands. A dropped "
+                 "product stops selling at once; its stock goes back to the "
+                 "supplier for a refund, less a restocking fee. Your range stays "
+                 "between 12 and 18 products.",
             catalogue="skus"),
 
         # --- Pricing ---------------------------------------------------------

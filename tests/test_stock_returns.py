@@ -78,7 +78,7 @@ def old_opening(tmp_path):
     path = tmp_path / "g.db"
     pw = db.init(path, "Live", 2, rounds=12, admin_password="admin-pw")
     con = db.connect(path)
-    db.set_game(con, rules_from=3, launch_order=0)
+    db.set_game(con, rules_from=3, launch_order=0, range_changes=0)
     params = service.load_params(con)
     off = [c for c in F.Founding.default(params).assortment if c not in (SERUM, OIL)]
     off += [s["code"] for s in params.skus if s["code"] not in off and

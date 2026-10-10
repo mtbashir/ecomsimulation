@@ -399,7 +399,9 @@ def _stock(record: dict, team=None) -> str:
     if not lines:
         return ""
     rng = set(getattr(team, "active_skus", None) or [])
-    outside = {r["code"] for r in lines if rng and r["code"] not in rng}
+    pending = dict(getattr(team, "pending_lines", None) or {})
+    outside = {r["code"] for r in lines
+               if rng and r["code"] not in rng and r["code"] not in pending}
     sent = any(r.get("to_supplier", 0.0) >= 0.5 for r in lines)
     order = {r["code"]: i for i, r in enumerate(record.get("products") or [])}
     lines = sorted(lines, key=lambda r: (order.get(r["code"], len(order)), r["name"]))
@@ -413,6 +415,8 @@ def _stock(record: dict, team=None) -> str:
         cover, tone = mix.cover_state(r)
         if r["code"] in outside:
             cover, tone = "not in your range", "warn"
+        elif r["code"] in pending:
+            cover, tone = f"on sale from month {pending[r['code']]}", ""
         missed = max(0.0, r.get("wanted", r["sold"]) - r["sold"])
         lands = (f' <span class="d flat">M{r["next_arrival"]}</span>'
                  if r.get("next_arrival") and r["on_order"] >= 0.5 else "")
