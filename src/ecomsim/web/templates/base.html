@@ -549,6 +549,11 @@ main.signed-out{max-width:none;display:grid;place-items:center;
 min-height:100vh;padding:40px 18px}
 .signin{width:100%;max-width:392px}
 .signin-logo{width:230px;max-width:70%;height:auto;display:block;margin:0 auto 26px}
+/* The logo has a version for each kind of background: red tagline on the light
+   themes, white tagline on the dark ones. */
+.logo-dark{display:none!important}
+[data-theme="dark"] .logo-light,[data-theme="slate"] .logo-light{display:none!important}
+[data-theme="dark"] .logo-dark,[data-theme="slate"] .logo-dark{display:block!important}
 .signin-foot{display:flex;justify-content:center;margin-top:22px}
 /* Laptops, not just phones. A 1280 or 1366 screen has to hold a sidebar and
    a five-up row of figures without either being squeezed. */
@@ -580,7 +585,9 @@ nav{display:flex}
 <div class="app">
 <aside>
   <a class="brandmark" href="{{ url_for('home') if role != 'admin' else url_for('admin') }}">
-    <img src="{{ url_for('static', filename='consulytics.png') }}"
+    <img class="logo-light" src="{{ url_for('static', filename='consulytics.png') }}"
+         alt="Consulytics.ai">
+    <img class="logo-dark" src="{{ url_for('static', filename='consulytics-dark.png') }}"
          alt="Consulytics.ai"></a>
   <div class="org">
     <span class="avatar {{ 'admin' if role == 'admin' }}">{{ (brand or session.get('name') or user)[:1]|upper }}</span>
@@ -665,7 +672,9 @@ nav{display:flex}
 {% else %}
 <main class="signed-out">
 <div class="signin">
-  <img class="signin-logo" src="{{ url_for('static', filename='consulytics.png') }}"
+  <img class="signin-logo logo-light" src="{{ url_for('static', filename='consulytics.png') }}"
+       alt="Consulytics.ai">
+  <img class="signin-logo logo-dark" src="{{ url_for('static', filename='consulytics-dark.png') }}"
        alt="Consulytics.ai">
 {% endif %}
 {% with messages = get_flashed_messages(with_categories=true) %}
