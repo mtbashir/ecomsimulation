@@ -277,7 +277,7 @@ def _commit_po(team, world, params, ctx, supplier, events, units, round_days,
         alloc[c] * float(params.sku(c)["unit_cost"]) * float(supplier["cost_index"])
         * landed_index(team, c, d) * fx_multiplier(team, c, events, d)
         for c in skus
-    )
+    ) * purchase_scale(world, params)
 
     team.open_pos.append({
         "placed": world.round, "arrives": arrives,
@@ -285,6 +285,19 @@ def _commit_po(team, world, params, ctx, supplier, events, units, round_days,
     })
     ctx.setdefault("po_cost", {})[team.team_id] = \
         ctx.get("po_cost", {}).get(team.team_id, 0.0) + cost
+
+
+def purchase_scale(world, params) -> float:
+    """The cost scale a purchase order is charged at.
+
+    `cogs_scale` scales every SKU unit cost - cost of goods, stock value, the
+    opening orders - and was missing from orders placed during the game, so
+    stock cost about 5% more in cash than the P&L charged when it sold. A
+    world built from engine 2.1.0 on charges orders at the same scale. A game
+    already trading keeps the cost it started with. The currency shock is
+    charged on purchases alone on purpose (see M9) and is not part of this.
+    """
+    return params["cogs_scale"] if getattr(world, "scaled_purchases", False) else 1.0
 
 
 def _arrival(team, world, params, supplier, events, round_days, label: str) -> int:
@@ -320,7 +333,7 @@ def _place_listing_order(team, world, params, ctx, d, supplier, events,
     cost = sum(
         alloc[c] * float(params.sku(c)["unit_cost"]) * float(supplier["cost_index"])
         * landed_index(team, c, d) * fx_multiplier(team, c, events, d)
-        for c in alloc)
+        for c in alloc) * purchase_scale(world, params)
     team.open_pos.append({"placed": world.round, "arrives": arrives, "units": alloc,
                           "cost": cost, "supplier": supplier["code"], "listing": True})
     ctx.setdefault("po_cost", {})[team.team_id] = \

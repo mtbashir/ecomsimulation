@@ -139,4 +139,8 @@ class WorldState:
     # Whether teams may add or drop products during the game (decision 1.3).
     # Off for a game that started before it existed.
     range_changes: bool = False
+    # Whether purchase orders are costed with cogs_scale, as cost of goods is.
+    # A world built from now on says so (bootstrap.new_world); a world saved
+    # before it has no such attribute and reads this class default, False.
+    scaled_purchases: bool = False
     category_scale: float = 1.0

@@ -152,6 +152,7 @@ def migrate(con) -> None:
         ("game", "rules_from", "INTEGER"),
         ("game", "launch_order", "INTEGER"),
         ("game", "range_changes", "INTEGER"),
+        ("game", "scaled_purchases", "INTEGER"),
     ]:
         have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
         if column not in have:
@@ -167,6 +168,9 @@ def migrate(con) -> None:
     # And range changes (decision 1.3) arrive for games that have not started.
     con.execute("UPDATE game SET range_changes = CASE WHEN round >= 1 THEN 0 ELSE 1 END "
                 "WHERE range_changes IS NULL")
+    # And purchase orders costed like cost of goods (cogs_scale).
+    con.execute("UPDATE game SET scaled_purchases = CASE WHEN round >= 1 THEN 0 ELSE 1 END "
+                "WHERE scaled_purchases IS NULL")
 
 
 def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
@@ -181,8 +185,8 @@ def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
         con.execute(
             "INSERT OR REPLACE INTO game "
             "(id, name, preset, round, total_rounds, open_round, start_mode, "
-            "rules_from, launch_order, range_changes, created_at) "
-            "VALUES (1, ?, ?, 0, ?, NULL, ?, 1, 1, 1, ?)",
+            "rules_from, launch_order, range_changes, scaled_purchases, created_at) "
+            "VALUES (1, ?, ?, 0, ?, NULL, ?, 1, 1, 1, 1, ?)",
             (name, preset, rounds, start_mode, _now()))
         con.execute(
             "INSERT OR REPLACE INTO account "
@@ -387,6 +391,20 @@ def range_changes(con) -> bool:
         return True
     if "range_changes" in row.keys() and row["range_changes"] is not None:
         return bool(row["range_changes"])
+    return int(row["round"]) < 1
+
+
+def scaled_purchases(con) -> bool:
+    """Whether this game's purchase orders are costed like cost of goods.
+
+    True for a game set up from now on; a game already trading, or an archive
+    that predates the column, keeps the purchase cost it started with.
+    """
+    row = game(con)
+    if row is None:
+        return True
+    if "scaled_purchases" in row.keys() and row["scaled_purchases"] is not None:
+        return bool(row["scaled_purchases"])
     return int(row["round"]) < 1
 
 
@@ -671,8 +689,8 @@ def new_game(con, db_path: str | Path, name: str, teams: int, rounds: int,
         con.execute(
             "UPDATE game SET name = ?, round = 0, total_rounds = ?, "
             "open_round = NULL, start_mode = ?, overrides = ?, epoch = ?, "
-            "rules_from = 1, launch_order = 1, range_changes = 1, created_at = ? "
-            "WHERE id = 1",
+            "rules_from = 1, launch_order = 1, range_changes = 1, scaled_purchases = 1, "
+            "created_at = ? WHERE id = 1",
             (name, rounds, start_mode,
              old["overrides"] if keep_overrides else "{}",
              old["epoch"] + 1, _now()))

@@ -24,6 +24,7 @@ def new_world(params, n_teams: int | None = None, run_id: str = "run",
               ai_aggression: float | None = None) -> WorldState:
     n_teams = int(n_teams or params["n_teams"])
     world = WorldState(run_id=run_id)
+    world.scaled_purchases = True
     world.teams = {
         f"team_{i + 1:02d}": new_team(params, f"team_{i + 1:02d}")
         for i in range(n_teams)

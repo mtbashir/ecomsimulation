@@ -986,6 +986,7 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
     n_submitted = len(submitted)   # before standing campaigns are carried in
     world.rules_from = db.rules_from(con)
     world.range_changes = db.range_changes(con)
+    world.scaled_purchases = db.scaled_purchases(con)
     if nxt < world.rules_from:
         # Rules v1: only campaigns carry; every other lever left blank runs
         # on its default, as the months already played did.
@@ -1293,7 +1294,7 @@ def company_position(con, team_id: str) -> dict | None:
     answer to "what have I actually got".
     """
     params = load_params(con)
-    world = db.load_world(con)
+    world = detailed_world(con)
     if world is not None and team_id in world.teams:
         team = world.teams[team_id]
         h = team.history[-1] if team.history else {}
@@ -1303,9 +1304,13 @@ def company_position(con, team_id: str) -> dict | None:
             "cash": team.cash,
             "credit_drawn": team.credit_drawn,
             "inventory_units": sum(team.inventory.values()),
-            "inventory_value": sum(
-                units * float(params.sku(code)["unit_cost"])
-                for code, units in team.inventory.items() if units),
+            # At landed cost, the figure the report's stock table adds up to;
+            # a month recorded before stock by product is valued at catalogue
+            # cost on the same scale as cost of goods.
+            "inventory_value": (
+                sum(r["value"] for r in h["stock"]) if h.get("stock") else sum(
+                    units * float(params.sku(code)["unit_cost"]) * params["cogs_scale"]
+                    for code, units in team.inventory.items() if units)),
             "skus": [params.sku(c)["name"] for c in team.active_skus],
             "rating": getattr(team, "rating", None),
             "nps": h.get("nps"),

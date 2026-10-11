@@ -842,3 +842,38 @@ owed once on normal terms. Measured over 12 months on five set-ups (default,
 
 The founding balance tests (size within 15% of baseline) and I1–I13 pass
 unchanged. Games already trading keep their opening (`game.launch_order = 0`).
+
+
+## 2026-10-11 — Purchase orders costed on the same scale as cost of goods
+
+`cogs_scale` (0.949) was solved in Burst 2 as "a global scale on SKU unit
+costs" and applied to cost of goods (M9) and to the going-concern template
+order (`bootstrap._seed_pipeline`), but not to orders placed during the game
+(M3 `_commit_po`). Every unit bought therefore cost about 5.4% more in cash
+than the P&L charged when it sold (1 / 0.949): the gap lowered cash, runway and
+"cash the business generated" without ever appearing in the P&L. Nothing in
+the history or this log records it as a choice, and the same commit scaled the
+template order, so it is an oversight.
+
+M3 now charges purchase orders (and range-change first orders) at the same
+scale (`m03_supply.purchase_scale`). The currency shock stays on purchases
+alone, as M9 documents - that difference is deliberate.
+
+Gated per game (`game.scaled_purchases`; a world built by `bootstrap.new_world`
+sets it): a game already trading keeps the cost it started with, and runs
+identically to before.
+
+I1-I13, events on, before -> after:
+
+| | Before | After |
+|---|---|---|
+| Median strategy score | 53.3 | 54.2 |
+| Teams drawing credit | 95% | 94% |
+| Viable strategies insolvent | 3% | 2% |
+| tech_led insolvent | 34% | 19% |
+| research_heavy (must fail) | 53.8, 96% insolvent | 56.2, 83% insolvent |
+| growth_max (must fail) | 52.7, 22% insolvent | 53.2, 13% insolvent |
+| Deliberately reckless archetypes (`MUST_FAIL`) | exempt from the survival checks; I3, I7 and I11, which test them, pass | the same |
+
+All thirteen pass; no other parameter moved. Cash-hungry strategies feel it
+most, as they should: they buy the most stock.
