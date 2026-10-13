@@ -136,6 +136,19 @@ def run(world, params, resolved, ctx) -> None:
             record["rules"] = ctx["rules"]
             record["decisions"] = dict(ctx.get("decisions", {}).get(tid, {}))
         record["stock"] = mix.stock_lines(team, params, ctx, world.round)
+        # Selling on the marketplace (decision 4.1): its shoppers, its orders,
+        # and their share of the month - only for a team that was listed.
+        if tid in ctx.get("mp_orders", {}):
+            from .. import marketplace
+            record["marketplace"] = {
+                "sessions": ctx.get("mp_sessions", {}).get(tid, 0.0),
+                "orders": ctx["mp_orders"][tid],
+                "new_orders": ctx.get("mp_new_orders", {}).get(tid, 0.0),
+                "repeat_orders": ctx.get("mp_repeat_orders", {}).get(tid, 0.0),
+                "share": marketplace.order_share(ctx, tid),
+                "rank": ctx.get("mp_rank", {}).get(tid, 0.0),
+                "commission": ctx["pnl"][tid]["commission"],
+            }
         if tid in ctx.get("purchase", {}):
             record["purchase"] = dict(ctx["purchase"][tid])
         record["cash_flow"] = dict(ctx.get("cash_flow", {}).get(tid, {}))

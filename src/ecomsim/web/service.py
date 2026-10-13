@@ -904,6 +904,17 @@ def schedule_off_range_returns(con, actor: str = "admin") -> dict:
     return held
 
 
+def window_overrides(con, round_: int) -> dict:
+    """The instructor's decision windows for a month, as the engine reads them.
+
+    A window closed for the month makes that lever run on its default, whatever
+    a team saved before it closed; one opened early runs it before its usual
+    month. Without this the windows only hid or showed a tile on the form.
+    """
+    return {code: ({"enabled": True, "unlock_round": 1} if is_open else {"enabled": False})
+            for code, is_open in db.windows(con, round_).items()}
+
+
 def first_world(con, params, g):
     """The world as it stands before month 1: every team as it was set up."""
     world = bootstrap.new_world(
@@ -998,6 +1009,7 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
         if team_id in world.teams:
             world.teams[team_id].stock_returns = plan
     run_round(world, params, submitted, preset=g["preset"],
+              decision_overrides=window_overrides(con, nxt),
               open_codes=[s.code for s in form_decisions(con, nxt)])
 
     db.save_round(con, nxt, world, params.config_hash())

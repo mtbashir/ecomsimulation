@@ -69,9 +69,11 @@ def _team_focus(world, tid: str, seg, params, ctx) -> float:
 def _repeat_demand(team, params, ctx) -> float:
     """Orders the installed base will place, from the cohort ledger."""
     uplift = 1 + 0.45 * ctx.get("retention_effect", {}).get(team.team_id, 0.0)
+    from .. import marketplace
     return sum(
         c.active * c.freq * params["cohort_freq_scale"] * uplift
         for c in team.cohorts
+        if not marketplace.is_marketplace(c)    # they buy through the marketplace (M8)
     )
 
 

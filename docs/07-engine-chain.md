@@ -260,6 +260,12 @@ mp_rank_score  = 0.4·mp_ad_spend_norm + 0.3·price_competitiveness + 0.3·ratin
 mp_sessions[i] = MP_POOL × mp_rank_score[i] / Σ_j mp_rank_score[j]
 ```
 
+As built (`ecomsim/marketplace.py`, 2026-10-13): the score is half price, half
+rating (teams have no sponsored-listing lever; the scripted `3.7` spend lifts it
+by up to half), the denominator adds `mp_rival_weight` average sellers for the
+rest of the marketplace, and marketplace sessions turn into orders in M8 rather
+than joining own-site traffic. See docs/13 for the parameters and their effect.
+
 ### Total
 
 ```

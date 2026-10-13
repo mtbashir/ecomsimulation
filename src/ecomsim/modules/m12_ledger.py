@@ -9,6 +9,7 @@ LTV is computed from this ledger, never from a formula applied to averages.
 """
 from __future__ import annotations
 
+from .. import marketplace
 from ..state import Cohort
 
 PAID_DECISIONS = {
@@ -23,7 +24,7 @@ def run(world, params, resolved, ctx) -> None:
         orders = ctx["orders"][tid]
         pending = team.pending_gap_penalties.get(world.round, {})
 
-        repeat_demand = _age_cohorts(team, params, ctx, pending)
+        repeat_demand = _age_cohorts(team, params, ctx, pending, world)
         # Repeat customers are rationed alongside everyone else when supply or
         # traffic binds. If repeat demand routinely exceeds total orders the
         # cohort seed is inconsistent with the baseline, so say so rather than
@@ -37,8 +38,15 @@ def run(world, params, resolved, ctx) -> None:
         new_orders = max(0.0, orders - repeat_orders)
         new_customers = new_orders / params["first_order_units"]
 
-        if new_customers > 0:
-            _add_cohort(team, world, params, ctx, new_customers)
+        # Buyers won on the marketplace belong to it: their own cohort, with
+        # the marketplace's churn and frequency (decision 4.1).
+        mp_new = min(ctx.get("mp_new_orders", {}).get(tid, 0.0), new_orders)
+        own_new = (new_orders - mp_new) / params["first_order_units"]
+        if own_new > 0:
+            _add_cohort(team, world, params, ctx, own_new)
+        if mp_new > 0:
+            _add_cohort(team, world, params, ctx, mp_new / params["first_order_units"],
+                        channel=marketplace.CHANNEL)
 
         active = sum(c.active for c in team.cohorts)
         ctx.setdefault("repeat_orders", {})[tid] = repeat_orders
@@ -51,29 +59,38 @@ def run(world, params, resolved, ctx) -> None:
         ctx.setdefault("ltv", {})[tid] = _ltv(team, params, ctx)
 
 
-def _age_cohorts(team, params, ctx, pending) -> float:
-    """Churn each cohort, then count the repeat orders the survivors place."""
+def _age_cohorts(team, params, ctx, pending, world=None) -> float:
+    """Churn each cohort, then count the repeat orders the survivors place.
+
+    A marketplace cohort is out of reach of the team's CRM, and orders again
+    only through the marketplace - so only in a month the team is listed.
+    """
     experience_penalty = team.experience_penalty   # set by M13 last round
     retention_effect = ctx.get("retention_effect", {}).get(team.team_id, 0.0)
     repeat_mult = pending.get("repeat_mult", 1.0)
+    on_marketplace = marketplace.listed(ctx["resolved"][team.team_id])
 
     repeat_orders = 0.0
     for cohort in team.cohorts:
+        bought_there = marketplace.is_marketplace(cohort)
+        reach = 0.0 if bought_there else retention_effect
         churn = (
             cohort.churn_base
             * (1 + params["churn_experience_coef"] * experience_penalty)
-            * (1 - params["churn_retention_coef"] * retention_effect)
+            * (1 - params["churn_retention_coef"] * reach)
         )
         cohort.active *= max(0.0, 1 - max(0.0, min(0.95, churn)))
+        if bought_there and not on_marketplace:
+            continue
         repeat_orders += (cohort.active * cohort.freq * repeat_mult
                           * params["cohort_freq_scale"]
-                          * (1 + 0.45 * retention_effect))
+                          * (1 + 0.45 * reach))
 
     team.cohorts = [c for c in team.cohorts if c.active > 1.0]
     return repeat_orders
 
 
-def _add_cohort(team, world, params, ctx, customers: float) -> None:
+def _add_cohort(team, world, params, ctx, customers: float, channel: str | None = None) -> None:
     """Stamp the new cohort with the channel mix that acquired it.
 
     A team discounting past 25% acquires Deal Hunters whatever channel the
@@ -81,7 +98,7 @@ def _add_cohort(team, world, params, ctx, customers: float) -> None:
     """
     if ctx["discount"][team.team_id] > DEAL_THRESHOLD:
         channel = "deal_driven"
-    else:
+    elif channel is None:
         channel = _dominant_channel(team, ctx)
 
     ch = params.channel(channel)

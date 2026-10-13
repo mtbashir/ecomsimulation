@@ -111,6 +111,11 @@ fulfil_pick_pack_cost,M14,42,20,90,5,200,PKR,,Pick and pack cost per order
 cod_handling_fee,M14,0.012,0.004,0.025,0.0,0.05,ratio,,COD handling fee as share of order value
 gateway_fee,M14,0.029,0.015,0.040,0.005,0.060,ratio,,Prepaid gateway fee as share of order value
 marketplace_commission,M14,0.145,0.08,0.20,0.03,0.30,ratio,,Marketplace commission on marketplace orders
+mp_pool_sessions,M6,205000,100000,400000,0,1000000,sessions,,Marketplace shopper sessions a month in the category shared between listed sellers by rank
+mp_rival_weight,M6,4.0,2.0,8.0,0.5,20.0,sellers,,The rest of the marketplace counted as this many average sellers competing for its shoppers
+mp_cr_mult,M8,1.5,1.0,2.0,0.5,3.0,multiplier,,Marketplace shoppers arrive ready to buy: conversion against the team's own-site rate
+mp_cannibalisation,M8,0.10,0.0,0.25,0.0,0.5,ratio,,Share of a listed team's own-site orders that move to the marketplace and pay commission
+mp_payout_days,M15,15,7,30,1,60,days,,Days from a marketplace sale to the marketplace paying the seller
 payroll_base,M14,500000,350000,2500000,150000,6000000,PKR,,Fixed monthly payroll at baseline headcount
 warehouse_fixed_cost,M14,250000,100000,800000,40000,2000000,PKR,,Fixed warehouse cost per round
 tech_fixed_cost,M14,120000,50000,500000,0,1800000,PKR,,Baseline technology running cost per round

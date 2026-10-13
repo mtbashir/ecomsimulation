@@ -877,3 +877,46 @@ I1-I13, events on, before -> after:
 
 All thirteen pass; no other parameter moved. Cash-hungry strategies feel it
 most, as they should: they buy the most stock.
+
+
+## 2026-10-13 — The marketplace (4.1) built as docs/07 specifies
+
+Decision 4.1 only ever charged commission - 14.5% on a fixed 35% of all net
+revenue - and brought no shoppers: a listed team sold exactly what an unlisted
+one did and paid about PKR 430k a month for it. The marketplace docs/07 specifies
+was never built. It is now (`ecomsim/marketplace.py`):
+
+- **Reach (M6, M8).** `mp_pool_sessions` (205,000) marketplace shoppers a month
+  are shared between listed teams by a rank score - half price index, half
+  rating - against the rest of the marketplace, counted as `mp_rival_weight`
+  (4) average sellers. They convert at `mp_cr_mult` (1.5) times the team's own
+  rate and sell from the same stock, after the own site.
+- **Cannibalisation.** `mp_cannibalisation` (10%) of a listed team's own-site
+  orders move to the marketplace: no extra orders, commission on them.
+- **Money (M14, M15).** Commission only on marketplace orders; no gateway or
+  COD fee of the team's own on them; the payout lands `mp_payout_days` (15)
+  after the sale. Daraz publishes no public commission table (rates vary by
+  category, per its seller page) and announced a 7-day payment cycle in 2021,
+  so 14.5% and 15 days stay labelled as the simulation's assumptions.
+- **Customers (M12).** Buyers won there form a marketplace cohort (the
+  `marketplace_ads` row: churn 0.103, frequency 0.017 - 1.6x the churn and 0.56x
+  the frequency of a Meta cohort, as docs/07's table has it), out of reach of
+  CRM, buying again only while the team is listed.
+
+It opens in month 5 (session 6), as the course map has it, not month 3.
+Instructor decision windows now reach the engine: a closed lever runs on its
+default even if a team saved it before the window closed.
+
+Measured, events off, six teams, months 5-8:
+
+| | Orders | Marketplace share | Contribution |
+|---|---|---|---|
+| Not listed | 14,751 | - | 2.86m |
+| Listed alone | 18,863 (+28%) | 30% | 3.62m (+27%) |
+| All six listed | 16,843 (+14%) | 21% | 3.03m (+6%) |
+| Listed, 15% off everything | 23,029 | 32% | -2.12m |
+
+With no team listed the engine's output is identical to before. I1-I13 pass;
+marketplace_first, which paid commission and sponsored-listing spend for
+nothing, moves from 43.9 to 57.4 - viable, not dominant (balanced 64.0) - and
+every other archetype moves 0.2 points or less.

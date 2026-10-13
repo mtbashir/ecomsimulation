@@ -73,7 +73,18 @@ def run(world, params, resolved, ctx) -> None:
         ctx.setdefault("binding_constraint", {})[tid] = binding
 
     _redistribute(world, params, ctx, orders, spare)
+    from .. import marketplace
+    marketplace.take_orders(world, params, ctx, orders)
     ctx["orders"] = orders
+    # Marketplace sessions and demand join the totals now, so conversion, the
+    # forecast basis and the service level cover every order the team sold.
+    for tid, extra in ctx.get("mp_sessions", {}).items():
+        ctx["sessions"][tid] += extra
+        ctx["sessions_split"][tid]["marketplace"] = extra
+        wanted = ctx.get("mp_demand", {}).get(tid, 0.0)
+        ctx["sellable"][tid] += wanted
+        ctx["service_level"][tid] = (orders[tid] / ctx["sellable"][tid]
+                                     if ctx["sellable"][tid] > 0 else 1.0)
 
 
 def _conversion_rate(team, params, ctx) -> float:

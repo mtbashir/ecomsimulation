@@ -6,7 +6,7 @@ dominates every other decision in the sim (docs/04).
 """
 from __future__ import annotations
 
-from .. import targeting
+from .. import marketplace, targeting
 
 CHANNEL_DECISIONS = {
     "meta": "3.1",
@@ -24,6 +24,7 @@ def _returning_sessions(team, params) -> float:
     """
     expected_repeat = sum(
         c.active * c.freq * params["cohort_freq_scale"] for c in team.cohorts
+        if not marketplace.is_marketplace(c)     # they come back via the marketplace
     )
     effective_cr = params["cr_base"] * params["repeat_cr_multiplier"]
     return expected_repeat / max(effective_cr, 1e-6)
@@ -120,3 +121,7 @@ def run(world, params, resolved, ctx) -> None:
         ctx.setdefault("paid_cvr_mult", {})[team.team_id] = cvr
         ctx.setdefault("paid_share_cold", {})[team.team_id] = (
             paid / (paid + organic) if paid + organic > 0 else 0.0)
+
+    # The marketplace's own shoppers, shared between listed teams (decision 4.1).
+    # Kept apart from own-site sessions: M8 turns them into orders separately.
+    marketplace.share_sessions(world, params, ctx)

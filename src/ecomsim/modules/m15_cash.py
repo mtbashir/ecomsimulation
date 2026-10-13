@@ -36,8 +36,11 @@ def run(world, params, resolved, ctx) -> None:
         pnl = ctx["pnl"][tid]
         net_revenue = pnl["net_revenue"]
 
-        prepaid = net_revenue * ctx["prepaid_share"][tid]
-        cod = net_revenue * ctx["cod_share"][tid]
+        from .. import marketplace
+        mp_share = marketplace.order_share(ctx, tid)
+        prepaid = net_revenue * (1 - mp_share) * ctx["prepaid_share"][tid]
+        cod = net_revenue * (1 - mp_share) * ctx["cod_share"][tid]
+        mp_sales = net_revenue * mp_share
 
         # Prepaid settles in days, so effectively within the round. COD remits
         # on a rolling lag: orders placed early in the round are remitted
@@ -47,6 +50,9 @@ def run(world, params, resolved, ctx) -> None:
                   params["gateway_settle_days"] / round_days)
         _schedule(team.receivables, world.round, cod,
                   params["cod_remit_days"] / round_days)
+        # The marketplace collects from the buyer and pays out later.
+        _schedule(team.receivables, world.round, mp_sales,
+                  params["mp_payout_days"] / round_days)
         inflow = team.receivables.pop(world.round, 0.0)
         team.cod_receivable = sum(team.receivables.values())
 
@@ -80,7 +86,7 @@ def run(world, params, resolved, ctx) -> None:
         # are the P&L's cash costs as the engine pays them this month.
         ctx.setdefault("cash_flow", {})[tid] = {
             "opening": opening, "receipts": inflow,
-            "sales_prepaid": prepaid, "sales_cod": cod,
+            "sales_prepaid": prepaid, "sales_cod": cod, "sales_marketplace": mp_sales,
             "supplier_payments": payable_now,
             "operating": outflow - payable_now - pnl["interest"]
                          - ctx.get("capex", {}).get(tid, 0.0),

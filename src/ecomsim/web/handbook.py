@@ -205,16 +205,24 @@ ENTRIES = {
                 "money one by one.",
         related=["3.1", "1.1"]),
     "4.1": dict(
-        does="Lists your range on the marketplace, which brings shoppers who would "
-             "never find your own site.",
-        tradeoff="Extra orders against a commission on each one, a payout that "
-                 "arrives later, and customers who belong to the marketplace, not "
-                 "to you.",
-        watch="Revenue split, contribution margin and cash timing.",
-        mistake="Counting marketplace revenue as if it were own-site revenue. The "
-                "commission comes off the top, and you cannot remarket to those "
-                "customers.",
-        related=["1.1", "6.1"]),
+        does="Lists your range on the marketplace, from month 5. Its shoppers - who "
+             "would never find your own site - are shared between the sellers "
+             "listed there, ranked by price and rating, and every other seller on "
+             "the marketplace competes for them too, so the more of your rivals "
+             "list, the smaller your slice. Some of your own buyers will find you "
+             "there instead and pay through the marketplace.",
+        tradeoff="Extra orders against a commission on every marketplace order, a "
+                 "payout that arrives about two weeks later, and customers who "
+                 "belong to the marketplace: they come back less often, leave "
+                 "sooner, your CRM cannot reach them, and they buy again only while "
+                 "you stay listed. Marketplace orders sell from the same stock.",
+        watch="Marketplace orders and their share of the month, commission, "
+              "contribution margin, stock cover and cash.",
+        mistake="Listing while discounting: the commission lands on top of the "
+                "discount. Or counting marketplace revenue as if it were own-site "
+                "revenue - the commission comes off the top, and the customer is "
+                "not yours to keep.",
+        related=["1.1", "7.1", "6.1"]),
     "5.1": dict(
         does="Site speed, search, product pages and checkout. Builds a UX score "
              "that lifts conversion and organic traffic.",

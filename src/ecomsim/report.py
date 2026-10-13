@@ -38,6 +38,7 @@ BLOCKS = [
         ("Discount rate", "discount_rate", "pct1", False),
         ("Fulfilment cost", "pnl.fulfilment", "pkr", False),
         ("Payment costs", "pnl.payment_costs", "pkr", False),
+        ("Marketplace commission", "pnl.commission", "pkr", False),
     ]),
     ("Operations", "service_level", [
         ("Service level", "service_level", "pct1", True),
@@ -525,11 +526,14 @@ def _funnel(record: dict, launch: bool = False) -> str:
                 f'<div class="u">{note}</div></div>')
     arrow = '<div class="fa">&rarr;</div>'
     op = lambda s: f'<div class="fa">{s}</div>'
+    mp = record.get("marketplace") or {}
     split = ("store and listing visits" if not (f["paid"] or f["organic"] or f["returning"])
              else f"paid {f['paid']:,.0f} · organic {f['organic']:,.0f} · launch month, "
                   f"no returning customers yet" if launch
              else f"paid {f['paid']:,.0f} · organic {f['organic']:,.0f} · "
                   f"returning {f['returning']:,.0f}")
+    if mp and (f["paid"] or f["organic"] or f["returning"]):
+        split += f" · marketplace {mp['sessions']:,.0f}"
     row1 = (tile("Sessions (visits)", f"{f['sessions']:,.0f}", split)
             + arrow + tile("Orders", f"{f['orders']:,.0f}",
                            f"new customers {f['new_customers']:,.0f} · repeat "
@@ -541,9 +545,22 @@ def _funnel(record: dict, launch: bool = False) -> str:
             + op("=") + tile("Weeks of cover", f"{f['weeks_cover']:.1f}",
                              "how long the stock lasts at this pace")
             + tile("Lost to stock-outs", f"{f['lost_to_stockout']:,.0f}", "orders you could not fill"))
+    row3 = ""
+    if mp:
+        row3 = ('<div class="frow">'
+                + tile("Marketplace visits", f"{mp['sessions']:,.0f}",
+                       "shoppers who found you on the marketplace")
+                + arrow + tile("Marketplace orders", f"{mp['orders']:,.0f}",
+                               f"{mp['share']:.0%} of all orders · new {mp['new_orders']:,.0f}"
+                               f" · repeat {mp['repeat_orders']:,.0f}")
+                + tile("Commission", _fmt(mp["commission"], "pkr"),
+                       "PKR, on every marketplace order")
+                + tile("Listing rank", f"{mp['rank']:.2f}",
+                       "price and rating; 1.00 is the best a listing can score")
+                + '</div>')
     return (f'<h2 class="sec">Funnel and stock this month</h2>'
             f'<section class="funnel"><div class="frow">{row1}</div>'
-            f'<div class="frow">{row2}</div></section>')
+            f'<div class="frow">{row2}</div>{row3}</section>')
 
 
 def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None,

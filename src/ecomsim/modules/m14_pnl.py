@@ -72,17 +72,20 @@ def run(world, params, resolved, ctx) -> None:
             courier_forward / max(orders, 1.0)
         )
 
+        # Marketplace orders are paid to the marketplace, which pays the seller
+        # net of commission: no gateway or COD fee of the team's own on them.
+        from .. import marketplace
+        mp_share = marketplace.order_share(ctx, tid)
+        own_revenue = net_revenue * (1 - mp_share)
         gateway_cost = (
-            net_revenue * ctx["prepaid_share"][tid] * params["gateway_fee"]
+            own_revenue * ctx["prepaid_share"][tid] * params["gateway_fee"]
         )
-        cod_cost = net_revenue * ctx["cod_share"][tid] * params["cod_handling_fee"]
+        cod_cost = own_revenue * ctx["cod_share"][tid] * params["cod_handling_fee"]
 
         marketing = sum(float(d.get(k, 0) or 0) for k in MARKETING_DECISIONS)
         marketing += float(d.get("6.1", 0) or 0)  # CRM is marketing (docs/10)
         affiliate = net_revenue * float(d.get("3.6", 0) or 0)
-        commission = 0.0
-        if d.get("4.1") and str(d.get("4.1")) != "off":
-            commission = net_revenue * 0.35 * params["marketplace_commission"]
+        commission = net_revenue * mp_share * params["marketplace_commission"]
 
         contribution = (
             gross_profit - pick_pack - courier_forward - rto_shipping

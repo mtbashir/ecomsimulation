@@ -134,13 +134,13 @@ def test_every_study_reports_something():
     params = P.load({"n_teams": 3, "events_enabled": 0})
     world = bootstrap.new_world(params, run_id="all")
     codes = [s["code"] for s in params.studies]
-    # Marketplace participation unlocks in round 3, and MR-13 has nothing to
-    # rank until it is on - so run far enough in for every study to apply.
+    # Marketplace participation unlocks in round 5 (session 6), and MR-13 has
+    # nothing to rank until it is on - so run far enough in for every study.
     decisions = {"team_01": {"12.1": codes, "4.1": "on"}}
-    for _ in range(4):
+    for _ in range(5):
         run_round(world, params, decisions)
 
-    silent = [c for c, r in world.teams["team_01"].reports[4].items()
+    silent = [c for c, r in world.teams["team_01"].reports[5].items()
               if r.get("status") == "no_data"]
     assert not silent, f"studies that report nothing: {silent}"
 

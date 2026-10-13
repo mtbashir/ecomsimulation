@@ -180,7 +180,7 @@ REGISTRY: dict[str, DecisionSpec] = {
         # --- Channel ---------------------------------------------------------
         DecisionSpec(
             "4.1", "G4", "Sell on the marketplace (Daraz)", "select", "off",
-            frozenset({"standard", "advanced", "expert"}), unlock_round=3,
+            frozenset({"standard", "advanced", "expert"}), unlock_round=5,
             help="Listing on the marketplace puts you in front of shoppers who "
                  "would never find your site - but the marketplace takes a "
                  "commission on those orders and owns the customer.",
