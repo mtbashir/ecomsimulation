@@ -58,9 +58,13 @@ the instructor's standing rules. Apply them to every new deck and every edit.
   `python tools/deck/build_pptx.py <deck folder> <out.pptx> <logo.png>`
   (the deck folder holds `project/deck.json` and `project/slides/`).
 
-- `s2_slides.py`, `s2_cases.py`, `s3_slides.py`, `s4_slides.py`, `s5_slides.py` — the generators that wrote the
+- `s2_slides.py`, `s2_cases.py`, `s3_slides.py`, `s4_slides.py`, `s5_slides.py`, `s6_slides.py` — the generators that wrote the
   Session 2 and 3 slides (helpers: section, card, band, grid, case slides,
   dividers, waterfall, pinned tables). Run with the deck folder as argument.
+- Page snapshots (from Session 6): `s6_slides.py` draws each one as a browser
+  frame with the page's address. Capture the page, upload it to the deck as an
+  asset, and pass a JSON file mapping the snapshot's key to the asset url as
+  the third argument; a key with no image renders as an empty labelled frame.
 - Simulation numbers on Part 2 slides come from running the engine (one
   baseline round with default decisions), never from memory or the logs.
 
@@ -71,3 +75,4 @@ the instructor's standing rules. Apply them to every new deck and every edit.
 - Session 3 — https://claude.ai/artifact/V5LSNWTN1zvyQFTE1nvD4j
 - Session 4 — https://claude.ai/artifact/HEeHEXCYmqBMGsLMbcjCQH
 - Session 5 — https://claude.ai/artifact/GWagEf7Pc9UBaq19ckifh1
+- Session 6 — https://claude.ai/artifact/DJvcbGXeMeZjVFLu1hQtCw
