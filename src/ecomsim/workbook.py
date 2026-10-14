@@ -203,22 +203,31 @@ class Book:
         return fmt
 
 
-def build(team, params, name: str, round_: int) -> bytes:
-    """The team's workbook for months 1..round_, as .xlsx bytes."""
+def build(team, params, name: str, round_: int, hidden: dict | None = None) -> bytes:
+    """The team's workbook for months 1..round_, as .xlsx bytes.
+
+    `hidden` maps a month to the report sections kept from the team that month
+    ("products", "buyers", "stock", "campaigns"); the workbook leaves the same
+    detail out, so a download never shows what the report does not."""
     history = team.history[:round_]
     months = [h.get("round", i + 1) for i, h in enumerate(history)]
+    hidden = hidden or {}
+    off = lambda m, key: key in hidden.get(m, ())
     buf = io.BytesIO()
     book = Book(buf)
     _readme(book, name, months)
     pl = _pnl(book, params, history, months)
     _kpis(book, params, history, months, pl)
     latest = history[-1]
-    _products(book, latest, months[-1])
-    _stock(book, latest, months[-1])
-    _products_by_month(book, history, months)
+    if not off(months[-1], "products"):
+        _products(book, latest, months[-1])
+    if not off(months[-1], "stock"):
+        _stock(book, latest, months[-1])
+    _products_by_month(book, history, months, off)
     _cash(book, history, months, pl, team, params)
-    _campaigns(book, history, months)
-    _customers(book, latest, history, months)
+    _campaigns(book, [h for m, h in zip(months, history) if not off(m, "campaigns")],
+               [m for m in months if not off(m, "campaigns")])
+    _customers(book, latest, history, months, off)
     book.wb.close()
     return buf.getvalue()
 
@@ -684,14 +693,18 @@ def _stock(book, h, month):
         ws.write(end + 2 + i, 0, t, book.f("note"))
 
 
-def _products_by_month(book, history, months):
+def _products_by_month(book, history, months, off=lambda m, key: False):
     ws = book.sheet("Products by month")
     ws.write(0, 0, "Products and stock, every month", book.f("title"))
     ws.write(1, 0, "One row per product per month. Filter it, or insert a pivot table to compare months.",
              book.f("intro"))
     items = []
     for m, h in zip(months, history):
-        stock = {s["code"]: s for s in h.get("stock") or []}
+        # What the report hid that month is left out here too: the month's
+        # rows without its sales by product, the stock columns without its stock.
+        if off(m, "products"):
+            continue
+        stock = {} if off(m, "stock") else {s["code"]: s for s in h.get("stock") or []}
         for p in h.get("products") or []:
             items.append((m, p, stock.get(p["code"], {})))
     if not items:
@@ -898,14 +911,15 @@ def _campaigns(book, history, months):
              book.f("note"))
 
 
-def _customers(book, latest, history, months):
+def _customers(book, latest, history, months, off=lambda m, key: False):
     ws = book.sheet("Customers")
     ws.set_column(0, 0, 26)
     ws.write(0, 0, "Who your orders came from", book.f("title"))
     ws.write(1, 0, "From your own orders - what a store reads from what its visitors browse and buy. How big each "
                    "segment is across the market, and what it values, is what MR-06 sells.", book.f("intro"))
     names = latest.get("segment_names") or {}
-    segs = [h.get("order_segments") or {} for h in history]
+    segs = [{} if off(m, "buyers") else h.get("order_segments") or {}
+            for m, h in zip(months, history)]
     codes = list(names) or sorted({k for s in segs for k in s})
     if not codes:
         ws.write(3, 0, "Customer segment detail is recorded from month 2 of the first live game onwards.",
@@ -930,7 +944,7 @@ def _customers(book, latest, history, months):
                          _clean(sum(s.values()) if s else 0.0))
 
     rows = latest.get("products") or []
-    if not rows:
+    if not rows or off(months[-1], "buyers"):
         return
     top = r + 3
     ws.write(top - 1, 0, f"Who bought each product, month {months[-1]} (share of the product's units)",

@@ -113,6 +113,15 @@ CREATE TABLE IF NOT EXISTS stock_return (
   PRIMARY KEY (round, team_id, sku)
 );
 
+-- What each month's team report shows, set by the instructor month by month.
+-- Absent means the default: every section shown, rankings from RANKINGS_FROM.
+CREATE TABLE IF NOT EXISTS report_view (
+  section   TEXT    NOT NULL,
+  round     INTEGER NOT NULL,
+  shown     INTEGER NOT NULL,
+  PRIMARY KEY (section, round)
+);
+
 CREATE TABLE IF NOT EXISTS audit (
   id      INTEGER PRIMARY KEY,
   at      TEXT NOT NULL,
@@ -578,6 +587,63 @@ def set_window(con, code: str, round_: int, is_open: bool, actor: str = "admin")
         log(con, actor, "decision.window", f"{code} r{round_} -> {'open' if is_open else 'closed'}")
 
 
+# --- What the team report shows ---------------------------------------------------
+#
+# The instructor decides, month by month, which of the detailed sections the
+# teams see: early in a game, hiding the product, buyer, stock and campaign
+# detail makes teams judge the month from the totals and their own instincts.
+# Rankings are published the same way, from month 4 by default (docs/08).
+
+SECTIONS = (
+    ("products", "Sales by product this month"),
+    ("buyers", "Who bought each product"),
+    ("stock", "Stock by product, end of month"),
+    ("campaigns", "Paid media, campaign by campaign"),
+    ("rankings", "Rankings, cumulative and by month"),
+)
+RANKINGS_FROM = 4
+
+
+def shown_by_default(section: str, round_: int) -> bool:
+    return round_ >= RANKINGS_FROM if section == "rankings" else True
+
+
+def report_view(con, round_: int) -> dict[str, bool]:
+    """Which sections month `round_`'s report shows the teams."""
+    try:
+        rows = con.execute("SELECT section, shown FROM report_view WHERE round = ?",
+                           (round_,)).fetchall()
+    except sqlite3.OperationalError:        # a past game saved before the table
+        rows = []
+    chosen = {r["section"]: bool(r["shown"]) for r in rows}
+    return {k: chosen.get(k, shown_by_default(k, round_)) for k, _ in SECTIONS}
+
+
+def hidden_sections(con, round_: int) -> set[str]:
+    """The report sections month `round_` keeps from the teams."""
+    return {k for k, shown in report_view(con, round_).items()
+            if not shown and k != "rankings"}
+
+
+def set_report_view(con, round_: int, shown: dict[str, bool], actor: str = "admin") -> None:
+    with con:
+        for key, _ in SECTIONS:
+            con.execute(
+                "INSERT INTO report_view (section, round, shown) VALUES (?, ?, ?) "
+                "ON CONFLICT (section, round) DO UPDATE SET shown = excluded.shown",
+                (key, round_, int(bool(shown.get(key)))))
+        off = [k for k, _ in SECTIONS if not shown.get(k)]
+        log(con, actor, "report.view",
+            f"r{round_}: " + ("everything shown" if not off else "hidden " + ", ".join(off)))
+
+
+def rankings_published(con, upto: int) -> int:
+    """The latest month, up to `upto`, whose rankings the teams may see; 0 if none.
+    Once a month's rankings are out, every month up to it is visible too."""
+    return max((r for r in range(1, upto + 1) if report_view(con, r)["rankings"]),
+               default=0)
+
+
 # --- Round log (and rollback) -----------------------------------------------------
 
 def save_round(con, round_: int, world, config_hash: str, note: str = "") -> None:
@@ -683,7 +749,7 @@ def new_game(con, db_path: str | Path, name: str, teams: int, rounds: int,
     old = game(con)
     with con:
         for table in ("submission", "decision_window", "founding", "round_log",
-                      "memo_review", "stock_return", "audit"):
+                      "memo_review", "stock_return", "report_view", "audit"):
             con.execute(f"DELETE FROM {table}")
         con.execute("DELETE FROM account WHERE role = 'team'")
         con.execute(

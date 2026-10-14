@@ -287,6 +287,13 @@ color:var(--dim);border-left:3px solid var(--accent)}
 font-variant-numeric:tabular-nums;line-height:1.15}
 .f-value.quiet{font-size:19px;color:var(--mute);font-weight:500}
 .f-meta{margin-top:5px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+table.rv td.c,table.rv th.c{text-align:center;min-width:40px;padding-left:4px;padding-right:4px}
+table.rv .nxt{background:var(--tint)}
+table.rv input{width:16px;height:16px;accent-color:var(--accent)}
+table.rk td.n,table.rk th.n{text-align:right;font-variant-numeric:tabular-nums}
+table.rk tr.me td{font-weight:650;background:var(--tint)}
+.mv{font-size:11.5px;font-weight:600}.mv.up{color:var(--good-ink)}.mv.down{color:var(--bad-ink)}
+.months-nav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
 .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11.5px;
 background:var(--panel-2);color:var(--dim);border:1px solid var(--line);
 margin-right:5px;white-space:nowrap}
@@ -646,7 +653,10 @@ nav{display:flex}
       <span class="ico"></span>Dashboard</a>
     {% if game['round'] %}
     <a href="{{ url_for('results', round_=game['round']) }}" target="_blank">
-      <span class="ico"></span>Monthly report</a>{% endif %}
+      <span class="ico"></span>Monthly reports</a>{% endif %}
+    {% if rankings_upto %}
+    <a href="{{ url_for('rankings') }}" class="{{ 'on' if nav_at == 'rankings' }}">
+      <span class="ico"></span>Rankings</a>{% endif %}
   </nav>
   <div class="grp">Decide</div>
   <nav>

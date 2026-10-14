@@ -296,14 +296,31 @@ still be able to place mid-table on the strength of the other five pillars.
 
 ## Leaderboard visibility
 
-| Rounds | Teams see |
+| Rounds | Teams see (default) |
 |---|---|
 | 0–3 | Own pillar scores only. No cross-team ranking |
-| 4–12 | Full leaderboard, all pillars, all teams |
+| 4–12 | Rankings: every team's cumulative score and each month on its own |
 
 Withholding rank for three rounds lets teams establish a strategy before
 anchoring on rivals. Publishing it from Round 4 onward is what makes the
 competitive dynamic real for the remaining two thirds of the run.
+
+The instructor decides. The admin page's report grid has a Rankings row, ticked
+from month 4 by default; ticking a month publishes the rankings for every month
+up to it, so once they are out teams can look back at months 1–3 too. The
+instructor console shows the cumulative leaderboard from Round 1 whatever the
+teams see, and says whether they can see it.
+
+Two scores per month:
+
+- **Cumulative** — `final_score` on months 1..m: the final score in the making,
+  round-weighted, exactly what the end of the game will publish.
+- **The month on its own** — `scoring.month_score`: the same published
+  scorecard applied to month m alone. Margins, customers, operations and cash
+  are that month's; growth is the month against the month before (month 1 has
+  none, so revenue and share growth are level); the cash generated is the
+  month's own change in cash net of new borrowing. It shows who had the best
+  month and is never added to the final score.
 
 The leaderboard must display the round-weighting curve alongside it. Teams
 leading at Round 5 on 6.4% of the total weight should be able to see that

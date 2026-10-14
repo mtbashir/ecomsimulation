@@ -314,7 +314,8 @@ def register_routes(app: Flask) -> None:
         brand = (record or {}).get("config", {}).get("brand_name")
         return {"nav_at": request.endpoint, "open_count": count, "theme": theme,
                 "themes": db.THEMES,
-                "brand": brand if brand and brand != "Unnamed" else None}
+                "brand": brand if brand and brand != "Unnamed" else None,
+                "rankings_upto": db.rankings_published(g.db, game["round"] or 0)}
 
 
     @app.route("/login", methods=["GET", "POST"])
@@ -864,7 +865,8 @@ def register_routes(app: Flask) -> None:
         html = service.team_report(
             g.db, session["team_id"], round_,
             download=url_for("results_xlsx", round_=round_)
-            if app.config["TEAM_WORKBOOKS"] else None)
+            if app.config["TEAM_WORKBOOKS"] else None,
+            month_url=lambda m: url_for("results", round_=m))
         if html is None:
             abort(404)
         return Response(html, mimetype="text/html")
@@ -874,10 +876,27 @@ def register_routes(app: Flask) -> None:
     def results_xlsx(round_):
         if not app.config["TEAM_WORKBOOKS"]:
             abort(404)
-        return _workbook(session["team_id"], round_)
+        return _workbook(session["team_id"], round_, for_team=True)
 
-    def _workbook(team_id, round_):
-        made = service.team_workbook(g.db, team_id, round_)
+    @app.get("/rankings")
+    @login_required("team")
+    def rankings():
+        """Every month's ranking up to the latest the instructor has published:
+        the cumulative score as it stood, and the month on its own."""
+        upto = db.rankings_published(g.db, db.game(g.db)["round"] or 0)
+        if not upto:
+            abort(404)
+        months = service.rankings(g.db, upto)
+        try:
+            pick = int(request.args.get("month", upto))
+        except ValueError:
+            pick = upto
+        shown = next((m for m in months if m["month"] == pick), months[-1])
+        return render_template("rankings.html", months=months, shown=shown,
+                               me=session["team_id"])
+
+    def _workbook(team_id, round_, for_team=False):
+        made = service.team_workbook(g.db, team_id, round_, for_team=for_team)
         if made is None:
             abort(404)
         data, filename = made
@@ -901,7 +920,31 @@ def register_routes(app: Flask) -> None:
             overrides=db.overrides(g.db),
             setting_up=(game["start_mode"] == "founding" and game["round"] == 0),
             foundings=foundings,
-            off_range=service.off_range_stock(g.db))
+            off_range=service.off_range_stock(g.db),
+            report_sections=db.SECTIONS, rankings_from=db.RANKINGS_FROM,
+            report_months=list(range(1, game["total_rounds"] + 1)),
+            report_view={m: db.report_view(g.db, m)
+                         for m in range(1, game["total_rounds"] + 1)})
+
+    @app.post("/admin/report-view")
+    @login_required("admin")
+    def admin_report_view():
+        """Which sections each month's team report shows: one tick per section
+        per month, saved for every month on the page."""
+        ticked = set(request.form.getlist("show"))
+        try:
+            months = [int(m) for m in request.form.get("months", "").split(",") if m]
+        except ValueError:
+            months = []
+        changed = []
+        for m in months:
+            want = {key: f"{key}:{m}" in ticked for key, _ in db.SECTIONS}
+            if want != db.report_view(g.db, m):
+                db.set_report_view(g.db, m, want, session["user"])
+                changed.append(m)
+        flash("Saved: " + (", ".join(f"month {m}" for m in changed) + " updated."
+                           if changed else "nothing changed."), "ok")
+        return redirect(url_for("admin") + "#report-view")
 
     @app.post("/admin/open")
     @login_required("admin")
@@ -1141,7 +1184,9 @@ def register_routes(app: Flask) -> None:
     @login_required("admin")
     def results_admin(team, round_):
         html = service.team_report(g.db, team, round_,
-                                   download=url_for("results_admin_xlsx", team=team, round_=round_))
+                                   download=url_for("results_admin_xlsx", team=team, round_=round_),
+                                   month_url=lambda m: url_for("results_admin", team=team, round_=m),
+                                   instructor=True)
         if html is None:
             abort(404)
         return Response(html, mimetype="text/html")
@@ -1278,7 +1323,10 @@ def register_routes(app: Flask) -> None:
     @login_required("admin")
     def admin_past_report(archive_id, team, round_):
         _, con = _past(archive_id)
-        html = service.team_report(con, team, round_)
+        html = service.team_report(
+            con, team, round_, instructor=True,
+            month_url=lambda m: url_for("admin_past_report", archive_id=archive_id,
+                                        team=team, round_=m))
         if html is None:
             abort(404)
         return Response(html, mimetype="text/html")

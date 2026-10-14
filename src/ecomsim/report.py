@@ -250,7 +250,10 @@ TREND_KEYS = {"revenue_net", "orders", "conversion_rate", "cac_blended",
               "repeat_order_share", "cash_balance", "active_customers"}
 
 
-def _campaigns(record: dict) -> str:
+HIDDEN_TAG = ' <span class="hid">hidden from the team this month</span>'
+
+
+def _campaigns(record: dict, tag: str = "") -> str:
     """The month's paid media, campaign by campaign, with the reasons.
 
     Every paid channel appears whether or not the team set campaigns, so the
@@ -276,7 +279,7 @@ def _campaigns(record: dict) -> str:
         for f in r.get("findings") or []:
             body.append(f'<tr class="why"><td colspan="12"><div class="wt">{escape(f)}</div></td></tr>')
     return (
-        '<h2 class="sec">Paid media, campaign by campaign</h2>'
+        f'<h2 class="sec">Paid media, campaign by campaign{tag}</h2>'
         '<section class="camps"><div class="sx"><table class="perf">'
         '<tr><th>Campaign</th><th class="v">Spend</th><th class="v">Impressions</th>'
         '<th class="v">CPM</th><th class="v">Clicks</th><th class="v">CTR</th>'
@@ -294,12 +297,16 @@ def _campaigns(record: dict) -> str:
         '<a href="/guide/marketing" target="_top">How to read this table</a>.</p></section>')
 
 
-def _products(record: dict) -> str:
+def _products(record: dict, sales_shown: bool = True, buyers_shown: bool = True,
+              sales_tag: str = "", buyers_tag: str = "") -> str:
     """Sales, margin and contribution by product, why each line sold the way
     it did, and who bought it. Adds up to the P&L, so a portfolio decision -
-    re-price, push, pack or drop a line - can be read against the money."""
+    re-price, push, pack or drop a line - can be read against the money.
+    Either half can be kept from the team (the instructor's report settings);
+    with the buyers hidden, the sales summary leaves out who the orders came
+    from too."""
     rows = record.get("products") or []
-    if not rows:
+    if not rows or not (sales_shown or buyers_shown):
         return ""
     names = record.get("segment_names") or {}
     segments = record.get("order_segments") or {}
@@ -346,9 +353,10 @@ def _products(record: dict) -> str:
         f'<td class="v">{money(tot["marketing"])}</td>'
         f'<td class="v {tone(tot["cm"])}">{money(tot["cm"])}</td></tr>')
 
-    lead = "".join(f"<li>{escape(x)}</li>" for x in mix.headline(rows, segments, names))
+    lead = "".join(f"<li>{escape(x)}</li>" for x in
+                   mix.headline(rows, segments if buyers_shown else {}, names))
     sales = (
-        '<h2 class="sec">Sales by product this month</h2>'
+        f'<h2 class="sec">Sales by product this month{sales_tag}</h2>'
         f'<section class="prods"><ul class="lead">{lead}</ul>'
         '<div class="sx"><table class="perf">'
         '<tr><th>Product</th><th class="v">Units</th><th class="v">Share of units '
@@ -381,7 +389,7 @@ def _products(record: dict) -> str:
         seg_rows.append(f'<tr><th>{escape(r["name"])}</th>'
                         + "".join(cell(r["buyers"].get(c, 0.0)) for c in codes) + '</tr>')
     buyers = (
-        '<h2 class="sec">Who bought each product</h2>'
+        f'<h2 class="sec">Who bought each product{buyers_tag}</h2>'
         '<section class="prods"><div class="sx"><table class="perf segs">'
         '<tr><th>Product</th>'
         + "".join(f'<th class="v">{escape(names.get(c, c))}</th>' for c in codes)
@@ -390,10 +398,10 @@ def _products(record: dict) -> str:
         'from your own orders - what a store reads from what its visitors browse and '
         'buy. Each row adds to 100%. How big each segment is across the market, and '
         'what it values most, is what MR-06 sells.</p></section>')
-    return sales + buyers
+    return (sales if sales_shown else "") + (buyers if buyers_shown else "")
 
 
-def _stock(record: dict, team=None) -> str:
+def _stock(record: dict, team=None, tag: str = "") -> str:
     """Each product's stock: what came in, what sold, what is left and how
     long it lasts - the shelf a portfolio and buying decision starts from."""
     lines = record.get("stock") or []
@@ -458,7 +466,7 @@ def _stock(record: dict, team=None) -> str:
                 + (', each product scaled up in the same proportion.'
                    if bought.get("by_product") else '.'))
     return (
-        f'<h2 class="sec">Stock by product, end of month {month}</h2>'
+        f'<h2 class="sec">Stock by product, end of month {month}{tag}</h2>'
         '<section class="prods"><div class="sx"><table class="perf">'
         '<tr><th>Product</th><th class="v">Opening</th><th class="v">Received</th>'
         '<th class="v">Back from failed deliveries</th><th class="v">Sold</th>'
@@ -496,7 +504,7 @@ def _outside_note(record: dict, team, outside: set) -> str:
     return why
 
 
-def _tests(record: dict) -> str:
+def _tests(record: dict, tag: str = "") -> str:
     out = []
     for t in record.get("ab_tests") or []:
         rows = "".join(
@@ -505,7 +513,7 @@ def _tests(record: dict) -> str:
             f'<td class="v">{t["orders"][k]:,.0f}</td><td class="v">{t["cvr"][k]:.2%}</td>'
             f'<td class="v">{t["per_1000"][k]:.2f}</td></tr>' for k in ("A", "B"))
         out.append(
-            f'<section class="abx"><h2>A/B test on {escape(t["channel_name"])} &middot; '
+            f'<section class="abx"><h2>A/B test on {escape(t["channel_name"])}{tag} &middot; '
             f'{t.get("sure", format(t["confidence"], ".0%"))} confident after {t["months"]} month'
             f'{"s" if t["months"] != 1 else ""}</h2>'
             f'<p class="cap" style="max-width:90ch">{escape(t["verdict"])}</p>'
@@ -563,8 +571,29 @@ def _funnel(record: dict, launch: bool = False) -> str:
             f'<div class="frow">{row2}</div>{row3}</section>')
 
 
+def _months(months: list[tuple[int, str]] | None, round_: int) -> str:
+    """Links to every month's report, this one marked."""
+    if not months or len(months) < 2:
+        return ""
+    links = "".join(
+        f'<span class="mo on">Month {m}</span>' if m == round_
+        else f'<a class="mo" href="{escape(url)}">Month {m}</a>' for m, url in months)
+    return f'<nav class="months" aria-label="Every month\'s report">{links}</nav>'
+
+
 def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None,
-           download: str | None = None) -> Path:
+           download: str | None = None, hidden: set | frozenset = frozenset(),
+           marked: set | frozenset = frozenset(),
+           months: list[tuple[int, str]] | None = None) -> Path:
+    """One team's report for one month.
+
+    `hidden`: sections the team does not see this month ("products", "buyers",
+    "stock", "campaigns"), left out. `marked`: sections shown but labelled as
+    hidden from the team - the instructor's copy. `months`: (month, url) for the
+    links to every month's report."""
+    def tag(key):
+        return HIDDEN_TAG if key in marked else ""
+
     record = team.history[round_ - 1]
     prior = team.history[round_ - 2] if round_ > 1 else None
     series = team.history[:round_]
@@ -749,6 +778,13 @@ border-radius:7px;background:var(--surface);color:var(--s1);font-size:12.5px;fon
 text-decoration:none}}
 .sub .xl:hover{{border-color:var(--s1)}}
 .prods .lead{{margin:0 0 10px 18px;color:var(--ink);font-size:13px;line-height:1.6}}
+.months{{display:flex;flex-wrap:wrap;gap:6px;margin:-8px 0 16px}}
+.mo{{padding:4px 11px;border:1px solid var(--line);border-radius:7px;background:var(--surface);
+color:var(--s1);font-size:12.5px;font-weight:600;text-decoration:none}}
+.mo:hover{{border-color:var(--s1)}}
+.mo.on{{background:var(--ink);border-color:var(--ink);color:var(--surface)}}
+.hid{{margin-left:8px;padding:1px 7px;border-radius:5px;background:var(--panel-2);
+color:var(--warn);letter-spacing:0;text-transform:none;font-size:11px}}
 .perf tr.tot th,.perf tr.tot td{{font-weight:700;border-top:2px solid var(--line)}}
 .perf tr.tot th{{color:var(--ink)}}
 td.v.down{{color:var(--bad)}}
@@ -771,6 +807,7 @@ td.v.warn{{color:var(--warn)}}
 <h1>{escape(name)}</h1>
 <p class="sub">Month {round_} &middot; {team.team_id} &middot; where the month was won and lost
 {f'<a class="xl" href="{escape(download)}">Download every month as Excel: P&amp;L, KPIs, products, stock, cash</a>' if download else ''}</p>
+{_months(months, round_)}
 <section class="verdict">
   <div><h2>{verdict}</h2><p class="cap" style="max-width:82ch">{explanation}</p>
   {events_html}{score_html}</div>
@@ -780,10 +817,10 @@ td.v.warn{{color:var(--warn)}}
 {run_chart}
 <h2 class="sec">Every measure, month {round_}{against}</h2>
 <div class="grid">{"".join(cards)}</div>
-{_products(record)}
-{_stock(record, team)}
-{_campaigns(record)}
-{_tests(record)}
+{_products(record, "products" not in hidden, "buyers" not in hidden, tag("products"), tag("buyers"))}
+{"" if "stock" in hidden else _stock(record, team, tag("stock"))}
+{"" if "campaigns" in hidden else _campaigns(record, tag("campaigns"))}
+{"" if "campaigns" in hidden else _tests(record, tag("campaigns"))}
 {scorecard_section}
 <div class="themebar"><span>Appearance</span>
   <button class="sw sw-consulytics" data-set-theme="consulytics"

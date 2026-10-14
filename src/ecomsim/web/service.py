@@ -585,10 +585,13 @@ def monthly_catalogue(con, team_id: str, current: dict) -> list[dict]:
 
     supplier = float(next(sp for sp in params.suppliers
                           if sp["code"] == "B")["cost_index"])
-    # Last month's result for each line, beside the price that produced it.
+    # Last month's result for each line, beside the price that produced it -
+    # unless that month's sales by product are hidden from the teams.
     team = world.teams.get(team_id) if world is not None else None
     last = {r["code"]: r for r in ((team.history[-1].get("products") or [])
-                                   if team is not None and team.history else [])}
+                                   if team is not None and team.history
+                                   and "products" not in db.hidden_sections(
+                                       con, len(team.history)) else [])}
     rows = []
     for code in active:
         sku = params.sku(code)
@@ -648,8 +651,9 @@ def range_rows(con, team_id: str, current: dict) -> dict | None:
     value = current.get(assortment.DECISION) or {}
     add, drop = assortment.changes(value)
     last = team.history[-1] if team.history else {}
-    sold = {r["code"]: r for r in last.get("products") or []}
-    stock = {r["code"]: r for r in last.get("stock") or []}
+    hidden = db.hidden_sections(con, len(team.history)) if team.history else set()
+    sold = {r["code"]: r for r in last.get("products") or []} if "products" not in hidden else {}
+    stock = {r["code"]: r for r in last.get("stock") or []} if "stock" not in hidden else {}
     record = db.founding(con, team_id)
     f = founding_from_dict(record["config"], params) if record else None
     tier = f.tier if f else "mainstream"
@@ -718,7 +722,9 @@ def purchase_rows(con, team_id: str, current: dict, standing: dict | None = None
     world = detailed_world(con)
     team = world.teams.get(team_id) if world is not None else None
     last = team.history[-1] if team is not None and team.history else {}
-    stock = {r["code"]: r for r in last.get("stock") or []}
+    # Stock by product is shown only when that month's report shows it.
+    hidden = db.hidden_sections(con, len(team.history)) if last else set()
+    stock = {r["code"]: r for r in last.get("stock") or []} if "stock" not in hidden else {}
 
     code = str(current.get("7.2") or (standing or {}).get("7.2") or "B")
     supplier = next((sp for sp in params.suppliers if sp["code"] == code),
@@ -1369,8 +1375,13 @@ def endowment(con) -> dict:
     }
 
 
-def team_report(con, team_id: str, round_: int, download: str | None = None) -> str | None:
-    """Render one team's report as HTML, without touching disk."""
+def team_report(con, team_id: str, round_: int, download: str | None = None,
+                month_url=None, instructor: bool = False) -> str | None:
+    """Render one team's report as HTML, without touching disk.
+
+    The sections the instructor has hidden for that month are left out, or,
+    for the instructor's own copy, shown and labelled. `month_url(m)` links
+    every month's report from the top of the page."""
     world = detailed_world(con, round_)
     if world is None or team_id not in world.teams:
         return None
@@ -1386,13 +1397,60 @@ def team_report(con, team_id: str, round_: int, download: str | None = None) -> 
         team.brand_name = brand
     card = (scoring.final_score(team, params, world.teams, db.memo_rejected(con))
             if round_ >= 2 else None)
+    hidden = db.hidden_sections(con, round_)
+    months = ([(m, month_url(m)) for m in range(1, (db.game(con)["round"] or 0) + 1)]
+              if month_url else None)
     with tempfile.TemporaryDirectory() as tmp:
-        return report.render(team, round_, Path(tmp), card,
-                             download=download).read_text(encoding="utf-8")
+        return report.render(team, round_, Path(tmp), card, download=download,
+                             hidden=set() if instructor else hidden,
+                             marked=hidden if instructor else set(),
+                             months=months).read_text(encoding="utf-8")
+
+
+def rankings(con, upto: int | None = None) -> list[dict]:
+    """Every team's standing, month by month: the cumulative score as it stood
+    at the end of each month (the final score so far) and that month on its
+    own (scoring.month_score), each with its rank. The instructor's console
+    shows these from month 1; teams see them once published."""
+    game = db.game(con)
+    upto = game["round"] if upto is None else upto
+    if not upto:
+        return []
+    params = load_params(con)
+    rejected = db.memo_rejected(con)
+    brands = {tid: (rec.get("config") or {}).get("brand_name")
+              for tid, rec in db.foundings(con).items()}
+    total = game["total_rounds"] or 12
+    out, before = [], {}
+    for month in range(1, upto + 1):
+        world = db.load_world(con, month)
+        if world is None:
+            continue
+        rows = []
+        for tid, team in world.teams.items():
+            if len(team.history) < month:
+                continue
+            brand = brands.get(tid)
+            cum = scoring.final_score(team, params, world.teams, rejected)
+            alone = scoring.month_score(team, params, world.teams, month, rejected)
+            rows.append({"team_id": tid,
+                         "name": brand if brand and brand != "Unnamed" else team.brand_name,
+                         "score": cum["total"], "month_score": alone["total"],
+                         "insolvent": cum["insolvent"]})
+        for i, r in enumerate(sorted(rows, key=lambda r: -r["month_score"]), 1):
+            r["month_rank"] = i
+        rows.sort(key=lambda r: -r["score"])
+        for i, r in enumerate(rows, 1):
+            r["rank"] = i
+            r["move"] = before[r["team_id"]] - i if r["team_id"] in before else None
+        before = {r["team_id"]: r["rank"] for r in rows}
+        out.append({"month": month, "rows": rows,
+                    "weight": month * (month + 1) / (total * (total + 1))})
+    return out
 
 
 def team_workbook(con, team_id: str, round_: int,
-                  world=None) -> tuple[bytes, str] | None:
+                  world=None, for_team: bool = False) -> tuple[bytes, str] | None:
     """One team's results, months 1..round_, as an Excel workbook and its
     file name. None when that month has not been run."""
     import re
@@ -1406,7 +1464,9 @@ def team_workbook(con, team_id: str, round_: int,
         return None
     brand = (db.founding(con, team_id) or {}).get("config", {}).get("brand_name")
     name = (brand if brand and brand != "Unnamed" else None) or team.brand_name or team_id
-    data = workbook.build(team, load_params(con), name, round_)
+    hidden = ({m: db.hidden_sections(con, m) for m in range(1, round_ + 1)}
+              if for_team else None)
+    data = workbook.build(team, load_params(con), name, round_, hidden)
     slug = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_") or team_id
     return data, f"{slug}_month_{round_}.xlsx"
 
@@ -1422,12 +1482,18 @@ def instructor_console(con, round_: int, workbook_url=None,
     with tempfile.TemporaryDirectory() as tmp:
         submitted = db.submissions(con, round_)
         open_codes = [s.code for s in open_decisions(con, round_)]
+        published = db.rankings_published(con, round_)
+        seen = (f"Teams can see rankings up to month {published}." if published
+                else f"Teams cannot see rankings yet: publish them from the admin "
+                     f"page (by default from month {db.RANKINGS_FROM}).")
         return console.render(world, load_params(con), Path(tmp),
                               submissions=submitted, open_codes=open_codes,
                               workbook_url=workbook_url,
                               workbooks_zip=workbooks_zip,
                               memo_rejected=db.memo_rejected(con), memo_url=memo_url,
-                              footer=version.rules_label(db.rules_from(con))
+                              footer=version.rules_label(db.rules_from(con)),
+                              seen_by_teams=seen,
+                              total_rounds=db.game(con)["total_rounds"] or 12,
                               ).read_text(encoding="utf-8")
 
 
@@ -1897,6 +1963,8 @@ def campaign_desk(con, team_id: str, draft: list[dict] | None = None) -> dict:
     world = db.load_world(con)
     team = world.teams.get(team_id) if world else None
     last = team.history[-1] if team and team.history else None
+    if last is not None and "campaigns" in db.hidden_sections(con, len(team.history)):
+        last = None             # last month's campaign results are hidden
     return {
         "open_round": open_round, "round": game["round"], "can_edit": can_edit,
         "unlock_round": REGISTRY[targeting.DECISION].unlock_round,
@@ -1937,7 +2005,8 @@ def marketing_guide(con, team_id: str | None) -> dict:
     if team_id:
         world = db.load_world(con)
         team = world.teams.get(team_id) if world else None
-        if team and team.history:
+        if team and team.history and "campaigns" not in db.hidden_sections(
+                con, len(team.history)):
             mine = {"round": len(team.history),
                     "rows": team.history[-1].get("campaigns") or []}
     return {"pools": pools, "sizes": sizes, "mine": mine,

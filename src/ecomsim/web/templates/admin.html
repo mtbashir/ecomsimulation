@@ -76,6 +76,36 @@
 </div>
 </section>
 
+<section id="report-view">
+<h2>What teams see in their monthly report</h2>
+<p class="note" style="max-width:92ch">Decide each month which detail the teams'
+report shows. Hide it early in the game to make teams read the month from their
+totals and their own judgement, then release it. A month's column applies to that
+month's report, the decision form after it (stock and sales beside each product) and
+the campaigns page; you can change a month already run, and its report changes with
+it. Rankings, once published for a month, let teams see every month's ranking up to
+it, cumulative and month by month. The console always shows everything.</p>
+<form method="post" action="{{ url_for('admin_report_view') }}">
+<div style="overflow-x:auto">
+<table class="rv">
+<tr><th>Section</th>
+  {% for m in report_months %}<th class="c{{ ' nxt' if m == next_round }}">
+  M{{ m }}{% if m == next_round %}<br><span class="note">next</span>{% endif %}</th>{% endfor %}</tr>
+{% for key, label in report_sections %}
+<tr><td>{{ label }}</td>
+  {% for m in report_months %}<td class="c{{ ' nxt' if m == next_round }}">
+  <input type="checkbox" name="show" value="{{ key }}:{{ m }}"
+         aria-label="{{ label }}, month {{ m }}"
+         {{ 'checked' if report_view[m][key] }}></td>{% endfor %}</tr>
+{% endfor %}
+</table></div>
+<input type="hidden" name="months" value="{{ report_months|join(',') }}">
+<div style="margin-top:10px"><button type="submit">Save what teams see</button>
+<span class="note" style="margin-left:10px">Ticked is shown. Every report section starts
+ticked; rankings start ticked from month {{ rankings_from }}.</span></div>
+</form>
+</section>
+
 {% if off_range.teams %}
 <section>
 <h2>Stock outside each team's range</h2>

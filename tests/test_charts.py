@@ -118,11 +118,15 @@ def test_report_has_no_missing_metrics():
 
 # --- Console ----------------------------------------------------------------------
 
-def test_console_withholds_the_leaderboard_until_round_four(tmp_path):
-    world = _played(rounds=2)
-    html = console.render(world, PARAMS, tmp_path).read_text()
-    assert "Withheld until Round 4" in html
-    assert "<rect" not in html
+def test_console_shows_the_leaderboard_from_round_one(tmp_path):
+    """The instructor ranks from Round 1; whether teams see it is set on the
+    admin page (tests/test_report_view.py)."""
+    world = _played(rounds=1)
+    html = console.render(world, PARAMS, tmp_path,
+                          seen_by_teams="Teams cannot see rankings yet.").read_text()
+    assert "Withheld" not in html
+    assert html.count("<rect") == 4
+    assert "Teams cannot see rankings yet." in html
 
 
 def test_console_shows_the_leaderboard_and_a_table_view(tmp_path):

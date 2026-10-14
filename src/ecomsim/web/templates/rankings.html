@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% block title %}Rankings{% endblock %}
+{% block body %}
+<div class="crumbs">Analyse &middot; rankings</div>
+<div class="head">
+  <div><p class="eyebrow">Month {{ shown.month }}</p>
+    <h1>Rankings</h1>
+    <p>Where every team stood at the end of month {{ shown.month }}: the cumulative
+    score so far, which is your final score in the making, and the month on its own.
+    Pick a month to see how the field moved.</p></div>
+  <div class="cta"><a class="btn ghost" href="{{ url_for('guide_scoring') }}">How you are scored</a></div>
+</div>
+
+<nav class="months-nav" aria-label="Rankings by month">
+{% for m in months %}
+  {% if m.month == shown.month %}<span class="btn" style="padding:6px 12px;font-size:12.5px">Month {{ m.month }}</span>
+  {% else %}<a class="btn ghost" style="padding:6px 12px;font-size:12.5px"
+     href="{{ url_for('rankings', month=m.month) }}">Month {{ m.month }}</a>{% endif %}
+{% endfor %}
+</nav>
+
+<section>
+<h2>Month {{ shown.month }}</h2>
+<div style="overflow-x:auto">
+<table class="rk">
+<tr><th class="n" style="width:56px">Rank</th><th>Team</th>
+  <th class="n">Cumulative score</th><th class="n">{{ 'Since month %d'|format(shown.month - 1) if shown.month > 1 else 'Change' }}</th>
+  <th class="n">Month {{ shown.month }} on its own</th><th class="n">Month rank</th></tr>
+{% for r in shown.rows %}
+<tr class="{{ 'me' if r.team_id == me }}">
+  <td class="n">{{ r.rank }}</td>
+  <td>{{ r.name }}{{ ' — you' if r.team_id == me }}{% if r.insolvent %}
+    <span class="pill warn">in administration</span>{% endif %}</td>
+  <td class="n">{{ '%.1f'|format(r.score) }}</td>
+  <td class="n">{% if r.move is none %}&mdash;{% elif r.move > 0 %}<span class="mv up">&#9650; {{ r.move }}</span>{% elif r.move < 0 %}<span class="mv down">&#9660; {{ -r.move }}</span>{% else %}<span class="mv">no change</span>{% endif %}</td>
+  <td class="n">{{ '%.1f'|format(r.month_score) }}</td>
+  <td class="n">{{ r.month_rank }}</td></tr>
+{% endfor %}
+</table></div>
+<p class="note" style="margin-top:10px;max-width:92ch">Scores are out of 100, on the
+published scorecard. The cumulative score weights later months more: months 1 to
+{{ shown.month }} carry {{ '{:.0%}'.format(shown.weight) }} of the final weight, so the
+standings will still move. The month on its own applies the same scorecard to that
+month alone, with growth measured against the month before; it shows who had the best
+month and is not added to your final score.</p>
+</section>
+{% endblock %}

@@ -563,7 +563,7 @@ def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
             f'<div>{lists}</div></div>{left}</div>')
     return ('<section class="wide"><h2>Debrief &middot; what each team decided '
             'and what it did</h2><p class="note">Ranked by score (shown here from month '
-            '1; teams see the leaderboard from month 4). Decisions are what '
+            '1; teams see rankings once you publish them on the admin page). Decisions are what '
             'each team submitted for this month; anything not listed ran on its '
             'default. Observations are generated from the decisions and the '
             'results, for the instructor to check before using.</p>'

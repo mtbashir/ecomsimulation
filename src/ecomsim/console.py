@@ -2,7 +2,8 @@
 
 What an instructor needs between rounds: who is where and why, which teams are
 about to trip a conditional event, and the evidence for the debrief. The
-leaderboard is withheld until Round 4 (docs/08) so teams settle on a strategy
+leaderboard is here from Round 1; teams see rankings only once the instructor
+publishes them (from Round 4 by default, docs/08), so they settle on a strategy
 before anchoring on rivals.
 """
 from __future__ import annotations
@@ -13,7 +14,6 @@ from pathlib import Path
 from . import debrief, scoring
 from .charts import CSS_TOKENS, rank_bars
 
-LEADERBOARD_FROM_ROUND = 4
 
 # Conditional (Type B) events fire from a team's own state. Logging near-misses
 # lets the thresholds be calibrated before they are switched on (docs/09).
@@ -98,31 +98,30 @@ def _targeting(ranked, params, name_of) -> str:
 def render(world, params, out_dir: str | Path, submissions: dict | None = None,
            open_codes: list[str] | None = None, workbook_url=None,
            workbooks_zip: str | None = None, memo_rejected: set | None = None,
-           memo_url=None, footer: str = "") -> Path:
+           memo_url=None, footer: str = "", seen_by_teams: str = "",
+           total_rounds: int = 12) -> Path:
     round_ = world.round
     teams = list(world.teams.values())
     cards = {t.team_id: scoring.final_score(t, params, world.teams, memo_rejected)
              for t in teams}
+    months = {t.team_id: scoring.month_score(t, params, world.teams, round_, memo_rejected)
+              for t in teams}
     ranked = sorted(teams, key=lambda t: -cards[t.team_id]["total"])
 
     def name_of(t):
         return (t.brand_name
                 or getattr(t.founding, "brand_name", None) or t.team_id)
 
-    # Leaderboard
-    if round_ >= LEADERBOARD_FROM_ROUND:
-        bars = rank_bars([(name_of(t), cards[t.team_id]["total"]) for t in ranked],
-                         fmt=lambda v: f"{v:.1f}")
-        weight = round_ * (round_ + 1) / 2 / (12 * 13 / 2)
-        board = (f'<section class="wide"><h2>Leaderboard</h2>{bars}'
-                 f'<p class="note">Rounds so far carry {weight:.0%} of the total '
-                 f'weight — later rounds count more, so standings will move.</p>'
-                 f'{_table(ranked, cards, name_of)}</section>')
-    else:
-        board = ('<section class="wide"><h2>Leaderboard</h2>'
-                 f'<p class="note">Withheld until Round {LEADERBOARD_FROM_ROUND}, '
-                 'so teams settle on a strategy before anchoring on rivals '
-                 '(docs/08).</p></section>')
+    # Leaderboard: the cumulative score, from Round 1. Whether the teams see it
+    # is the instructor's call, made on the admin page.
+    bars = rank_bars([(name_of(t), cards[t.team_id]["total"]) for t in ranked],
+                     fmt=lambda v: f"{v:.1f}")
+    weight = round_ * (round_ + 1) / 2 / (total_rounds * (total_rounds + 1) / 2)
+    seen = f' <b>{escape(seen_by_teams)}</b>' if seen_by_teams else ""
+    board = (f'<section class="wide"><h2>Leaderboard &middot; cumulative</h2>{bars}'
+             f'<p class="note">Rounds so far carry {weight:.0%} of the total '
+             f'weight — later rounds count more, so standings will move.{seen}</p>'
+             f'{_table(ranked, cards, name_of, months)}</section>')
 
     # Warnings that used to sit on the per-team KPI panels now go into each
     # team's debrief, where the instructor reads about that team anyway.
@@ -228,18 +227,26 @@ config {params.config_hash()}</p>
     return out
 
 
-def _table(ranked, cards, name_of) -> str:
-    """The table view every chart owes its reader."""
+def _table(ranked, cards, name_of, months=None) -> str:
+    """The table view every chart owes its reader, with this month on its own."""
+    months = months or {}
+    order = sorted(months, key=lambda tid: -months[tid]["total"])
+    month_rank = {tid: i for i, tid in enumerate(order, 1)}
     head = ("<tr><th>Team</th><th>Total</th><th>P1</th><th>P2</th><th>P3</th>"
-            "<th>P4</th><th>P5</th><th>Revenue</th><th>Cash</th></tr>")
+            "<th>P4</th><th>P5</th><th>P6</th>"
+            + ("<th>This month</th><th>Month rank</th>" if months else "")
+            + "<th>Revenue</th><th>Cash</th></tr>")
     rows = []
     for t in ranked:
         c, h = cards[t.team_id], t.history[-1]
+        m = months.get(t.team_id)
         rows.append(
             f'<tr><td>{escape(name_of(t))}</td><td><strong>{c["total"]:.1f}</strong></td>'
             f'<td>{c["p1"]:.1f}</td><td>{c["p2"]:.1f}</td><td>{c["p3"]:.1f}</td>'
-            f'<td>{c["p4"]:.1f}</td><td>{c["p5"]:.1f}</td>'
-            f'<td>{h["revenue_net"]/1e6:,.2f}M</td>'
+            f'<td>{c["p4"]:.1f}</td><td>{c["p5"]:.1f}</td><td>{c["p6"]:.1f}</td>'
+            + (f'<td>{m["total"]:.1f}</td><td>{month_rank[t.team_id]}</td>' if m else "")
+            + f'<td>{h["revenue_net"]/1e6:,.2f}M</td>'
             f'<td>{h["cash_balance"]/1e6:,.2f}M</td></tr>')
-    return (f'<details><summary>Table view</summary><table class="t">'
+    return (f'<details open><summary>Table view &middot; this month on its own beside the '
+            f'cumulative score</summary><table class="t">'
             f'<thead>{head}</thead><tbody>{"".join(rows)}</tbody></table></details>')

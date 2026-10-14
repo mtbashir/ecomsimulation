@@ -310,6 +310,62 @@ def final_score(team, params, all_teams: dict, memo_rejected: set | None = None)
             "first_insolvent_round": next((x["round"] for x in h if x["insolvent"]), None)}
 
 
+def month_score(team, params, all_teams: dict, month: int,
+                memo_rejected: set | None = None) -> dict:
+    """The published scorecard applied to one month alone - who had the best month.
+
+    Every measure reads that month's record: its margins (against the best team
+    that month, under rules v2), its customers, operations and cash, and its
+    decisions. Growth is the month against the month before; month 1 has no
+    month before, so its revenue and share growth are level for every team.
+    The cash the business generated is the month's own change in cash, net of
+    new borrowing. It is not part of the final score, which weights the months
+    by round; it is the month on its own.
+    """
+    i = month - 1
+    h = team.history[i]
+    prev = team.history[i - 1] if i >= 1 else None
+    rejected = memo_rejected or set()
+
+    if _v2(h):
+        p1 = _profit_relative(team, all_teams, [i])
+    else:
+        p1 = _profit_fixed([h])
+
+    rev_multiple = h["revenue_net"] / max(prev["revenue_net"], 1.0) if prev else 1.0
+    share_pp = (h["market_share"] - prev["market_share"]) * 100 if prev else 0.0
+    baseline_orders = params["baseline_team_revenue"] / params["aov_base"]
+    p2 = (_mark("rev_multiple", rev_multiple) + _mark("share_pp", share_pp)
+          + _mark("order_growth", h["orders"] / baseline_orders - 1)) / 100
+
+    new = h["orders"] * (1 - h["repeat_order_share"])
+    cac = h["pnl"]["marketing"] / max(new, 1.0)
+    p3 = (_mark("ltv_cac", h["ltv"] / max(cac, 1.0))
+          + _mark("repeat", h["repeat_order_share"])
+          + _mark("active", h["active_customers"])
+          + _mark("nps", h["nps"])) / 100
+
+    leak = (h["pnl"]["rto_cost"] + h["pnl"]["return_cost"]) / max(h["revenue_net"], 1.0)
+    unit_cost = _unit_cost(team, params) * params["cogs_scale"]
+    turns = (h["pnl"]["cogs"] * 12 / params["round_months"]
+             / max(h["inventory_units"] * unit_cost, 1.0))
+    p4 = (_mark("service", h["service_level"]) + _mark("delivery", h["delivery_success"])
+          + _mark("leak", leak) + _mark("turns", turns)) / 100
+
+    cash_before = prev["cash_balance"] if prev else params["starting_cash"]
+    credit_before = prev["credit_drawn"] if prev else 0.0
+    free_cash = (h["cash_balance"] - cash_before) - (h["credit_drawn"] - credit_before)
+    net_margin = h["pnl"]["net_profit"] / max(h["revenue_net"], 1.0)
+    p5 = 0.0 if h["insolvent"] else (_ANCHORS["runway"][0] * _runway_band(h["runway_rounds"])
+                                      + _mark("free_cash", free_cash)
+                                      + _mark("net_margin", net_margin)) / 100
+
+    p6 = _decision_quality(team, h, rejected)
+    total = p1 + p2 + p3 + p4 + p5 + p6
+    return {"total": total, "p1": p1, "p2": p2, "p3": p3, "p4": p4, "p5": p5,
+            "p6": p6, "insolvent": bool(h["insolvent"])}
+
+
 def _runway_band(runway: float) -> float:
     """Banded, not monotonic - the shape from docs/08, re-based to the burn.
 
