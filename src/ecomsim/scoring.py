@@ -366,6 +366,13 @@ def month_score(team, params, all_teams: dict, month: int,
             "p6": p6, "insolvent": bool(h["insolvent"])}
 
 
+def ranks(scores: dict) -> dict:
+    """Competition ranks, highest first: equal scores share a rank and the
+    next rank skips (1, 1, 3), so a tie never reads as a placing."""
+    order = sorted(scores.values(), reverse=True)
+    return {k: 1 + sum(1 for v in order if v > s + 1e-9) for k, s in scores.items()}
+
+
 def _runway_band(runway: float) -> float:
     """Banded, not monotonic - the shape from docs/08, re-based to the burn.
 

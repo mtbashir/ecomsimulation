@@ -1437,12 +1437,13 @@ def rankings(con, upto: int | None = None) -> list[dict]:
                          "name": brand if brand and brand != "Unnamed" else team.brand_name,
                          "score": cum["total"], "month_score": alone["total"],
                          "insolvent": cum["insolvent"]})
-        for i, r in enumerate(sorted(rows, key=lambda r: -r["month_score"]), 1):
-            r["month_rank"] = i
-        rows.sort(key=lambda r: -r["score"])
-        for i, r in enumerate(rows, 1):
-            r["rank"] = i
-            r["move"] = before[r["team_id"]] - i if r["team_id"] in before else None
+        cum = scoring.ranks({r["team_id"]: r["score"] for r in rows})
+        alone = scoring.ranks({r["team_id"]: r["month_score"] for r in rows})
+        rows.sort(key=lambda r: (-r["score"], r["name"] or ""))
+        for r in rows:
+            r["rank"], r["month_rank"] = cum[r["team_id"]], alone[r["team_id"]]
+            r["move"] = (before[r["team_id"]] - r["rank"]
+                         if r["team_id"] in before else None)
         before = {r["team_id"]: r["rank"] for r in rows}
         out.append({"month": month, "rows": rows,
                     "weight": month * (month + 1) / (total * (total + 1))})
@@ -1472,7 +1473,8 @@ def team_workbook(con, team_id: str, round_: int,
 
 
 def instructor_console(con, round_: int, workbook_url=None,
-                       workbooks_zip: str | None = None, memo_url=None) -> str | None:
+                       workbooks_zip: str | None = None, memo_url=None,
+                       console_url=None) -> str | None:
     world = db.load_world(con, round_)
     if world is None:
         return None
@@ -1494,6 +1496,10 @@ def instructor_console(con, round_: int, workbook_url=None,
                               footer=version.rules_label(db.rules_from(con)),
                               seen_by_teams=seen,
                               total_rounds=db.game(con)["total_rounds"] or 12,
+                              by_round=rankings(con, round_),
+                              round_urls=([(r, console_url(r)) for r in
+                                           range(1, (db.game(con)["round"] or 0) + 1)]
+                                          if console_url else None),
                               ).read_text(encoding="utf-8")
 
 

@@ -1203,7 +1203,8 @@ def register_routes(app: Flask) -> None:
             g.db, round_,
             workbook_url=lambda team: url_for("results_admin_xlsx", team=team, round_=round_),
             workbooks_zip=url_for("admin_workbooks", round_=round_),
-            memo_url=lambda team, rnd: url_for("admin_memo", round_=rnd, team=team))
+            memo_url=lambda team, rnd: url_for("admin_memo", round_=rnd, team=team),
+            console_url=lambda r: url_for("admin_console", round_=r))
         if html is None:
             abort(404)
         return Response(html, mimetype="text/html")
@@ -1314,7 +1315,10 @@ def register_routes(app: Flask) -> None:
     @login_required("admin")
     def admin_past_console(archive_id, round_):
         _, con = _past(archive_id)
-        html = service.instructor_console(con, round_)
+        html = service.instructor_console(
+            con, round_,
+            console_url=lambda r: url_for("admin_past_console", archive_id=archive_id,
+                                          round_=r))
         if html is None:
             abort(404)
         return Response(html, mimetype="text/html")

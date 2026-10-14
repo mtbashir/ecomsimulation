@@ -190,6 +190,9 @@ left out.</p>
 {% if game['round'] %}
 <a class="btn" href="{{ url_for('admin_console', round_=game['round']) }}"
    target="_blank">Console for round {{ game['round'] }}</a>
+{% if game['round'] > 1 %}<span class="note" style="margin-left:8px">Earlier rounds:
+{% for r in range(1, game['round']) %}<a href="{{ url_for('admin_console', round_=r) }}"
+   target="_blank">{{ r }}</a>{{ ' · ' if not loop.last }}{% endfor %}</span>{% endif %}
 {% else %}<p class="note">Nothing processed yet.</p>{% endif %}
 <a class="btn ghost" style="margin-left:8px"
    href="{{ url_for('admin_export', round_=game['open_round'] or next_round) }}">

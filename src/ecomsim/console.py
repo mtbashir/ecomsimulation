@@ -99,7 +99,8 @@ def render(world, params, out_dir: str | Path, submissions: dict | None = None,
            open_codes: list[str] | None = None, workbook_url=None,
            workbooks_zip: str | None = None, memo_rejected: set | None = None,
            memo_url=None, footer: str = "", seen_by_teams: str = "",
-           total_rounds: int = 12) -> Path:
+           total_rounds: int = 12, by_round: list[dict] | None = None,
+           round_urls: list[tuple[int, str]] | None = None) -> Path:
     round_ = world.round
     teams = list(world.teams.values())
     cards = {t.team_id: scoring.final_score(t, params, world.teams, memo_rejected)
@@ -196,6 +197,12 @@ details{{margin-top:12px}} summary{{cursor:pointer;font-size:13px;color:#52514e}
 background:#fff;color:#2a78d6;font-size:13px;font-weight:600;text-decoration:none}}
 .wbk.all{{background:#2a78d6;border-color:#2a78d6;color:#fff}}
 .wbk .tid{{font-weight:400}}
+.rnav{{display:flex;flex-wrap:wrap;gap:6px;margin:-8px 0 18px}}
+.rnav a,.rnav span{{padding:4px 11px;border:1px solid #d6d5ce;border-radius:7px;background:#fff;
+color:#2a78d6;font-size:13px;font-weight:600;text-decoration:none}}
+.rnav span{{background:#0b0b0b;border-color:#0b0b0b;color:#fff}}
+table.t td.top{{font-weight:700}}
+table.t td small{{color:#898781;font-weight:400}}
 table.t{{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}}
 table.t th,table.t td{{text-align:right;padding:5px 7px;
 border-bottom:1px solid #e1e0d9;font-variant-numeric:tabular-nums}}
@@ -210,14 +217,17 @@ section{{background:#1a1a19;border-color:rgba(255,255,255,.10)}}
 h2,.sub,figcaption,.note,summary,.flag{{color:#c3c2b7}}
 .sm .v{{color:#fff}} .bars .bl{{fill:#c3c2b7}} .bars .bv{{fill:#fff}}
 table.t th,table.t td{{border-color:#2c2c2a}} table.t thead th{{color:#c3c2b7}}
+.rnav a{{background:#1a1a19;border-color:#2c2c2a;color:#3987e5}}
+.rnav span{{background:#fff;border-color:#fff;color:#0b0b0b}}
 .up{{color:#0ca30c}}}}
 {CSS_TOKENS}
 {debrief.CSS}
 </style></head><body class="viz"><div class="wrap">
 <h1>Round {round_}</h1>
+{_round_nav(round_urls, round_)}
 <p class="sub">Instructor console &middot; {len(teams)} teams &middot;
 config {params.config_hash()}</p>
-{downloads}{board}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags, workbook_url, memo_rejected, memo_url)}{watch}{_targeting(ranked, params, name_of)}
+{downloads}{board}{_by_round(ranked, name_of, by_round)}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags, workbook_url, memo_rejected, memo_url)}{watch}{_targeting(ranked, params, name_of)}
 {f'<p class="note ver">{escape(footer)}</p>' if footer else ''}
 </div></body></html>"""
 
@@ -227,11 +237,81 @@ config {params.config_hash()}</p>
     return out
 
 
+def _round_nav(round_urls, round_) -> str:
+    """Links to every round's console, this one marked."""
+    if not round_urls or len(round_urls) < 2:
+        return ""
+    links = "".join(f'<span>Round {r}</span>' if r == round_
+                    else f'<a href="{escape(url)}">Round {r}</a>' for r, url in round_urls)
+    return f'<nav class="rnav" aria-label="Every round\'s console">{links}</nav>'
+
+
+# Measures shown round by round: (label, read from a month's record, format).
+BY_ROUND = [
+    ("Net revenue", lambda h: h["revenue_net"], lambda v: f"{v / 1e6:,.2f}M"),
+    ("Contribution after marketing", lambda h: h["pnl"]["contribution"],
+     lambda v: f"{v / 1e6:,.2f}M"),
+    ("Orders", lambda h: h["orders"], lambda v: f"{v:,.0f}"),
+    ("Market share", lambda h: h["market_share"], lambda v: f"{v:.1%}"),
+    ("Cash at month end", lambda h: h["cash_balance"], lambda v: f"{v / 1e6:,.2f}M"),
+]
+
+
+def _by_round(ranked, name_of, by_round) -> str:
+    """Every team, round by round: the cumulative standing as it stood at the
+    end of each round, each round on its own, and the month's main results.
+    Rows in today's cumulative order; the best in each round is in bold."""
+    months = [m["month"] for m in by_round or []]
+    if not months:
+        return ""
+    head = "<tr><th>Team</th>" + "".join(f"<th>R{m}</th>" for m in months) + "</tr>"
+    cell = {(r["team_id"], m["month"]): r for m in by_round for r in m["rows"]}
+
+    def standing(score_key, rank_key):
+        rows = []
+        for t in ranked:
+            tds = []
+            for m in months:
+                r = cell.get((t.team_id, m))
+                tds.append("<td>&mdash;</td>" if r is None else
+                           f'<td class="{"top" if r[rank_key] == 1 else ""}">{r[rank_key]} '
+                           f'<small>&middot; {r[score_key]:.1f}</small></td>')
+            rows.append(f"<tr><td>{escape(name_of(t))}</td>{''.join(tds)}</tr>")
+        return f'<table class="t"><thead>{head}</thead><tbody>{"".join(rows)}</tbody></table>'
+
+    def measure(read, fmt):
+        rows = []
+        best = {m: max((read(t.history[m - 1]) for t in ranked if len(t.history) >= m),
+                       default=None) for m in months}
+        for t in ranked:
+            tds = []
+            for m in months:
+                if len(t.history) < m:
+                    tds.append("<td>&mdash;</td>")
+                    continue
+                v = read(t.history[m - 1])
+                tds.append(f'<td class="{"top" if v == best[m] else ""}">{fmt(v)}</td>')
+            rows.append(f"<tr><td>{escape(name_of(t))}</td>{''.join(tds)}</tr>")
+        return f'<table class="t"><thead>{head}</thead><tbody>{"".join(rows)}</tbody></table>'
+
+    parts = [
+        f'<details open><summary>Cumulative rank &middot; score, as it stood at the end of '
+        f'each round</summary>{standing("score", "rank")}</details>',
+        f'<details><summary>Each round on its own: rank &middot; score</summary>'
+        f'{standing("month_score", "month_rank")}</details>']
+    parts += [f'<details><summary>{label}</summary>{measure(read, fmt)}</details>'
+              for label, read, fmt in BY_ROUND]
+    return ('<section class="wide"><h2>Results by round</h2>'
+            + "".join(parts)
+            + '<p class="note">Teams in today\'s cumulative order; the best in each round in '
+              'bold. The round on its own applies the published scorecard to that month '
+              'alone (docs/08); it is not added to the final score.</p></section>')
+
+
 def _table(ranked, cards, name_of, months=None) -> str:
     """The table view every chart owes its reader, with this month on its own."""
     months = months or {}
-    order = sorted(months, key=lambda tid: -months[tid]["total"])
-    month_rank = {tid: i for i, tid in enumerate(order, 1)}
+    month_rank = scoring.ranks({tid: m["total"] for tid, m in months.items()})
     head = ("<tr><th>Team</th><th>Total</th><th>P1</th><th>P2</th><th>P3</th>"
             "<th>P4</th><th>P5</th><th>P6</th>"
             + ("<th>This month</th><th>Month rank</th>" if months else "")

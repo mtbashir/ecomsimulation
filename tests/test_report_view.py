@@ -187,8 +187,8 @@ def test_rankings_hold_both_scores_and_their_ranks(game):
     months = service.rankings(con)
     assert [m["month"] for m in months] == [1, 2]
     rows = months[-1]["rows"]
-    assert [r["rank"] for r in rows] == [1, 2, 3]
-    assert sorted(r["month_rank"] for r in rows) == [1, 2, 3]
+    assert [r["rank"] for r in rows] == sorted(r["rank"] for r in rows)
+    assert rows[0]["rank"] == 1 and min(r["month_rank"] for r in rows) == 1
     assert all(r["move"] is not None for r in rows)
     assert all(r["move"] is None for r in months[0]["rows"])
     world = db.load_world(con, 2)
@@ -215,3 +215,24 @@ def test_the_month_score_reads_that_month_alone():
     run_round(again, params, {ids[0]: {"2.2": 0.15}})
     assert scoring.month_score(again.teams[ids[0]], params, again.teams, 2)["total"] == \
         pytest.approx(two[ids[0]])
+
+
+def test_the_console_shows_results_round_by_round(game):
+    app, _, con = game
+    admin = _client(app, "admin", "admin-pw")
+    body = admin.get("/admin/console/2").data.decode()
+    assert "Results by round" in body
+    assert "<th>R1</th><th>R2</th>" in body
+    for label in ("Cumulative rank", "Each round on its own", "Net revenue",
+                  "Contribution after marketing", "Market share"):
+        assert label in body
+    assert 'href="/admin/console/1"' in body, "every round's console is a click away"
+    # an earlier round's console stops at that round
+    first = admin.get("/admin/console/1").data.decode()
+    assert "<th>R1</th>" in first and "<th>R2</th>" not in first
+    assert 'href="/admin/console/1"' in admin.get("/admin").data.decode()
+
+
+def test_equal_scores_share_a_rank():
+    assert scoring.ranks({"a": 60.0, "b": 60.0, "c": 58.0}) == {"a": 1, "b": 1, "c": 3}
+    assert scoring.ranks({"a": 50.0, "b": 51.0}) == {"a": 2, "b": 1}
