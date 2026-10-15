@@ -162,7 +162,7 @@ def migrate(con) -> None:
         ("game", "launch_order", "INTEGER"),
         ("game", "range_changes", "INTEGER"),
         ("game", "scaled_purchases", "INTEGER"),
-        ("game", "fair_pricing", "INTEGER"),
+        ("game", "fair_pricing_from", "INTEGER"),
     ]:
         have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
         if column not in have:
@@ -181,10 +181,10 @@ def migrate(con) -> None:
     # And purchase orders costed like cost of goods (cogs_scale).
     con.execute("UPDATE game SET scaled_purchases = CASE WHEN round >= 1 THEN 0 ELSE 1 END "
                 "WHERE scaled_purchases IS NULL")
-    # And like-for-like pricing (ecomsim.pricing): a game already trading
-    # finishes on the price model it started with.
-    con.execute("UPDATE game SET fair_pricing = CASE WHEN round >= 1 THEN 0 ELSE 1 END "
-                "WHERE fair_pricing IS NULL")
+    # And like-for-like pricing: from month 1 for a game not yet started; 0
+    # (never, unless the instructor sets a month) for one already trading.
+    con.execute("UPDATE game SET fair_pricing_from = CASE WHEN round >= 1 THEN 0 ELSE 1 END "
+                "WHERE fair_pricing_from IS NULL")
 
 
 def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
@@ -199,7 +199,7 @@ def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
         con.execute(
             "INSERT OR REPLACE INTO game "
             "(id, name, preset, round, total_rounds, open_round, start_mode, "
-            "rules_from, launch_order, range_changes, scaled_purchases, fair_pricing, "
+            "rules_from, launch_order, range_changes, scaled_purchases, fair_pricing_from, "
             "created_at) VALUES (1, ?, ?, 0, ?, NULL, ?, 1, 1, 1, 1, 1, ?)",
             (name, preset, rounds, start_mode, _now()))
         con.execute(
@@ -422,18 +422,35 @@ def scaled_purchases(con) -> bool:
     return int(row["round"]) < 1
 
 
-def fair_pricing(con) -> bool:
-    """Whether this game prices like for like (ecomsim.pricing).
+def fair_pricing_from(con) -> int:
+    """The first month this game prices like for like; 0 means never.
 
-    True for a game set up from now on; a game already trading, or an archive
-    that predates the column, keeps the price model it started with.
+    1 for a game set up from now on. A game already trading when it arrived
+    keeps the old model unless the instructor picks a month to switch from,
+    and the months before that stay exactly as they were played.
     """
     row = game(con)
     if row is None:
-        return True
-    if "fair_pricing" in row.keys() and row["fair_pricing"] is not None:
-        return bool(row["fair_pricing"])
-    return int(row["round"]) < 1
+        return 1
+    if "fair_pricing_from" in row.keys() and row["fair_pricing_from"] is not None:
+        return int(row["fair_pricing_from"])
+    return 1 if int(row["round"]) < 1 else 0
+
+
+def fair_pricing(con, month: int) -> bool:
+    """Whether `month` runs on like-for-like pricing."""
+    start = fair_pricing_from(con)
+    return bool(start) and month >= start
+
+
+def set_fair_pricing_from(con, month: int, actor: str = "admin") -> None:
+    """Switch a running game to like-for-like pricing from a month not yet run."""
+    g = game(con)
+    if not g["round"] < month <= g["total_rounds"]:
+        raise ValueError(f"pick a month from {g['round'] + 1} to {g['total_rounds']}")
+    with con:
+        con.execute("UPDATE game SET fair_pricing_from = ? WHERE id = 1", (month,))
+        log(con, actor, "pricing.like_for_like", f"from month {month}")
 
 
 def schedule_returns(con, round_: int, rows: list[dict], reason: str,
@@ -775,7 +792,7 @@ def new_game(con, db_path: str | Path, name: str, teams: int, rounds: int,
             "UPDATE game SET name = ?, round = 0, total_rounds = ?, "
             "open_round = NULL, start_mode = ?, overrides = ?, epoch = ?, "
             "rules_from = 1, launch_order = 1, range_changes = 1, scaled_purchases = 1, "
-            "fair_pricing = 1, created_at = ? WHERE id = 1",
+            "fair_pricing_from = 1, created_at = ? WHERE id = 1",
             (name, rounds, start_mode,
              old["overrides"] if keep_overrides else "{}",
              old["epoch"] + 1, _now()))

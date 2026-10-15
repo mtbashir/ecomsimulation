@@ -941,7 +941,23 @@ def register_routes(app: Flask) -> None:
             report_sections=db.SECTIONS, rankings_from=db.RANKINGS_FROM,
             report_months=list(range(1, game["total_rounds"] + 1)),
             report_view={m: db.report_view(g.db, m)
-                         for m in range(1, game["total_rounds"] + 1)})
+                         for m in range(1, game["total_rounds"] + 1)},
+            fair_from=db.fair_pricing_from(g.db))
+
+    @app.post("/admin/pricing")
+    @login_required("admin")
+    def admin_pricing():
+        """Move a running game onto like-for-like pricing from a later month."""
+        try:
+            month = int(request.form.get("month", ""))
+            db.set_fair_pricing_from(g.db, month, session["user"])
+        except ValueError as exc:
+            flash(f"Not changed: {exc}.", "error")
+        else:
+            flash(f"Like-for-like pricing from month {month}. Months before it "
+                  f"stay exactly as they were played. Tell the teams before "
+                  f"they submit month {month}.", "ok")
+        return redirect(url_for("admin"))
 
     @app.route("/admin/strategy")
     @login_required("admin")

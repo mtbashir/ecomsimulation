@@ -30,7 +30,7 @@ def test_a_new_game_prices_like_for_like(tmp_path):
     path = tmp_path / "g.db"
     db.init(path, "x", 3, admin_password="x")
     con = db.connect(path)
-    assert db.fair_pricing(con) is True
+    assert db.fair_pricing_from(con) == 1 and db.fair_pricing(con, 1)
     assert bootstrap.new_world(PARAMS).fair_pricing is True
 
 
@@ -39,21 +39,84 @@ def test_a_game_already_trading_keeps_its_price_model(tmp_path):
     db.init(path, "x", 3, admin_password="x")
     con = db.connect(path)
     # As a database from before the column: trading, and no value recorded.
-    con.execute("UPDATE game SET round = 4, fair_pricing = NULL")
+    con.execute("UPDATE game SET round = 4, fair_pricing_from = NULL")
     con.commit()
     db.migrate(con)
-    assert db.fair_pricing(con) is False
+    assert db.fair_pricing_from(con) == 0
+    assert not any(db.fair_pricing(con, m) for m in range(1, 13))
 
 
 def test_starting_the_next_game_turns_it_on(tmp_path):
     path = tmp_path / "g.db"
     db.init(path, "x", 3, admin_password="x")
     con = db.connect(path)
-    con.execute("UPDATE game SET round = 4, fair_pricing = 0")
+    con.execute("UPDATE game SET round = 4, fair_pricing_from = 0")
     con.commit()
     db.new_game(con, path, name="Next", teams=3, rounds=12,
                 start_mode="founding", keep_overrides=False)
-    assert db.fair_pricing(con) is True
+    assert db.fair_pricing_from(con) == 1
+
+
+def _trading_game(path, rounds_played=3):
+    """A game that was already trading on the old model when this arrived."""
+    db.init(path, "x", 4, admin_password="admin-pw")
+    con = db.connect(path)
+    con.execute("UPDATE game SET fair_pricing_from = 0")
+    con.commit()
+    for _ in range(rounds_played):
+        service.process_round(con)
+    return con
+
+
+def test_a_running_game_can_switch_from_a_later_month(tmp_path):
+    switched = _trading_game(tmp_path / "a.db")
+    unswitched = _trading_game(tmp_path / "b.db")
+    db.set_fair_pricing_from(switched, 4)
+    for con in (switched, unswitched):
+        service.process_round(con)
+    a, b = db.load_world(switched), db.load_world(unswitched)
+    for tid in a.teams:
+        ha, hb = a.teams[tid].history, b.teams[tid].history
+        # Months 1 to 3 exactly as played...
+        assert [h["orders"] for h in ha[:3]] == [h["orders"] for h in hb[:3]]
+        assert [h["revenue_net"] for h in ha[:3]] == [h["revenue_net"] for h in hb[:3]]
+    # ...and month 4 on the new model.
+    assert a.fair_pricing is True and b.fair_pricing is False
+
+
+def test_a_month_already_run_cannot_be_switched(tmp_path):
+    con = _trading_game(tmp_path / "g.db")
+    for month in (1, 3, 13):
+        with pytest.raises(ValueError):
+            db.set_fair_pricing_from(con, month)
+    assert db.fair_pricing_from(con) == 0
+
+
+def test_rerunning_an_early_month_after_a_rollback_keeps_the_old_model(tmp_path):
+    con = _trading_game(tmp_path / "g.db")
+    before = db.load_world(con, 3).teams["team_01"].history[-1]["orders"]
+    db.set_fair_pricing_from(con, 4)
+    db.rollback(con, 2)
+    service.process_round(con)          # month 3 again
+    assert db.load_world(con).fair_pricing is False
+    assert db.load_world(con).teams["team_01"].history[-1]["orders"] == \
+        pytest.approx(before)
+
+
+def test_the_instructor_switches_it_from_the_overview(tmp_path):
+    from ecomsim.web.app import create_app
+    path = tmp_path / "g.db"
+    _trading_game(path).close()
+    app = create_app(path)
+    app.config["TESTING"] = True
+    admin = app.test_client()
+    admin.post("/login", data={"username": "admin", "password": "admin-pw"})
+    page = admin.get("/admin").get_data(as_text=True)
+    assert "Price Model" in page and "Like-for-Like from Month" in page
+    admin.post("/admin/pricing", data={"month": "4"})
+    con = db.connect(path)
+    assert db.fair_pricing_from(con) == 4
+    assert "starts in month" in admin.get("/admin").get_data(as_text=True)
 
 
 def test_an_old_saved_world_reads_the_old_model():

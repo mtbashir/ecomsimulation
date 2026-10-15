@@ -76,6 +76,38 @@
 </div>
 </section>
 
+{# Pricing model. New games price like for like from month 1; a game that was
+   already trading when it arrived stays on the old model unless switched here,
+   from a month not yet run. Shown only while there is a choice to make. #}
+{% set fair_active = fair_from and game['round'] >= fair_from %}
+{% if fair_from != 1 and not fair_active and game['round'] < game['total_rounds'] %}
+<section>
+<h2>Price model</h2>
+{% if fair_from %}
+<p class="note" style="margin:0">Like-for-like pricing starts in month
+<strong>{{ fair_from }}</strong>. Months before it run, and stay, on the
+old price model.</p>
+{% else %}
+<p class="note">This game runs on the old price model, which compares rupee
+price levels across different products - so a range of cheap products looks
+cheap even when marked up. Switch to like-for-like pricing from a month that
+has not run: months already played stay exactly as they were, and only the
+months from the one you pick change.</p>
+<form method="post" action="{{ url_for('admin_pricing') }}"
+      style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"
+      onsubmit="return confirm('Switch to like-for-like pricing from this month? Tell the teams before they submit it.')">
+  <label for="fp" style="margin:0">Like-for-like from month</label>
+  <select id="fp" name="month" style="width:auto">
+    {% for m in range(game['round'] + 1, game['total_rounds'] + 1) %}
+    <option value="{{ m }}" {{ 'selected' if m == game['round'] + 1 }}>{{ m }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="ghost">Switch</button>
+</form>
+{% endif %}
+</section>
+{% endif %}
+
 <section id="report-view">
 <h2>What teams see in their monthly report</h2>
 <p class="note" style="max-width:92ch">Decide each month which detail the teams'
