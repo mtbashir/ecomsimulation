@@ -2063,3 +2063,24 @@ def final_table(con) -> list[dict]:
     for i, row in enumerate(rows, 1):
         row["rank"] = i
     return rows
+
+
+# --- Preview ------------------------------------------------------------------------
+
+def preview_round(con) -> tuple[int, str] | None:
+    """Run the next month on a throwaway copy and return its console.
+
+    Nothing is saved: the live database is copied into memory, the month runs
+    there exactly as Run would run it (the engine is deterministic), and the
+    copy is discarded. The instructor sees the rankings before the teams do,
+    and before committing to them.
+    """
+    import sqlite3
+    copy = sqlite3.connect(":memory:", detect_types=sqlite3.PARSE_DECLTYPES)
+    copy.row_factory = sqlite3.Row
+    try:
+        con.backup(copy)
+        result = process_round(copy, actor="preview")
+        return result["round"], instructor_console(copy, result["round"])
+    finally:
+        copy.close()

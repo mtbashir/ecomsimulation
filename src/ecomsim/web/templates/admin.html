@@ -52,6 +52,8 @@
   submit.{% endif %}</p></div>
   <div class="acts">
   <button type="submit" {{ 'disabled' if not is_open }}>Run round {{ next_round }}</button>
+  {% if not finished %}<a class="btn ghost" href="{{ url_for('admin_preview') }}" target="_blank"
+     title="Runs the month on a copy and shows the console. Nothing is saved.">Preview</a>{% endif %}
   </div>
 </form>
 <form method="post" action="{{ url_for('admin_rollback') }}"

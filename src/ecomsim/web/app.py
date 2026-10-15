@@ -950,6 +950,31 @@ def register_routes(app: Flask) -> None:
                          for m in range(1, game["total_rounds"] + 1)},
             fair_from=db.fair_pricing_from(g.db))
 
+    @app.get("/admin/preview")
+    @login_required("admin")
+    def admin_preview():
+        """The next month's console, run on a copy: nothing is saved."""
+        game = db.game(g.db)
+        if game["round"] >= game["total_rounds"]:
+            abort(404)
+        try:
+            made = service.preview_round(g.db)
+        except BandViolation as exc:
+            flash(f"Cannot preview: {exc}", "error")
+            return redirect(url_for("admin"))
+        if made is None or made[1] is None:
+            abort(404)
+        month, html = made
+        banner = (
+            '<div style="position:sticky;top:0;z-index:99;background:#fab219;color:#111;'
+            'padding:10px 16px;font:600 14px Inter,sans-serif">'
+            f'Preview of month {month} &middot; nothing has been saved. This is what '
+            f'Run would produce with the decisions submitted so far; teams see nothing. '
+            f'<a href="{url_for("admin")}" style="color:#111">Back to the console</a></div>')
+        html = html.replace("<body>", "<body>" + banner, 1) if "<body>" in html \
+            else banner + html
+        return Response(html, mimetype="text/html")
+
     @app.post("/admin/pricing")
     @login_required("admin")
     def admin_pricing():
