@@ -164,9 +164,9 @@ recovery is slow and expensive &mdash; fix the cash position before anything els
       <p style="margin:6px 0 0"><a class="btn ghost" style="padding:7px 12px;font-size:12.5px"
          href="{{ url_for('rankings') }}">Rankings to month {{ rankings_upto }}</a></p>
       {% endif %}
-      {% if team_workbooks %}
+      {% if workbook_round %}
       <p style="margin:6px 0 0"><a class="btn" style="padding:7px 12px;font-size:12.5px"
-         href="{{ url_for('results_xlsx', round_=rounds|max) }}">Download every month as Excel</a>
+         href="{{ url_for('results_xlsx', round_=workbook_round) }}">Download every month as Excel</a>
       <span class="cap" style="margin-left:8px">P&amp;L, KPIs with their formulas, sales and
       stock by product, cash and campaigns.</span></p>
       {% endif %}

@@ -398,7 +398,8 @@ def register_routes(app: Flask) -> None:
             heading=heading, note=note,
             submitted=submitted,
             rounds=list(range(1, game["round"] + 1)),
-            team_workbooks=app.config["TEAM_WORKBOOKS"],
+            workbook_round=next((r for r in range(game["round"], 0, -1)
+                                 if _team_workbook_ok(r)), None),
             position=service.company_position(g.db, tid),
             research=_research_bought(g.db, tid, game["round"]),
             kpis=service.headline_kpis(g.db, tid),
@@ -882,7 +883,7 @@ def register_routes(app: Flask) -> None:
         html = service.team_report(
             g.db, session["team_id"], round_,
             download=url_for("results_xlsx", round_=round_)
-            if app.config["TEAM_WORKBOOKS"] else None,
+            if _team_workbook_ok(round_) else None,
             month_url=lambda m: url_for("results", round_=m))
         if html is None:
             abort(404)
@@ -891,9 +892,14 @@ def register_routes(app: Flask) -> None:
     @app.route("/results/<int:round_>.xlsx")
     @login_required("team")
     def results_xlsx(round_):
-        if not app.config["TEAM_WORKBOOKS"]:
+        if not _team_workbook_ok(round_):
             abort(404)
         return _workbook(session["team_id"], round_, for_team=True)
+
+    def _team_workbook_ok(round_: int) -> bool:
+        """Teams get a month's workbook once the instructor ticks it for that
+        month (or ECOMSIM_TEAM_WORKBOOKS=1 opens every month)."""
+        return app.config["TEAM_WORKBOOKS"] or db.workbook_open(g.db, round_)
 
     @app.get("/rankings")
     @login_required("team")

@@ -237,3 +237,51 @@ def test_the_console_shows_results_round_by_round(game):
 def test_equal_scores_share_a_rank():
     assert scoring.ranks({"a": 60.0, "b": 60.0, "c": 58.0}) == {"a": 1, "b": 1, "c": 3}
     assert scoring.ranks({"a": 50.0, "b": 51.0}) == {"a": 2, "b": 1}
+
+
+# --- The Excel workbook, month by month ------------------------------------------
+
+def test_the_workbook_is_closed_to_teams_until_ticked(game):
+    app, pw, con = game
+    assert not db.workbook_open(con, 2)
+    team = _client(app, "team_01", pw["team_01"])
+    assert ".xlsx" not in team.get("/results/2").data.decode()
+    assert team.get("/results/2.xlsx").status_code == 404
+
+
+def test_ticking_a_month_opens_that_months_workbook_only(game):
+    app, pw, con = game
+    db.set_report_view(con, 2, {**db.report_view(con, 2), "workbook": True})
+    team = _client(app, "team_01", pw["team_01"])
+    assert "/results/2.xlsx" in team.get("/results/2").data.decode()
+    assert "/results/2.xlsx" in team.get("/").data.decode(), "and on the dashboard"
+    r = team.get("/results/2.xlsx")
+    assert r.status_code == 200 and r.data[:2] == b"PK"
+    assert team.get("/results/1.xlsx").status_code == 404, "month 1 was not ticked"
+
+
+def test_a_hidden_section_stays_out_of_the_teams_workbook(game):
+    import io
+    import openpyxl
+    app, pw, con = game
+    for m in (1, 2):
+        db.set_report_view(con, m, {**db.report_view(con, m), "stock": False,
+                                    "workbook": True})
+    team = _client(app, "team_01", pw["team_01"])
+    book = openpyxl.load_workbook(io.BytesIO(team.get("/results/2.xlsx").data))
+    assert "Stock" not in book.sheetnames
+    admin = _client(app, "admin", "admin-pw")
+    full = openpyxl.load_workbook(io.BytesIO(admin.get("/admin/report/team_01/2.xlsx").data))
+    assert "Stock" in full.sheetnames, "the instructor's copy keeps everything"
+
+
+def test_the_workbook_row_is_on_the_admin_grid_and_saves(game):
+    app, _, con = game
+    admin = _client(app, "admin", "admin-pw")
+    assert "Excel workbook to download" in admin.get("/admin").data.decode()
+    months = ",".join(str(m) for m in range(1, 13))
+    ticks = [f"{k}:{m}" for m in range(1, 13) for k, _ in db.SECTIONS
+             if db.report_view(con, m)[k]] + ["workbook:2"]
+    admin.post("/admin/report-view", data={"months": months, "show": ticks})
+    assert db.workbook_open(con, 2) and not db.workbook_open(con, 3)
+    assert db.hidden_sections(con, 3) == set(), "an unticked workbook hides no section"

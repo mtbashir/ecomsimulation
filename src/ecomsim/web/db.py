@@ -636,11 +636,19 @@ SECTIONS = (
     ("stock", "Stock by product, end of month"),
     ("campaigns", "Paid media, campaign by campaign"),
     ("rankings", "Rankings, cumulative and by month"),
+    ("workbook", "Excel workbook to download"),
 )
 RANKINGS_FROM = 4
 
 
+# Not report sections: they decide what else the teams get, not what the
+# report leaves out.
+NOT_SECTIONS = {"rankings", "workbook"}
+
+
 def shown_by_default(section: str, round_: int) -> bool:
+    if section == "workbook":
+        return False        # the instructor opens it; until then it is theirs alone
     return round_ >= RANKINGS_FROM if section == "rankings" else True
 
 
@@ -658,7 +666,14 @@ def report_view(con, round_: int) -> dict[str, bool]:
 def hidden_sections(con, round_: int) -> set[str]:
     """The report sections month `round_` keeps from the teams."""
     return {k for k, shown in report_view(con, round_).items()
-            if not shown and k != "rankings"}
+            if not shown and k not in NOT_SECTIONS}
+
+
+def workbook_open(con, round_: int) -> bool:
+    """Whether teams may download month `round_`'s results as an Excel
+    workbook. Off by default; the workbook leaves out whatever sections that
+    month and the months before it keep from the teams."""
+    return bool(round_) and report_view(con, round_)["workbook"]
 
 
 def set_report_view(con, round_: int, shown: dict[str, bool], actor: str = "admin") -> None:
@@ -668,9 +683,10 @@ def set_report_view(con, round_: int, shown: dict[str, bool], actor: str = "admi
                 "INSERT INTO report_view (section, round, shown) VALUES (?, ?, ?) "
                 "ON CONFLICT (section, round) DO UPDATE SET shown = excluded.shown",
                 (key, round_, int(bool(shown.get(key)))))
-        off = [k for k, _ in SECTIONS if not shown.get(k)]
+        off = [k for k, _ in SECTIONS if not shown.get(k) and k != "workbook"]
         log(con, actor, "report.view",
-            f"r{round_}: " + ("everything shown" if not off else "hidden " + ", ".join(off)))
+            f"r{round_}: " + ("everything shown" if not off else "hidden " + ", ".join(off))
+            + ("; Excel workbook open to teams" if shown.get("workbook") else ""))
 
 
 def rankings_published(con, upto: int) -> int:
