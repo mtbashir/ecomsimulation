@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block title %}Instructor{% endblock %}
 {% block body %}
-<div class="crumbs">Instructor console &middot; {{ game['name'] }}</div>
+<div class="crumbs">Instructor console &middot; <span class="nc">{{ game['name'] }}</span></div>
 <div class="head">
   <div><h1>{% if setting_up %}Setup round{% elif game['open_round'] %}Month
     {{ game['open_round'] }} is open{% else %}Month {{ game['round'] }} is closed{% endif %}</h1>

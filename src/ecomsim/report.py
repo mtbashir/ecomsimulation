@@ -853,5 +853,7 @@ td.v.warn{{color:var(--warn)}}
 
     out = Path(out_dir) / f"report_{team.team_id}_r{round_}.html"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(html, encoding="utf-8")
+    # Headings in Title Case, as on every page of the app (web/titlecase.py).
+    from .web.titlecase import html as title_case
+    out.write_text(title_case(html), encoding="utf-8")
     return out

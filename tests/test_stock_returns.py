@@ -120,7 +120,7 @@ def test_off_range_stock_is_listed_at_what_the_opening_order_charged(old_opening
 def test_admin_schedules_cancels_and_month_three_refunds(old_opening):
     con, pw, app, admin = old_opening
     page = admin.get("/admin").data.decode()
-    assert "Stock outside each team" in page and "Return to supplier, refunded in month 3" in page
+    assert "Stock Outside Each Team" in page and "Return to Supplier, Refunded in Month 3" in page
     admin.post("/admin/returns")
     assert db.stock_returns(con, 3)["team_01"]
     admin.post("/admin/returns", data={"cancel": "1"})
@@ -135,7 +135,7 @@ def test_admin_schedules_cancels_and_month_three_refunds(old_opening):
     assert h["cash_flow"]["supplier_refund"] == pytest.approx(expect)
     _identities(h)
     assert world.teams["team_02"].history[-1]["cash_flow"]["supplier_refund"] == 0.0
-    assert "Stock outside each team" not in admin.get("/admin").data.decode(), "nothing left"
+    assert "Stock Outside Each Team" not in admin.get("/admin").data.decode(), "nothing left"
 
 
 def test_teams_see_why_and_where_it_went(old_opening):
@@ -148,7 +148,7 @@ def test_teams_see_why_and_where_it_went(old_opening):
     admin.post("/admin/returns")
     service.process_round(con)
     html = service.team_report(con, "team_01", 3)
-    assert "not in your range" in html and "Returned to supplier</th>" in html
+    assert "not in your range" in html and "Returned to Supplier</th>" in html
     assert "went back to the supplier at the start of month 3" in html
     assert "came with the opening stock order" in html
 

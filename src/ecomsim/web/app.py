@@ -21,7 +21,7 @@ from .. import charts
 from .. import targeting
 from ..decisions import REGISTRY
 from ..params import BandViolation
-from . import briefing, compare, db, service
+from . import briefing, compare, db, service, titlecase
 
 # Round 0, in the order a founder actually decides things: who you are, who
 # you sell to, what you sell, where it comes from, what you build it on, then
@@ -177,8 +177,24 @@ def create_app(database: str | Path | None = None) -> Flask:
             out["engine_label"] = version.rules_label(db.rules_from(g.db))
         return out
 
+    @app.after_request
+    def _title_case(response):
+        """Headings, menu items, labels and buttons in Title Case, on every
+        page - templates and generated reports alike (see titlecase.py)."""
+        if response.mimetype == "text/html" and not response.direct_passthrough \
+                and not response.is_streamed:
+            response.set_data(titlecase.html(response.get_data(as_text=True)))
+        return response
+
+    app.add_template_filter(titlecase.tc, "tc")
     register_routes(app)
     return app
+
+
+def _is_ai(name: str | None) -> bool:
+    """A team named as AI-run ("AI Team", "AI Rivals")."""
+    import re
+    return bool(name) and bool(re.search(r"\bAI\b", name))
 
 
 def _persistent_secret(db_path: Path) -> str:
@@ -931,28 +947,32 @@ def register_routes(app: Flask) -> None:
     def admin_strategy():
         """Every team's choices side by side: options down, teams across."""
         game = db.game(g.db)
-        accounts = db.accounts(g.db, "team")
-        teams = [a["team_id"] for a in accounts]
         brands = {tid: (rec.get("config") or {}).get("brand_name")
                   for tid, rec in db.foundings(g.db).items()}
         heads = [{"team_id": a["team_id"], "name": a["display_name"],
                   "brand": b if (b := brands.get(a["team_id"])) and b != "Unnamed"
-                  else ""} for a in accounts]
+                  else ""} for a in db.accounts(g.db, "team")]
+        # An AI-run team is the benchmark, not one of the class: it goes last.
+        heads.sort(key=lambda h: _is_ai(h["name"]) or _is_ai(h["brand"]))
+        teams = [h["team_id"] for h in heads]
         last = game["open_round"] or game["round"]
         try:
             month = int(request.args.get("month", last))
         except ValueError:
             month = last
         month = max(0, min(month, game["total_rounds"]))
-        founding_blocks, founding_unused = (compare.founding_blocks(g.db, teams, {
+        founding_groups = (compare.founding_blocks(g.db, teams, {
             "tier": TIER_CHOICES, "model": MODEL_CHOICES,
             "sourcing": SOURCING_CHOICES, "tech_stack": STACK_CHOICES,
             "fulfilment": FULFILMENT_CHOICES, "gateway": GATEWAY_CHOICES})
-            if game["start_mode"] == "founding" else ([], []))
+            if game["start_mode"] == "founding" else [])
         return render_template(
             "admin_strategy.html", heads=heads, month=month, last=last,
-            founding_blocks=founding_blocks, founding_unused=founding_unused,
-            month_groups=compare.month_blocks(g.db, teams, month) if month else [])
+            founding_groups=founding_groups,
+            month_groups=compare.month_blocks(g.db, teams, month) if month else [],
+            range_rows=compare.range_table(g.db, teams, month) if month else [],
+            stock=compare.stock_table(g.db, teams, month) if month
+            else {"rows": [], "ran": False})
 
     @app.post("/admin/report-view")
     @login_required("admin")

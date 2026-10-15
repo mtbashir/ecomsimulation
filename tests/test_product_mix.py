@@ -105,7 +105,7 @@ def test_report_form_and_debrief_show_products(tmp_path):
     run_round(world, params, {ids[0]: {}, ids[1]: {"1.1": {OIL: {"discount": 0.2}}}})
     team = world.teams[ids[1]]
     html = report.render(team, 1, tmp_path).read_text()
-    assert "Sales by product this month" in html and "Who bought each product" in html
+    assert "Sales by Product This Month" in html and "Who Bought Each Product" in html
     assert "Best sellers:" in html and "MR-06" in html
     assert "Products." in debrief._products(team.history[-1])
 

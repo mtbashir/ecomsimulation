@@ -11,6 +11,7 @@ import pytest
 from ecomsim import bootstrap, params as P, report
 from ecomsim.engine import run_round
 from ecomsim.io_csv import SubmissionError, read_decisions, write_results, write_template
+from ecomsim.web.titlecase import tc
 
 PARAMS = P.load({"n_teams": 3, "events_enabled": 0})
 
@@ -92,7 +93,7 @@ def test_report_renders_and_names_the_binding_constraint(tmp_path):
     assert path.exists()
     assert "Contribution margin" in html and "Service level" in html
     # The diagnosis is the point of the report, not the numbers.
-    assert any(v[0] in html for v in report.BINDING.values())
+    assert any(tc(v[0]) in html for v in report.BINDING.values())
     # Biased and purchased metrics must be marked.
     assert "over-attributed" in html and "purchased study" in html
 

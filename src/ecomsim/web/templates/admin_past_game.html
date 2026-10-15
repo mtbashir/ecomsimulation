@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% block title %}{{ past['name'] }}{% endblock %}
 {% block body %}
 <div class="crumbs"><a href="{{ url_for('admin_games') }}">Games</a> &middot; past game</div>
-<div class="head"><div><h1>{{ past['name'] }}</h1>
+<div class="head"><div><h1 class="nc">{{ past['name'] }}</h1>
   <p>{{ teams|length }} teams &middot; {{ past['round'] }} of
   {{ past['total_rounds'] }} months played &middot; started
   {{ past['created_at'][:10] }}. Read-only: nothing here can change it.</p></div>

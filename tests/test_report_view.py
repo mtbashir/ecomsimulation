@@ -12,6 +12,7 @@ from ecomsim import bootstrap, params as P, scoring
 from ecomsim.engine import run_round
 from ecomsim.web import db, service
 from ecomsim.web.app import create_app
+from ecomsim.web.titlecase import tc
 
 HEADINGS = {"products": "Sales by product this month", "buyers": "Who bought each product",
             "stock": "Stock by product, end of month", "campaigns": "Paid media, campaign by campaign"}
@@ -61,14 +62,14 @@ def test_a_hidden_section_leaves_the_team_report(game, key):
     app, pw, con = game
     _hide(con, 2, key)
     team = _client(app, "team_01", pw["team_01"]).get("/results/2").data.decode()
-    assert HEADINGS[key] not in team
+    assert tc(HEADINGS[key]) not in team
     for other in set(HEADINGS) - {key}:
-        assert HEADINGS[other] in team
+        assert tc(HEADINGS[other]) in team
     # month 1 is untouched
-    assert HEADINGS[key] in _client(app, "team_01", pw["team_01"]).get("/results/1").data.decode()
+    assert tc(HEADINGS[key]) in _client(app, "team_01", pw["team_01"]).get("/results/1").data.decode()
     # the instructor still sees it, labelled
     admin = _client(app, "admin", "admin-pw").get("/admin/report/team_01/2").data.decode()
-    assert HEADINGS[key] in admin and "hidden from the team this month" in admin
+    assert tc(HEADINGS[key]) in admin and "hidden from the team this month" in admin
 
 
 def test_hidden_buyers_leave_the_sales_summary_too(game):
@@ -115,7 +116,7 @@ def test_the_admin_grid_saves_each_month(game):
     app, _, con = game
     admin = _client(app, "admin", "admin-pw")
     page = admin.get("/admin").data.decode()
-    assert "What teams see in their monthly report" in page
+    assert "What Teams See in Their Monthly Report" in page
     ticks = [f"{k}:{m}" for m in range(1, 13) for k, _ in db.SECTIONS
              if not (m == 3 and k in ("stock", "buyers"))
              and (k != "rankings" or m >= 4)]
@@ -161,9 +162,9 @@ def test_the_console_ranks_from_month_one(game):
     app, _, _ = game
     admin = _client(app, "admin", "admin-pw")
     body = admin.get("/admin/console/1").data.decode()
-    assert "Leaderboard &middot; cumulative" in body and "Withheld" not in body
+    assert "Leaderboard &middot; Cumulative" in body and "Withheld" not in body
     assert "Teams cannot see rankings yet" in body
-    assert "Month rank" in body
+    assert "Month Rank" in body
 
 
 def test_teams_see_rankings_only_once_published(game):
@@ -174,9 +175,9 @@ def test_teams_see_rankings_only_once_published(game):
     shown = db.report_view(con, 2)
     db.set_report_view(con, 2, {**shown, "rankings": True})
     body = team.get("/rankings").data.decode()
-    assert "Month 2 on its own" in body and "Cumulative score" in body
+    assert "Month 2 on Its Own" in body and "Cumulative Score" in body
     assert 'href="/rankings?month=1"' in body, "every month up to the published one"
-    assert "Month 1 on its own" in team.get("/rankings?month=1").data.decode()
+    assert "Month 1 on Its Own" in team.get("/rankings?month=1").data.decode()
     assert 'href="/rankings"' in team.get("/").data.decode()
     console = _client(app, "admin", "admin-pw").get("/admin/console/2").data.decode()
     assert "Teams can see rankings up to month 2" in console
@@ -221,11 +222,11 @@ def test_the_console_shows_results_round_by_round(game):
     app, _, con = game
     admin = _client(app, "admin", "admin-pw")
     body = admin.get("/admin/console/2").data.decode()
-    assert "Results by round" in body
+    assert "Results by Round" in body
     assert "<th>R1</th><th>R2</th>" in body
     for label in ("Cumulative rank", "Each round on its own", "Net revenue",
                   "Contribution after marketing", "Market share"):
-        assert label in body
+        assert tc(label) in body
     assert 'href="/admin/console/1"' in body, "every round's console is a click away"
     # an earlier round's console stops at that round
     first = admin.get("/admin/console/1").data.decode()

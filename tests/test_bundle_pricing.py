@@ -83,14 +83,14 @@ def test_console_carries_the_debrief():
     with tempfile.TemporaryDirectory() as tmp:
         html = console.render(world, params, Path(tmp), submissions=subs,
                               open_codes=["3.1", "3.2", "3.4", "1.2", "2.4", "12.5"]).read_text()
-    assert "what each team decided" in html
+    assert "What Each Team Decided" in html
     assert "Cut ad budgets" in html
     assert "only the three most attractive count" in html
     assert "Free delivery on every order" in html
     assert "Submitted nothing" in html
     with tempfile.TemporaryDirectory() as tmp:          # file runner: no submissions
         plain = console.render(world, params, Path(tmp)).read_text()
-    assert "what each team decided" not in plain
+    assert "What Each Team Decided" not in plain
 
 
 def test_debrief_explains_the_binding_constraint():

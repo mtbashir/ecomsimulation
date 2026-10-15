@@ -11,6 +11,7 @@ from html import escape
 
 from ecomsim.web import db, service
 from ecomsim.web.app import create_app
+from ecomsim.web.titlecase import tc
 
 
 @pytest.fixture
@@ -166,7 +167,7 @@ def test_every_open_decision_explains_itself(game):
         if spec.code == "2.2":
             continue          # folded into the range grid; no tile of its own
         assert spec.help, f"{spec.code} has no help text"
-        assert escape(spec.name) in page, spec.code
+        assert escape(tc(spec.name)) in page, spec.code
         assert escape(spec.help[:40]) in page, f"{spec.code} help not rendered"
 
 
@@ -180,7 +181,7 @@ def test_choices_are_offered_by_name_not_by_code(game):
     assert escape("Category Demand & Seasonality") in \
         team.get("/research").data.decode(), "study names must appear"
     assert "Facewash 100ml" in page, "product names must appear"
-    assert "Cash on delivery" in page
+    assert "Cash on Delivery" in page
     assert "MR-01;MR-17" not in page, "no raw-code placeholder anywhere"
 
 
@@ -345,7 +346,7 @@ def test_rollback_closes_the_round_that_was_open(game):
     row = db.game(con)
     assert (row["round"], row["open_round"]) == (1, None)
     assert "Rounds 2 to 3 undone" in page
-    assert "Submissions for round 2" in page, "the console must follow the rollback"
+    assert "Submissions for Round 2" in page, "the console must follow the rollback"
 
 
 def test_rollback_refuses_a_round_it_cannot_undo(game):
@@ -466,7 +467,7 @@ def test_campaigns_are_saved_as_a_decision_and_run(game):
     rows = db.load_world(con).teams["team_01"].history[-1]["campaigns"]
     assert [r["name"] for r in rows if r["channel"] == "meta"] == ["Hair oil", "Rest"]
     page = team.get("/campaigns").get_data(as_text=True)
-    assert "How last month&#39;s campaigns did" in page or "How last month's campaigns did" in page
+    assert "How Last Month&#39;s Campaigns Did" in page or "How Last Month's Campaigns Did" in page
 
 
 def test_campaigns_carry_forward_until_changed_and_broad_is_a_setting(game):
@@ -510,7 +511,7 @@ def test_campaigns_cannot_be_set_before_they_open(game):
     admin.post("/admin/open", data={"round": 1})
     team = _client(app, "team_01", pw["team_01"])
     page = team.get("/campaigns").get_data(as_text=True)
-    assert "Campaign setup is not open" in page
+    assert "Campaign Setup Is Not Open" in page
     team.post("/campaigns", data=HAIR_OIL, follow_redirects=True)
     assert "3.10" not in (db.submission(con, 1, "team_01") or {})
 
@@ -536,9 +537,9 @@ def test_an_ab_test_is_set_from_the_campaign_page(game):
     assert [c.get("test") for c in saved] == ["A", "B"]
     admin.post("/admin/run", follow_redirects=True)
     page = team.get("/campaigns").get_data(as_text=True)
-    assert "A/B test on Meta" in page and "Confidence" in page
+    assert "A/B Test on Meta" in page and "Confidence" in page
     report = team.get("/results/3").get_data(as_text=True)
-    assert "A/B test on Meta" in report
+    assert "A/B Test on Meta" in report
 
 
 def test_an_ab_test_needs_both_campaigns(game):
@@ -558,7 +559,7 @@ def test_the_marketing_guide_teaches_without_giving_the_answers_away(game):
     page = team.get("/guide/marketing").get_data(as_text=True)
     for heading in ("The numbers", "Reading them together", "Building an audience",
                     "A/B testing", "How many orders a test needs"):
-        assert heading in page, heading
+        assert tc(heading) in page, heading
     assert f"{T.orders_needed(0.10):,}" in page, "test sizes come from the verdict's maths"
     for a in P.load().audiences:
         assert a["mistake"] not in page, "who buys each product is for the debrief"

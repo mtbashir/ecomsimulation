@@ -10,6 +10,7 @@ import pytest
 from ecomsim import founding as F
 from ecomsim.web import db, service
 from ecomsim.web.app import create_app
+from ecomsim.web.titlecase import tc
 
 
 @pytest.fixture
@@ -62,7 +63,7 @@ def test_the_first_thing_a_team_sees_is_the_brief(game):
 
     body = c.get("/brief").data.decode()
     assert "How the game works" in body
-    assert "Cash on delivery" in body, "the market must be explained"
+    assert "Cash on Delivery" in body, "the market must be explained"
     assert "Profitability" in body and "25 points" in body, "so must the marking"
     assert "9%" in body, "the published anchors belong in front of the students"
 
@@ -88,7 +89,7 @@ def test_the_dashboard_says_what_to_do_now(game):
 
     # Round 0: build the business.
     body = team.get("/").data.decode()
-    assert "Set the business up" in body
+    assert "Set the Business Up" in body
     assert "Set up your business" in body
     assert "/found" in body
 
@@ -114,11 +115,11 @@ def test_the_dashboard_welcomes_each_round_in_its_own_terms(game):
     for rnd in (1, 2, 3, 6, 12):
         db.set_game(con, round=rnd - 1, open_round=rnd)
         heading = team.get("/").data.decode()
-        seen.add(heading.count("Half time"))
+        seen.add(heading.count("Half Time"))
         if rnd == 6:
-            assert "Half time" in heading
+            assert "Half Time" in heading
         if rnd == 12:
-            assert "final month" in heading
+            assert "Final Month" in heading
     assert seen != {0}, "the round framing must actually change"
 
 
@@ -162,7 +163,7 @@ def test_a_submitted_setup_shows_its_projection(game):
 
     assert db.founding(con, "team_01")["submitted_at"] is not None
     page = team.get("/found").data.decode()
-    assert "Your first trading month, projected" in page
+    assert "Your First Trading Month, Projected" in page
     assert "Contribution margin" in page and "Runway" in page
     assert "ignores what your rivals are about to do" in page, (
         "a projection presented as a promise is worse than no projection")
@@ -227,7 +228,7 @@ def test_a_going_concern_game_has_no_setup_round(tmp_path):
                  start_mode="going_concern")
     app = create_app(path); app.config["TESTING"] = True
     team = _team(app, pw)
-    assert "Set the business up" not in team.get("/").data.decode()
+    assert "Set the Business Up" not in team.get("/").data.decode()
     r = team.get("/found", follow_redirects=True)
     assert b"no setup round" in r.data
 
@@ -245,7 +246,7 @@ def test_your_company_shows_the_setup_before_trading(game):
     body = team.get("/company").data.decode()
     assert "not yet trading" in body
     assert "Premium" in body
-    assert "Where the capital went" in body
+    assert "Where the Capital Went" in body
 
 
 def test_your_company_shows_the_real_position_once_trading(game):
@@ -283,7 +284,7 @@ def test_the_instructor_can_see_who_has_set_up(game):
     admin = app.test_client()
     admin.post("/login", data={"username": "admin", "password": "admin-pw"})
     body = admin.get("/admin").data.decode()
-    assert "Setup round" in body
+    assert "Setup Round" in body
     assert "Sehat" in body and "submitted" in body
     assert "Draft Co" in body and "draft" in body
     assert "not started" in body, "team_03 has done nothing and must show it"
@@ -348,7 +349,7 @@ def test_each_product_carries_its_own_sourcing_choice(game):
     team = _team(app, pw)
 
     page = team.get("/found").data.decode()
-    assert "Source from" in page
+    assert "Source From" in page
     assert "Local &middot; 9 days" in page or "Local · 9 days" in page
     assert "Imported" in page
 
@@ -874,7 +875,7 @@ def test_the_dashboard_points_at_the_desk_once_you_hold_a_study(game):
     app, pw, path = game
     _with_research(app, path, ["MR-09"])
     page = _team(app, pw).get("/").data.decode()
-    assert "Research you hold" in page
+    assert "Research You Hold" in page
     assert "1 study commissioned" in page
 
 
@@ -890,7 +891,7 @@ def test_a_team_that_bought_nothing_still_sees_the_shelf(game):
     app, pw, path = game
     _trading(app, path)
     page = _team(app, pw).get("/research").data.decode()
-    assert "Nothing commissioned yet" in page
+    assert "Nothing Commissioned Yet" in page
     assert "Attribution Study" in page, "the catalogue is visible to everyone"
 
 
@@ -941,7 +942,7 @@ def test_scoring_guide_publishes_the_anchors_the_engine_uses(game):
     page = _team(app, pw).get("/guide/scoring").data.decode()
     assert "How you are scored" in page
     for name, pts, _s, measures in SCORECARD:
-        assert name.replace("&", "&amp;") in page
+        assert tc(name).replace("&", "&amp;") in page
     # the briefing page reads the same table, not a hand-written copy
     for _name, _pts, _s, rows in published():
         for label, _p, where in rows:
@@ -975,7 +976,7 @@ def test_price_grid_shows_last_months_product_results(game):
     assert "sold &middot;" in page and "of sales" in page, (
         "each line carries last month's units, share and contribution")
     report = _team(app, pw).get("/results/1").data.decode()
-    assert "Sales by product" in report
+    assert "Sales by Product" in report
 
 
 def test_results_workbooks_are_for_the_instructor_only(game):
@@ -992,7 +993,7 @@ def test_results_workbooks_are_for_the_instructor_only(game):
     admin = app.test_client()
     admin.post("/login", data={"username": "admin", "password": "admin-pw"})
     console = admin.get("/admin/console/1").data.decode()
-    assert "Results workbooks" in console
+    assert "Results Workbooks" in console
     assert "/admin/report/team_01/1.xlsx" in console and "/admin/workbooks/1.zip" in console
     r = admin.get("/admin/report/team_02/1.xlsx")
     assert r.status_code == 200 and r.data[:2] == b"PK"

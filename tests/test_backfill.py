@@ -172,7 +172,7 @@ def test_stock_tile_reads_the_rebuilt_month(old_game):
     page = c.get("/submit").data.decode()
     serum = next(s for s in recorded[2].teams["team_01"].history[1]["stock"]
                  if s["code"] == "SKU-03")
-    assert f"{serum['close']:,.0f}" in page and "Sold in month 2" in page
+    assert f"{serum['close']:,.0f}" in page and "Sold in Month 2" in page
 
 
 def test_the_icon_is_served_and_linked(old_game):

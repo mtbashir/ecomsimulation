@@ -73,8 +73,8 @@ def test_report_shows_closing_stock_and_cover_by_product(tmp_path):
     run_round(world, params, {ids[0]: {"7.1": {SERUM: 300.0}}})
     run_round(world, params, {ids[0]: {"7.1": {SERUM: 2500.0, OIL: 900.0}}})
     html = report.render(world.teams[ids[0]], 2, tmp_path).read_text()
-    assert "Stock by product, end of month 2" in html
-    assert "Closing stock" in html and "Weeks of cover" in html
+    assert "Stock by Product, End of Month 2" in html
+    assert "Closing Stock" in html and "Weeks of Cover" in html
     serum = next(s for s in world.teams[ids[0]].history[-1]["stock"] if s["code"] == SERUM)
     assert f"{serum['close']:,.0f}" in html and "M3" in html, "on order, and when it lands"
     # month 1 was a 300-unit order on a 2,000 minimum: the report says why it grew
@@ -135,7 +135,7 @@ def test_the_stock_tile_shows_each_products_stock_and_cover(trading):
     con, c = trading
     page = c.get("/submit").data.decode()
     assert "Product by product" in page and "Total units" in page
-    assert "Closing stock" in page and "Weeks of cover" in page and "Sold in month 1" in page
+    assert "Closing Stock" in page and "Weeks of Cover" in page and "Sold in Month 1" in page
     world = db.load_world(con)
     close = next(s["close"] for s in world.teams["team_01"].history[-1]["stock"]
                  if s["code"] == SERUM)

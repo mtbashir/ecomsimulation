@@ -136,7 +136,7 @@ def test_a_past_game_stays_readable(game):
     gid = db.archives(path)[0]["id"]
 
     page = admin.get(f"/admin/games/{gid}").get_data(as_text=True)
-    assert "Autumn cohort" in page and "Final standings" in page
+    assert "Autumn cohort" in page and "Final Standings" in page
     assert page.count("report</a>") == 3
 
     assert admin.get(f"/admin/games/{gid}/console/2").status_code == 200

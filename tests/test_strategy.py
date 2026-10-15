@@ -40,7 +40,7 @@ def game(tmp_path):
 
 def _row(page: str, label: str) -> list[str]:
     """The cells of the grid row whose option label is `label`."""
-    m = re.search(r'<tr class="[^"]*"><td class="opt">' + re.escape(label)
+    m = re.search(r'<tr class="[^"]*">\s*<td class="opt">' + re.escape(label)
                   + r'</td>(.*?)</tr>', page, re.S)
     assert m, f"no row {label!r}"
     cells = re.findall(r'<td class="(yes|c|v|n)"[^>]*>(.*?)</td>', m.group(1), re.S)
@@ -50,7 +50,7 @@ def _row(page: str, label: str) -> list[str]:
 
 def _months(page: str) -> str:
     """Only the month section: founding has a gateway row with the same labels."""
-    return page.split("<h2>Month decisions</h2>", 1)[1]
+    return page.split("<h2>Month Decisions</h2>", 1)[1]
 
 
 def test_each_option_is_a_row_and_each_team_a_column(game):
@@ -120,3 +120,79 @@ def test_the_grid_is_for_the_instructor_only(game):
     team = app.test_client()
     team.post("/login", data={"username": "team_01", "password": "secret-1"})
     assert team.get("/admin/strategy").status_code == 403
+
+
+def _run(path, rounds=1):
+    con = db.connect(path)
+    for _ in range(rounds):
+        service.process_round(con)
+    con.close()
+
+
+def test_founding_is_folded_away_and_every_group_starts_closed(game):
+    _app, _path, admin = game
+    page = admin.get("/admin/strategy").get_data(as_text=True)
+    assert '<details class="sx" id="founding" data-key="founding">' in page
+    assert re.search(r'<details class="g" data-key="[^"]+" open', page) is None
+
+
+def test_headings_are_in_title_case_but_team_names_are_not(game):
+    app, path, admin = game
+    con = db.connect(path)
+    db.rename_team(con, "team_03", "the innovators")
+    con.close()
+    page = admin.get("/admin/strategy").get_data(as_text=True)
+    assert "<h2>Founding Choices (Round 0)</h2>" in page
+    assert "Who You Sell To" in page and "Who Chose What" in page
+    assert '<th class="nc">the innovators' in page
+
+
+def test_a_team_named_as_ai_goes_last(game):
+    _app, path, admin = game
+    con = db.connect(path)
+    db.rename_team(con, "team_01", "AI Team")
+    con.close()
+    page = admin.get("/admin/strategy").get_data(as_text=True)
+    heads = re.findall(r'<th class="nc">([^<]+)', page)
+    assert heads[-1] == "AI Team" and len(heads) == 3
+
+
+def test_the_range_table_shows_each_price_and_discount(game):
+    _app, path, admin = game
+    con = db.connect(path)
+    params = service.load_params(con)
+    sku = F.Founding.default(params).assortment[0]
+    name = params.sku(sku)["name"]
+    db.submit(con, 1, "team_01", {"1.1": {sku: {"price": 999, "discount": 0.15}}},
+              "team_01")
+    db.submit(con, 1, "team_02", {"2.2": 0.05}, "team_02")
+    db.set_game(con, open_round=1)
+    con.close()
+    page = _months(admin.get("/admin/strategy?month=1").get_data(as_text=True))
+    section = page.split("Range and Prices", 1)[1].split("</table>", 1)[0]
+    row = re.search(r"<td class=\"opt\">" + re.escape(name) + r"</td>(.*?)</tr>",
+                    section, re.S).group(1)
+    assert "999" in row and "15% off" in row
+    assert "5% off" in row          # team_02's site-wide discount applies
+
+
+def test_the_stock_table_reports_stock_cover_and_orders(game):
+    _app, path, admin = game
+    _run(path)
+    page = _months(admin.get("/admin/strategy?month=1").get_data(as_text=True))
+    section = page.split("Stock by Product", 1)[1].split("</table>", 1)[0]
+    assert "All products" in section
+    assert section.count("<small>Stock</small>") > 3
+    assert " wk" in section and "<small>Order</small>" in section
+
+
+def test_a_board_memo_is_shown_in_full(game):
+    _app, path, admin = game
+    memo = "We are pulling back on TikTok and doubling down on repeat buyers " \
+           "because our cohort data says the second order is where we make money."
+    con = db.connect(path)
+    db.submit(con, 1, "team_01", {"12.5": memo}, "team_01")
+    db.set_game(con, open_round=1)
+    con.close()
+    page = admin.get("/admin/strategy?month=1").get_data(as_text=True)
+    assert memo in page
