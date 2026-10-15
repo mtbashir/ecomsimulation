@@ -1,0 +1,113 @@
+{% extends "base.html" %}{% block title %}Strategy{% endblock %}
+{% block body %}
+<style>
+.sg-wrap{overflow-x:auto;margin:0 -4px}
+.sg{border-collapse:separate;border-spacing:0;min-width:100%;font-size:13px}
+.sg th,.sg td{padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.sg thead th{position:sticky;top:0;background:var(--panel);vertical-align:bottom;
+  font-size:12px;text-align:center}
+.sg thead th small{display:block;color:var(--mute);font-weight:400;max-width:120px;
+  overflow:hidden;text-overflow:ellipsis}
+.sg .opt{position:sticky;left:0;background:var(--panel);text-align:left;
+  white-space:normal;min-width:220px;max-width:340px;z-index:1}
+.sg tr.dec td{background:var(--panel-2);font-weight:650;font-size:12.5px;
+  padding-top:9px}
+.sg tr.dec td.opt{background:var(--panel-2)}
+.sg tr.dec small{color:var(--mute);font-weight:400;margin-left:6px}
+.sg td.c{text-align:center;color:var(--mute)}
+.sg td.yes{text-align:center}
+.sg td.yes span{display:inline-block;background:var(--accent);color:#fff;
+  border-radius:99px;padding:1px 9px;font-size:11.5px;font-weight:600}
+.sg td.v{text-align:center;color:var(--ink)}
+.sg td.n{text-align:center;color:var(--dim);font-variant-numeric:tabular-nums}
+.sg tr.muted td{color:var(--mute)}
+.sg tr.muted td.yes span{background:var(--track);color:var(--ink)}
+.sg tr.one td.opt{font-weight:650;font-size:12.5px}
+.sg tr.unused td{color:var(--mute);font-size:12px;border-bottom:0;padding-top:8px}
+.sg tr.grp td{background:transparent;border-bottom:0;padding:16px 10px 4px;
+  font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mute);
+  font-weight:600}
+</style>
+
+<div class="crumbs">Instructor console &middot; strategy</div>
+<div class="head"><div><h1>Who chose what</h1>
+  <p>Every team's choices side by side. Options run down the page and teams
+  across it: <strong>Yes</strong> marks the team's choice, a dash means it did
+  not choose that option. Numbers show each team's value.</p></div></div>
+
+{% macro grid(blocks, grouped=false) %}
+<div class="sg-wrap"><table class="sg">
+<thead><tr><th class="opt">Decision / option</th>
+{% for h in heads %}<th>{{ h.name }}{% if h.brand %}<small>{{ h.brand }}</small>{% endif %}</th>{% endfor %}
+<th>Teams</th></tr></thead>
+<tbody>
+{% for item in blocks %}
+  {% if grouped %}<tr class="grp"><td class="opt" colspan="{{ heads|length + 2 }}">{{ group_names.get(item.group, item.group) }}</td></tr>{% endif %}
+  {% for b in (item.blocks if grouped else [item]) %}
+  {# A single number sits on the decision's own line; anything with options
+     gets a heading and a row per option. #}
+  {% set inline = b.kind == 'value' and b.rows|length == 1 and not b.rows[0].label %}
+  {% if not inline %}
+  <tr class="dec"><td class="opt">{{ b.title }}{% if b.note %}<small>{{ b.note }}</small>{% endif %}</td>
+    <td colspan="{{ heads|length + 1 }}"></td></tr>
+  {% endif %}
+  {% for r in b.rows %}
+  <tr class="{{ 'muted' if r.muted }}{{ ' one' if inline }}"><td class="opt">{{ b.title if inline else (r.label or '') }}</td>
+    {% for c in r.cells %}
+      {% if b.kind == 'choice' %}
+        {% if c %}<td class="yes"><span>Yes</span></td>{% else %}<td class="c">–</td>{% endif %}
+      {% else %}
+        <td class="{{ 'v' if c else 'c' }}">{{ c or '–' }}</td>
+      {% endif %}
+    {% endfor %}
+    <td class="n">{{ r.count if r.count is defined else '' }}</td></tr>
+  {% endfor %}
+  {% endfor %}
+  {% if grouped and item.unused %}
+  <tr class="unused"><td class="opt" colspan="{{ heads|length + 2 }}">No team has set
+    (defaults apply): {{ item.unused|join(", ") }}</td></tr>
+  {% endif %}
+{% endfor %}
+</tbody></table></div>
+{% endmacro %}
+
+{% if not heads %}
+<section><p class="note">No teams yet.</p></section>
+{% else %}
+
+{% if founding_blocks %}
+<section>
+<h2>Founding choices (Round 0)</h2>
+<p class="cap">How each team set up its business. Fixed once trading starts.</p>
+{{ grid(founding_blocks) }}
+{% if founding_unused %}<p class="note" style="margin-top:8px">Not chosen by any
+team: {{ founding_unused|join(', ') }}</p>{% endif %}
+</section>
+{% endif %}
+
+<section>
+<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
+  <div><h2>Month decisions</h2>
+  <p class="cap" style="margin:0">What is in force for the month: each team's latest
+  submitted choice up to then. A team that did not resubmit keeps its previous one.</p></div>
+  {% if last %}
+  <form method="get" style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <label for="m" style="margin:0">Month</label>
+    <select id="m" name="month" onchange="this.form.submit()" style="width:auto">
+      {% for m in range(1, game['total_rounds'] + 1) %}
+      <option value="{{ m }}" {{ 'selected' if m == month }}>Month {{ m }}{% if m == game['open_round'] %} (open){% elif m > game['round'] %} (not run){% endif %}</option>
+      {% endfor %}
+    </select>
+    <noscript><button type="submit">Show</button></noscript>
+  </form>
+  {% endif %}
+</div>
+{% if month_groups %}
+{{ grid(month_groups, grouped=true) }}
+{% else %}
+<p class="note">No month decisions yet. They appear here once a month is open
+and teams start submitting.</p>
+{% endif %}
+</section>
+{% endif %}
+{% endblock %}

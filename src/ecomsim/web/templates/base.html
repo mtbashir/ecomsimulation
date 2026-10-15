@@ -610,6 +610,8 @@ nav{display:flex}
       <span class="ico"></span>Overview</a>
     <a href="{{ url_for('admin_teams') }}" class="{{ 'on' if nav_at == 'teams' }}">
       <span class="ico"></span>Teams</a>
+    <a href="{{ url_for('admin_strategy') }}" class="{{ 'on' if nav_at == 'admin_strategy' }}">
+      <span class="ico"></span>Strategy</a>
     <a href="{{ url_for('admin_games') }}" class="{{ 'on' if nav_at in ('admin_games', 'admin_past_game') }}">
       <span class="ico"></span>Games</a>
   </nav>

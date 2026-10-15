@@ -21,7 +21,7 @@ from .. import charts
 from .. import targeting
 from ..decisions import REGISTRY
 from ..params import BandViolation
-from . import briefing, db, service
+from . import briefing, compare, db, service
 
 # Round 0, in the order a founder actually decides things: who you are, who
 # you sell to, what you sell, where it comes from, what you build it on, then
@@ -925,6 +925,34 @@ def register_routes(app: Flask) -> None:
             report_months=list(range(1, game["total_rounds"] + 1)),
             report_view={m: db.report_view(g.db, m)
                          for m in range(1, game["total_rounds"] + 1)})
+
+    @app.route("/admin/strategy")
+    @login_required("admin")
+    def admin_strategy():
+        """Every team's choices side by side: options down, teams across."""
+        game = db.game(g.db)
+        accounts = db.accounts(g.db, "team")
+        teams = [a["team_id"] for a in accounts]
+        brands = {tid: (rec.get("config") or {}).get("brand_name")
+                  for tid, rec in db.foundings(g.db).items()}
+        heads = [{"team_id": a["team_id"], "name": a["display_name"],
+                  "brand": b if (b := brands.get(a["team_id"])) and b != "Unnamed"
+                  else ""} for a in accounts]
+        last = game["open_round"] or game["round"]
+        try:
+            month = int(request.args.get("month", last))
+        except ValueError:
+            month = last
+        month = max(0, min(month, game["total_rounds"]))
+        founding_blocks, founding_unused = (compare.founding_blocks(g.db, teams, {
+            "tier": TIER_CHOICES, "model": MODEL_CHOICES,
+            "sourcing": SOURCING_CHOICES, "tech_stack": STACK_CHOICES,
+            "fulfilment": FULFILMENT_CHOICES, "gateway": GATEWAY_CHOICES})
+            if game["start_mode"] == "founding" else ([], []))
+        return render_template(
+            "admin_strategy.html", heads=heads, month=month, last=last,
+            founding_blocks=founding_blocks, founding_unused=founding_unused,
+            month_groups=compare.month_blocks(g.db, teams, month) if month else [])
 
     @app.post("/admin/report-view")
     @login_required("admin")
