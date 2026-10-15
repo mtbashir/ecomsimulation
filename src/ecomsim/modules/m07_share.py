@@ -84,8 +84,15 @@ def _utility(team, seg, params, ctx) -> float:
     instock = ctx.get("instock_ratio", {}).get(team.team_id, 0.95)
     fit = ctx.get("assortment_fit", {}).get(team.team_id, {}).get(seg["code"], 0.5)
 
+    # Like-for-like games: past what a segment will pay, it walks. Quality
+    # Loyalists (1.25) shrug at a price Value Seekers (0.85) will not touch,
+    # which is what makes premium a positioning rather than a free margin.
+    over_wtp = 0.0
+    if ctx.get("fair_pricing"):
+        over_wtp = params["wtp_penalty"] * max(0.0, price_index - float(seg["wtp_index"]))
+
     return (
-        float(seg["w_price"]) * (1 - price_index)
+        float(seg["w_price"]) * (1 - price_index) - over_wtp
         + float(seg["w_quality"]) * team.quality_perceived
         + float(seg["w_delivery"]) * team.delivery_perceived
         + float(seg["w_availability"]) * instock

@@ -42,15 +42,13 @@ rather than the shop next door.</p>
 <p class="stage-intro">{{ stages[1][2] }}</p>
 
 <div class="field">
-<label>Category focus <span class="note">(choose exactly two)</span></label>
-<p class="help">This filters the catalogue you can sell from, and sets your
-margin profile, return rate and how often customers come back.</p>
-<div class="checks">
-{% for c in categories %}
-<label class="check"><input type="checkbox" name="categories" value="{{ c }}"
-  {% if c in f.categories %}checked{% endif %}><span>{{ c|title }}</span></label>
-{% endfor %}
-</div>
+<label>Category focus</label>
+<p class="help">Set by the products you choose in step 3, not ticked here: your
+focus is the two categories your range leans on most. It is the products that
+set your margins, your return rate and what customers think of your quality -
+a category nobody else sells is not an empty market, because every team
+competes for the same shoppers.</p>
+<p><strong>{{ f.categories|map('title')|join(' and ') or 'Choose your range in step 3' }}</strong></p>
 </div>
 
 <div class="field">

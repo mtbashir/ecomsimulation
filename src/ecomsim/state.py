@@ -143,4 +143,8 @@ class WorldState:
     # A world built from now on says so (bootstrap.new_world); a world saved
     # before it has no such attribute and reads this class default, False.
     scaled_purchases: bool = False
+    # Whether prices are judged like for like - against the same products at
+    # catalogue price - with no floor under the price response (ecomsim.pricing).
+    # Same pattern: new worlds say so, older saved worlds read False.
+    fair_pricing: bool = False
     category_scale: float = 1.0

@@ -32,9 +32,10 @@ FOUNDING_STAGES = [
      "Start with the thing everything else has to be consistent with. A brand "
      "that says one thing and prices another converts badly."),
     ("market", "2. Who you sell to",
-     "Two categories out of five, and where you sit on quality. These set your "
-     "margin profile, your return rate and how expensive your customers are "
-     "to acquire. Positioning is the hardest of all of them to change later."),
+     "The shoppers you aim at, and where you sit on quality and price. Every "
+     "team competes for the same five groups of shoppers; what you choose here "
+     "decides which of them find you worth buying from. Positioning is the "
+     "hardest of all of them to change later."),
     ("offer", "3. What you sell, where it comes from, and what you charge",
      "Your opening range and the channel you sell it through. A wide range "
      "spreads your stock thin; a narrow one leaves demand on the table."),

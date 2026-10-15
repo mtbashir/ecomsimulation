@@ -162,6 +162,7 @@ def migrate(con) -> None:
         ("game", "launch_order", "INTEGER"),
         ("game", "range_changes", "INTEGER"),
         ("game", "scaled_purchases", "INTEGER"),
+        ("game", "fair_pricing", "INTEGER"),
     ]:
         have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
         if column not in have:
@@ -180,6 +181,10 @@ def migrate(con) -> None:
     # And purchase orders costed like cost of goods (cogs_scale).
     con.execute("UPDATE game SET scaled_purchases = CASE WHEN round >= 1 THEN 0 ELSE 1 END "
                 "WHERE scaled_purchases IS NULL")
+    # And like-for-like pricing (ecomsim.pricing): a game already trading
+    # finishes on the price model it started with.
+    con.execute("UPDATE game SET fair_pricing = CASE WHEN round >= 1 THEN 0 ELSE 1 END "
+                "WHERE fair_pricing IS NULL")
 
 
 def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
@@ -194,8 +199,8 @@ def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
         con.execute(
             "INSERT OR REPLACE INTO game "
             "(id, name, preset, round, total_rounds, open_round, start_mode, "
-            "rules_from, launch_order, range_changes, scaled_purchases, created_at) "
-            "VALUES (1, ?, ?, 0, ?, NULL, ?, 1, 1, 1, 1, ?)",
+            "rules_from, launch_order, range_changes, scaled_purchases, fair_pricing, "
+            "created_at) VALUES (1, ?, ?, 0, ?, NULL, ?, 1, 1, 1, 1, 1, ?)",
             (name, preset, rounds, start_mode, _now()))
         con.execute(
             "INSERT OR REPLACE INTO account "
@@ -414,6 +419,20 @@ def scaled_purchases(con) -> bool:
         return True
     if "scaled_purchases" in row.keys() and row["scaled_purchases"] is not None:
         return bool(row["scaled_purchases"])
+    return int(row["round"]) < 1
+
+
+def fair_pricing(con) -> bool:
+    """Whether this game prices like for like (ecomsim.pricing).
+
+    True for a game set up from now on; a game already trading, or an archive
+    that predates the column, keeps the price model it started with.
+    """
+    row = game(con)
+    if row is None:
+        return True
+    if "fair_pricing" in row.keys() and row["fair_pricing"] is not None:
+        return bool(row["fair_pricing"])
     return int(row["round"]) < 1
 
 
@@ -756,7 +775,7 @@ def new_game(con, db_path: str | Path, name: str, teams: int, rounds: int,
             "UPDATE game SET name = ?, round = 0, total_rounds = ?, "
             "open_round = NULL, start_mode = ?, overrides = ?, epoch = ?, "
             "rules_from = 1, launch_order = 1, range_changes = 1, scaled_purchases = 1, "
-            "created_at = ? WHERE id = 1",
+            "fair_pricing = 1, created_at = ? WHERE id = 1",
             (name, rounds, start_mode,
              old["overrides"] if keep_overrides else "{}",
              old["epoch"] + 1, _now()))

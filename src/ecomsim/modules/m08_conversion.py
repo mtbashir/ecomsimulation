@@ -95,7 +95,13 @@ def _conversion_rate(team, params, ctx) -> float:
     cod_on = ctx.get("cod_enabled", {}).get(tid, True)
     fit = ctx.get("assortment_fit_mean", {}).get(tid, 0.5)
 
-    m_price = _clamp(price_index ** params["price_elasticity"], 0.5, 1.8)
+    # The old floor of 0.5 meant a price beyond ~1.5x the market cost nothing
+    # more in conversion, which made pricing high a dominant strategy. Under
+    # like-for-like pricing the response keeps working all the way up.
+    if ctx.get("fair_pricing"):
+        m_price = _clamp(price_index ** params["price_elasticity_fair"], 0.05, 1.8)
+    else:
+        m_price = _clamp(price_index ** params["price_elasticity"], 0.5, 1.8)
     m_ux = _clamp(1 + params["ux_cr_coef"] * (team.ux_score - 0.5), 0.75, 1.25)
     # Prior round's rating: ratings never affect the round in which they are earned.
     m_rating = _clamp(1 + params["rating_cr_coef"] * (team.rating - 4.0), 0.70, 1.20)

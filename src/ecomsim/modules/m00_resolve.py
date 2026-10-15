@@ -44,6 +44,8 @@ def _administration(team, d) -> None:
 
 def run(world, params, resolved, ctx) -> None:
     net_prices: dict[str, float] = {}
+    ref_prices: dict[str, float] = {}
+    ctx["fair_pricing"] = bool(getattr(world, "fair_pricing", False))
 
     for team in world.teams.values():
         tid = team.team_id
@@ -58,6 +60,7 @@ def run(world, params, resolved, ctx) -> None:
         list_price = _basket_list_price(team, params, d)
         ctx.setdefault("basket_list_price", {})[tid] = list_price
         net_prices[tid] = list_price * (1 - discount)
+        ref_prices[tid] = _basket_reference_price(team, params)
 
         ctx.setdefault("quality_tier", {})[tid] = _quality_tier(team, params, d)
         ctx.setdefault("qa_score", {})[tid] = _spend_score(
@@ -102,6 +105,19 @@ def run(world, params, resolved, ctx) -> None:
     for tid, price in net_prices.items():
         ctx.setdefault("net_unit_price", {})[tid] = price
         ctx.setdefault("price_index", {})[tid] = price / max(market_avg, 1.0)
+
+    if getattr(world, "fair_pricing", False):
+        # Like for like: each team's shelf against the same products at the
+        # catalogue's mainstream price, then against the market's average of
+        # that ratio. A shelf of Rs 600 dish liquid is not "cheap" next to a
+        # shelf of Rs 2,900 serum; it is cheap only if the dish liquid is
+        # priced below what dish liquid sells for. Incumbents price at the
+        # catalogue, a ratio of 1.0.
+        rel = {tid: net_prices[tid] / max(ref_prices[tid], 1.0) for tid in net_prices}
+        rels = list(rel.values()) + [1.0] * len(world.incumbents)
+        avg_rel = sum(rels) / max(len(rels), 1)
+        for tid, r in rel.items():
+            ctx["price_index"][tid] = r / max(avg_rel, 1e-6)
 
 
 def monthly_discounts(d) -> dict:
@@ -176,6 +192,15 @@ def _basket_list_price(team, params, d=None) -> float:
         for s in skus
     ) / total_w
     return base
+
+
+def _basket_reference_price(team, params) -> float:
+    """The team's own shelf at catalogue (mainstream) prices, weighted as
+    `_basket_list_price` weights it - the like-for-like yardstick."""
+    skus = [params.sku(c) for c in team.active_skus] or params.skus
+    total_w = sum(float(s["revenue_weight"]) for s in skus) or 1.0
+    return sum(float(s["list_price"]) * float(s["revenue_weight"])
+               for s in skus) / total_w
 
 
 def _quality_tier(team, params, d) -> float:

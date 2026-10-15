@@ -299,6 +299,8 @@ def founding_from_form(form, params) -> founding_mod.Founding:
     f.tier = text("tier", f.tier)
     f.model = text("model", f.model)
     f.assortment = form.getlist("assortment") or f.assortment
+    # Category focus is what the range actually is, not a separate claim.
+    f.categories = founding_mod.categories_of(f.assortment, params) or f.categories
     f.sourcing = text("sourcing", f.sourcing)
     f.tech_stack = text("tech_stack", f.tech_stack)
     f.fulfilment = text("fulfilment", f.fulfilment)
@@ -1004,6 +1006,7 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
     world.rules_from = db.rules_from(con)
     world.range_changes = db.range_changes(con)
     world.scaled_purchases = db.scaled_purchases(con)
+    world.fair_pricing = db.fair_pricing(con)
     if nxt < world.rules_from:
         # Rules v1: only campaigns carry; every other lever left blank runs
         # on its default, as the months already played did.

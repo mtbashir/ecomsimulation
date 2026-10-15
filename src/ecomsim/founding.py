@@ -167,13 +167,30 @@ class Founding:
 
 # --- Validation ----------------------------------------------------------------
 
+def categories_of(assortment: list[str], params) -> list[str]:
+    """The two categories a range leans on most, by the products' weight.
+
+    The engine reads products, not a declared category, so the category focus
+    is read off the shelf rather than asked for separately - otherwise a team
+    could declare homecare and stock skincare, and the declaration meant nothing.
+    """
+    weight: dict[str, float] = {}
+    for code in assortment:
+        sku = next((s for s in params.skus if s["code"] == code), None)
+        if sku is not None:
+            weight[sku["category"]] = weight.get(sku["category"], 0.0) + \
+                float(sku["revenue_weight"])
+    return sorted(weight, key=lambda c: (-weight[c], c))[:2]
+
+
 def validate(f: Founding, params) -> list[str]:
     """Structural errors. Returns a list; empty means submittable."""
     capital = params["starting_cash"]
     errors: list[str] = []
 
-    if len(f.categories) != 2 or any(c not in CATEGORIES for c in f.categories):
-        errors.append("D0.2: pick exactly two categories from " + ", ".join(CATEGORIES))
+    if not 1 <= len(f.categories) <= 2 or any(c not in CATEGORIES for c in f.categories):
+        errors.append("D0.2: the range needs products from at least one of "
+                      + ", ".join(CATEGORIES))
     if len(f.segment_priority) != 2:
         errors.append(
             f"D0.3: choose exactly two priority segments "
