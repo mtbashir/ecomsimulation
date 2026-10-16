@@ -475,10 +475,7 @@ def register_routes(app: Flask) -> None:
     def handbook():
         """Every decision: what it does, the trade-off, where it shows up in
         the report, and the mistake teams usually make."""
-        return render_template("handbook.html", hb=service.handbook_page(g.db),
-                               ops=service.operations_guide(g.db),
-                           cust=service.customer_guide(g.db),
-                           pillars=service.pillar_guide(g.db))
+        return render_template("handbook.html", hb=service.handbook_page(g.db))
 
     @app.get("/guide/marketing")
     @login_required()
@@ -494,9 +491,9 @@ def register_routes(app: Flask) -> None:
     def guide_scoring():
         """The published scorecard: pillars, measures and anchors, rendered
         from the table the engine scores against."""
-        from ..scoring import published
         rf = db.rules_from(g.db)
-        return render_template("guide_scoring.html", pillars=published(rf), rules_from=rf)
+        return render_template("guide_scoring.html", pillars=service.scoring_guide(g.db),
+                               rules_from=rf)
 
     @app.get("/campaigns")
     @login_required("team")
@@ -1009,6 +1006,15 @@ def register_routes(app: Flask) -> None:
                   f"stay exactly as they were played. Tell the teams before "
                   f"they submit month {month}.", "ok")
         return redirect(url_for("admin"))
+
+    @app.get("/admin/playbook")
+    @login_required("admin")
+    def admin_playbook():
+        """The scoring playbook: each pillar's measures, the decisions that
+        move them and where teams lose the points - for coaching."""
+        return render_template("admin_playbook.html", ops=service.operations_guide(g.db),
+                               cust=service.customer_guide(g.db),
+                               pillars=service.pillar_guide(g.db))
 
     @app.route("/admin/strategy")
     @login_required("admin")

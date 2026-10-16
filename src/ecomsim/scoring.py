@@ -393,3 +393,111 @@ def _runway_band(runway: float) -> float:
 def _unit_cost(team, params) -> float:
     skus = [params.sku(c) for c in team.active_skus] or params.skus
     return sum(float(s["unit_cost"]) for s in skus) / len(skus)
+
+
+def breakdown(team, params, all_teams: dict, memo_rejected: set | None = None) -> dict:
+    """The final score measure by measure: {key: {"points", "max", "value"}}.
+
+    The same arithmetic as final_score, kept apart from it so the scorer stays
+    as it is; tests hold the two to the same pillar totals. What the console
+    reads to say where a team's points went.
+    """
+    h = team.history
+    T = len(h)
+    w = _weights(T)
+    first, last = h[0], h[-1]
+    insolvent = any(x["insolvent"] for x in h)
+    out: dict[str, dict] = {}
+
+    def put(key, points, value, mx=None):
+        out[key] = {"points": points, "max": mx if mx is not None else _ANCHORS[key][0],
+                    "value": value}
+
+    # Profitability, each margin on the rules its months ran under.
+    new = [i for i, x in enumerate(h) if _v2(x)]
+    old = [i for i in range(T) if i not in new]
+    w_old = sum(w[i] for i in old) if new else 1.0
+    peers = []
+    if new:
+        for t in (all_teams or {}).values():
+            months = [t.history[i] for i in new if i < len(t.history)]
+            if months:
+                peers.append({k: _margin(months, f) for k, f in PROFIT})
+    own_new = {k: _margin([h[i] for i in new], f) for k, f in PROFIT} if new else {}
+    if new:
+        peers.append(own_new)
+    for key, field in PROFIT:
+        pts = _ANCHORS[key][0]
+        fixed = _mark(key, _margin([h[i] for i in old] if new else h, field)) / 100 \
+            if (old or not new) else 0.0
+        rel = 0.0
+        if new:
+            best = max(m[key] for m in peers)
+            rel = (pts * max(0.0, own_new[key]) / best if best > 0
+                   else _mark(key, own_new[key]) / 100)
+        put(key, w_old * fixed + (1 - w_old) * rel, _margin(h, field))
+
+    # Growth
+    rev_multiple = last["revenue_net"] / max(first["revenue_net"], 1.0)
+    share_pp = (_flow(h, "market_share", w) - first["market_share"]) * 100
+    baseline_orders = params["baseline_team_revenue"] / params["aov_base"]
+    order_growth = _flow(h, lambda x: x["orders"] / baseline_orders - 1, w)
+    for key, v in (("rev_multiple", rev_multiple), ("share_pp", share_pp),
+                   ("order_growth", order_growth)):
+        put(key, _mark(key, v) / 100, v)
+
+    # Customer value
+    total_marketing = sum(x["pnl"]["marketing"] for x in h)
+    total_new = sum(x["orders"] * (1 - x["repeat_order_share"]) for x in h)
+    ltv_cac = last["ltv"] / max(total_marketing / max(total_new, 1.0), 1.0)
+    for key, v in (("ltv_cac", ltv_cac),
+                   ("repeat", _share(h, "repeat_order_share", "orders")),
+                   ("active", last["active_customers"]), ("nps", last["nps"])):
+        put(key, _mark(key, v) / 100, v)
+
+    # Operational efficiency
+    leak = lambda x: (x["pnl"]["rto_cost"] + x["pnl"]["return_cost"]) / max(x["revenue_net"], 1.0)
+    periods = 12 / params["round_months"]
+    avg_units = st.mean([x["inventory_units"] for x in h]) or 1.0
+    unit_cost = _unit_cost(team, params) * params["cogs_scale"]
+    turns = st.mean([x["pnl"]["cogs"] for x in h]) * periods / max(avg_units * unit_cost, 1.0)
+    for key, v in (("service", _flow(h, "service_level", w)),
+                   ("delivery", _flow(h, "delivery_success", w)),
+                   ("leak", _flow(h, leak, w)), ("turns", turns)):
+        put(key, _mark(key, v) / 100, v)
+
+    # Cash & capital: nothing at all for a team that ran out of cash.
+    free_cash = ((last["cash_balance"] - params["starting_cash"])
+                 - (last["credit_drawn"] - first["credit_drawn"]))
+    net = _flow(h, lambda x: x["pnl"]["net_profit"] / max(x["revenue_net"], 1.0), w)
+    keep = 0.0 if insolvent else 1.0
+    put("runway", keep * _ANCHORS["runway"][0] * _runway_band(last["runway_rounds"]) / 100,
+        last["runway_rounds"])
+    put("free_cash", keep * _mark("free_cash", free_cash) / 100, free_cash)
+    put("net_margin", keep * _mark("net_margin", net) / 100, net)
+
+    # Decision quality: decisions taken and board memos, month by month.
+    rejected = memo_rejected or set()
+    dec = memo = 0.0
+    for i, x in enumerate(h):
+        if not _v2(x):
+            dec += w[i] * 4.0
+            memo += w[i] * 1.0
+            continue
+        d = x.get("decisions") or {}
+        open_ = float(d.get("open") or 0)
+        taken = min(1.0, float(d.get("taken") or 0) / (KEEP_SHARE * open_)) if open_ else 0.0
+        dec += w[i] * 8.0 * taken
+        k = (getattr(team, "team_id", ""), int(x.get("round", 0)))
+        memo += w[i] * (2.0 if d.get("memo") and k not in rejected else 0.0)
+    put("decisions", dec, None, 8.0)
+    put("memo", memo, None, 2.0)
+    return out
+
+
+PILLAR_OF = {"cm_pre": "p1", "ebitda": "p1", "gm": "p1",
+             "rev_multiple": "p2", "share_pp": "p2", "order_growth": "p2",
+             "ltv_cac": "p3", "repeat": "p3", "active": "p3", "nps": "p3",
+             "service": "p4", "delivery": "p4", "leak": "p4", "turns": "p4",
+             "runway": "p5", "free_cash": "p5", "net_margin": "p5",
+             "decisions": "p6", "memo": "p6"}

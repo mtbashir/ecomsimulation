@@ -605,10 +605,14 @@ def test_the_handbook_is_in_the_app_and_the_form_links_to_it(game):
     assert admin.get("/handbook").status_code == 200
 
 
-def test_the_handbook_explains_the_operations_score_from_live_numbers(game):
+def _playbook(app):
+    return _client(app, "admin", "admin-pw").get("/admin/playbook").get_data(as_text=True)
+
+
+def test_the_playbook_explains_operational_efficiency_from_live_numbers(game):
     from ecomsim import params as P
     app, pw, path = game
-    page = _client(app, "team_01", pw["team_01"]).get("/handbook").get_data(as_text=True)
+    page = _playbook(app)
     assert 'id="operations"' in page and "Operational Efficiency" in page
     params = P.load({})
     for c in params.couriers:                      # the courier table is the real one
@@ -616,45 +620,76 @@ def test_the_handbook_explains_the_operations_score_from_live_numbers(game):
     assert f'{params["cod_share_base"] * 100:.0f}%' in page
     for s in params.suppliers:
         assert f'{int(s["moq_units"]):,} units' in page
-    assert page.index('id="operations"') < page.index('id="ops-levers"') < page.index('id="ops-delivery"')
     for code in ("8-3", "9-2", "10-4", "7-1", "7-2", "7-5", "7-4", "9-1", "8-2", "1-3", "11-2"):
-        assert f'href="#d{code}"' in page, "every lever links to its own entry"
+        assert f'href="/handbook#d{code}"' in page, "every lever opens its handbook entry"
 
 
-def test_the_handbook_explains_customer_value_before_operational_efficiency(game):
+def test_the_playbook_explains_customer_value_from_live_numbers(game):
     from markupsafe import escape
     from ecomsim import params as P
     app, pw, path = game
-    page = _client(app, "team_01", pw["team_01"]).get("/handbook").get_data(as_text=True)
+    page = _playbook(app)
     assert 'id="customer-value"' in page and "Customer Value" in page
-    # After customer service, before operational efficiency - on the page and in the contents.
-    assert page.index('id="G10"') < page.index('id="customer-value"') < page.index('id="operations"')
-    assert page.index('href="#customer-value"') < page.index('href="#operations"')
     params = P.load({})
     for code in ("organic", "meta", "tiktok", "deal_driven"):  # the real churn table
         c = params.channel(code)
         assert escape(c["name"]) in page and f'{float(c["churn_base"]) * 100:.1f}%' in page
     for s in params.segments:
         assert f'&times;{float(s["repeat_propensity"]):.2f}' in page
-    assert 'id="cust-levers"' in page and page.index('id="cust-levers"') < page.index('id="cust-channels"')
-    for code in ("3-1", "3-4", "4-1", "2-2", "6-1", "10-1", "11-4", "8-5", "1-2", "2-4", "5-1"):
-        assert f'href="#d{code}"' in page, "every lever links to its own entry"
 
 
-def test_the_handbook_gives_levers_for_every_scorecard_pillar(game):
+def test_the_playbook_covers_every_pillar_in_scorecard_order(game):
     import re
     from ecomsim import scoring
     app, pw, path = game
-    page = _client(app, "team_01", pw["team_01"]).get("/handbook").get_data(as_text=True)
-    order = ["G10", "customer-value", "operations", "profitability", "growth",
-             "cash-capital", "decision-quality", "G11"]
+    page = _playbook(app)
+    order = ["profitability", "growth", "customer-value", "operations",
+             "cash-capital", "decision-quality"]
     at = [page.index(f'id="{i}"') for i in order]
-    assert at == sorted(at), "each pillar after customer service, in scorecard order"
+    assert at == sorted(at)
     for name, _, _, measures in scoring.SCORECARD:
         for _, label, *_ in measures:
             assert label in page, f"{name}: {label}"
-    for i in order[1:-1]:
-        assert f'href="#{i}"' in page
     assert page.count("Levers by Measure") == 6
     for h in set(re.findall(r'href="#([\w-]+)"', page)):
         assert f'id="{h}"' in page, f"#{h} goes nowhere"
+
+
+def test_the_playbook_is_for_the_instructor_only(game):
+    app, pw, path = game
+    team = _client(app, "team_01", pw["team_01"])
+    r = team.get("/admin/playbook")
+    assert r.status_code in (302, 303, 403)
+    assert "Levers by Measure" not in r.get_data(as_text=True)
+
+
+def test_the_handbook_is_decisions_only_each_with_its_score_effect(game):
+    from ecomsim.decisions import REGISTRY
+    from ecomsim.web import handbook as hb
+    app, pw, path = game
+    page = _client(app, "team_01", pw["team_01"]).get("/handbook").get_data(as_text=True)
+    for gone in ('id="customer-value"', 'id="operations"', 'id="profitability"',
+                 "Levers by Measure"):
+        assert gone not in page, "no scorecard sections in the handbook"
+    assert page.count('class="hb-score"') == len(REGISTRY), "every card says how it scores"
+    assert 'href="/guide/scoring#m-delivery"' in page
+    from markupsafe import escape
+    assert escape(hb.SCORE_IMPACT["8.3"][0][2]) in page
+    for code in ("9.2", "3.1", "6.1", "8.5", "10.1", "10.4"):   # the tables moved here
+        sec = page[page.index(f'id="d{code.replace(".", "-")}"'):]
+        assert 'class="gloss hb-facts"' in sec[:sec.index("</section>")], code
+
+
+def test_the_scoring_guide_links_every_measure_to_its_decisions(game):
+    from ecomsim import scoring
+    from ecomsim.web import handbook as hb
+    app, pw, path = game
+    page = _client(app, "team_01", pw["team_01"]).get("/guide/scoring").get_data(as_text=True)
+    for key in scoring.PILLAR_OF:
+        assert f'id="m-{key}"' in page, key
+        row = page[page.index(f'id="m-{key}"'):]
+        row = row[:row.index("</tr>")]
+        for code in hb.levers_for(key):
+            assert f'#d{code.replace(".", "-")}"' in row, (key, code)
+    assert "Levers by Measure" not in page and "usually lose" not in page
+

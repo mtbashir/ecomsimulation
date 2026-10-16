@@ -1,0 +1,458 @@
+{# The scoring playbook, pillar by pillar: how each measure is marked, the
+   decisions that move it and where teams usually lose the points. For the
+   instructor (admin_playbook.html); teams read the same effects decision by
+   decision in the handbook, from web/handbook.SCORE_IMPACT. Decision links
+   open the handbook entry. #}
+{# The operational efficiency score, end to end: which decisions move each of the four
+   measures, with every number read from the game's parameters. #}
+{% macro dl(code, name) %}<a href="{{ url_for('handbook') }}#{{ 'd' ~ code|replace('.', '-') }}">{{ name }} ({{ code }})</a>{% endmacro %}
+{% macro pct(v, d=1) %}{{ ('%.' ~ d ~ 'f')|format(v * 100) }}%{% endmacro %}
+{# The customer value score, end to end, in the same way as the operations
+   section below it. #}
+{% macro cust_section() %}
+<h2 class="sec" id="customer-value">Customer value</h2>
+<p class="group-intro">How your decisions drive the customer value pillar:
+{{ cust.points }} points of the final score, from four measures. Each is marked
+against three published levels - below the first earns nothing, the middle earns
+half, the last earns full marks.</p>
+
+<section class="hb card">
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Measure</th><th class="r">Points</th><th class="r">Nothing</th>
+  <th class="r">Half</th><th class="r">Full</th></tr></thead>
+<tbody>
+{% for key in ['ltv_cac', 'repeat', 'active', 'nps'] %}
+{% set m = cust.measures[key] %}
+<tr><td><b>{{ m[0] }}</b></td><td class="num">{{ m[1] }}</td>
+{% for a in m[2] %}<td class="num">{% if m[3] == 'pct' %}{{ pct(a) }}{% elif m[3] == 'x' %}{{ '%g'|format(a) }}x{% else %}{{ '{:,}'.format(a|int) }}{% endif %}</td>{% endfor %}</tr>
+{% endfor %}
+</tbody></table>
+<p class="hint">All four come from the same two things: who you win, and whether they
+come back. Repeat share is weighted over the months, later ones more; active customers
+and NPS are read at the end of the game.</p>
+</section>
+
+<section class="hb card" id="cust-levers">
+<div class="hb-head"><div><h2>Levers by measure</h2>
+<p class="hb-lead">The decisions that raise each measure, and which way to push them. The
+cards below explain why.</p></div></div>
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Measure</th><th>Levers that raise it</th></tr></thead>
+<tbody>
+<tr><td><b>{{ cust.measures.ltv_cac[0] }}</b></td><td>Lean on
+  {{ dl('3.1', 'Meta') }} and organic customers over {{ dl('3.4', 'TikTok') }}; keep your
+  discount ({{ dl('1.1', 'range prices') }}, {{ dl('2.2', 'site-wide discount') }}) under
+  25%; fund {{ dl('6.1', 'CRM and retention') }}; earn more per order with price discipline,
+  {{ dl('1.2', 'bundles') }} and the {{ dl('2.4', 'free-delivery threshold') }}; convert
+  more of your traffic with {{ dl('5.1', 'website experience') }}.</td></tr>
+<tr><td><b>{{ cust.measures.repeat[0] }}</b></td><td>{{ dl('6.1', 'CRM and retention') }};
+  focus on segments that reorder (Quality Loyalists, Premium/Gifting); raise product quality
+  ({{ dl('1.5', 'quality positioning') }}, {{ dl('7.4', 'quality assurance') }}); keep your
+  rating at 4 or above.</td></tr>
+<tr><td><b>{{ cust.measures.active[0] }}</b></td><td>Win customers with paid budgets
+  ({{ dl('3.1', 'Meta') }}, {{ dl('3.2', 'Google Search') }}, {{ dl('3.4', 'TikTok') }}) and
+  the {{ dl('4.1', 'marketplace') }}; keep them with {{ dl('6.1', 'CRM and retention') }};
+  avoid discounts over 25%, which turn new customers deal-driven - the fastest to
+  leave.</td></tr>
+<tr><td><b>{{ cust.measures.nps[0] }}</b></td><td>A reliable {{ dl('8.3', 'courier mix') }};
+  a {{ dl('10.1', 'customer service team') }} that keeps up with orders, or
+  {{ dl('11.4', 'AI customer service') }}; product quality ({{ dl('1.5', 'positioning') }},
+  {{ dl('7.4', 'quality assurance') }}, {{ dl('7.2', 'supplier') }}); better
+  {{ dl('8.5', 'packaging') }}.</td></tr>
+</tbody></table>
+</section>
+
+<section class="hb card" id="cust-channels">
+<div class="hb-head"><div><h2>Who you win, and how</h2>
+<p class="hb-lead">Every customer joins a cohort that remembers how it was won, and the
+cohort churns at that channel's rate for the rest of the game. The channel is the paid
+channel you spend most on that month - {{ dl('3.1', 'Meta') }},
+{{ dl('3.2', 'Google Search') }} or {{ dl('3.4', 'TikTok') }} - organic if you spend
+nothing, the marketplace for buyers won on {{ dl('4.1', 'Daraz') }}, and deal-driven if
+your discount ({{ dl('1.1', 'range prices') }} and {{ dl('2.2', 'site-wide discount') }})
+is over 25%.</p></div></div>
+<table class="gloss hb-facts">
+<thead><tr><th>Channel</th><th>When it applies</th><th class="r">Lost each month</th>
+  <th class="r">Average life</th></tr></thead>
+<tbody>{% for c in cust.channels %}<tr><td><b>{{ c.name }}</b></td><td>{{ c.how }}</td>
+  <td class="num">{{ pct(c.churn) }}</td>
+  <td class="num">{{ '%.0f'|format(c.months) }} months</td></tr>{% endfor %}</tbody></table>
+<p>Who you target matters as much as where. Each segment orders again at its own rate,
+set by your positioning and segment focus:</p>
+<table class="gloss hb-facts">
+<thead><tr><th>Segment</th><th class="r">Repeat orders, against the average</th></tr></thead>
+<tbody>{% for name, r in cust.segments %}<tr><td><b>{{ name }}</b></td>
+  <td class="num">&times;{{ '%.2f'|format(r) }}</td></tr>{% endfor %}</tbody></table>
+<p class="hint">A cheap customer who leaves in three months is not cheap. Deep discounts
+and TikTok fill this month's order book and empty next quarter's.</p>
+</section>
+
+<section class="hb card" id="cust-retention">
+<div class="hb-head"><div><h2>Keeping the customers you have</h2>
+<p class="hb-lead">{{ dl('6.1', 'CRM and retention') }} reaches more of your customers the
+more you spend, at full effect from about PKR {{ '{:,}'.format(cust.crm_full) }} a month.
+At full effect it cuts churn by up to {{ pct(cust.crm_churn, 0) }} and lifts repeat orders
+by up to {{ pct(cust.crm_repeat, 0) }}. The first rupees work hardest: reach grows with
+the square root of spend.</p></div></div>
+<p>CRM cannot reach customers who bought on the marketplace - they belong to Daraz, not to
+you. And an unhappy customer leaves whatever you spend: every star your rating sits below
+4 raises next month's churn.</p>
+</section>
+
+<section class="hb card" id="cust-rating">
+<div class="hb-head"><div><h2>Rating and NPS</h2>
+<p class="hb-lead">Your rating moves {{ pct(cust.rating.pace, 0) }} of the way toward its
+target each month, so a fix takes a quarter to show. The target is built from four
+things:</p></div></div>
+<table class="gloss hb-facts">
+<thead><tr><th>What customers judge</th><th>Set by</th><th class="r">Weight</th></tr></thead>
+<tbody>
+<tr><td><b>The product</b></td><td>{{ dl('1.5', 'quality positioning') }},
+  {{ dl('7.4', 'quality assurance') }} and your {{ dl('7.2', 'supplier') }}</td>
+  <td class="num">{{ '%g'|format(cust.rating.quality) }}</td></tr>
+<tr><td><b>Delivery</b></td><td>{{ dl('8.3', 'courier mix') }}</td>
+  <td class="num">{{ '%g'|format(cust.rating.delivery) }}</td></tr>
+<tr><td><b>Customer service</b></td><td>{{ dl('10.1', 'customer service team') }} and
+  {{ dl('11.4', 'AI customer service') }}</td>
+  <td class="num">{{ '%g'|format(cust.rating.service) }}</td></tr>
+<tr><td><b>Packaging</b></td><td>{{ dl('8.5', 'packaging') }}:
+  {% for k, v in cust.packaging.items() %}{{ k }} {{ '%.2f'|format(v) }}{{ ', ' if not loop.last }}{% endfor %}</td>
+  <td class="num">{{ '%g'|format(cust.rating.packaging) }}</td></tr>
+</tbody></table>
+<p>Marketing that promises more than the product delivers ({{ dl('3.8', 'creative') }},
+{{ dl('3.9', 'brand') }}) pulls the target down. NPS is built from the rating, how many
+tickets you answer in time and how many parcels arrive.</p>
+<p class="hint">Customer service: each agent answers about {{ '{:,}'.format(cust.agent_capacity|int) }}
+tickets a month, enough for about {{ '{:,.0f}'.format(cust.orders_per_agent) }} orders, at
+PKR {{ '{:,.0f}'.format(cust.agent_cost) }} each. AI customer service multiplies what the
+team can answer by {{ '%g'|format(cust.ai_cs) }}. An unanswered ticket waits into next
+month, and the backlog grows.</p>
+</section>
+
+<section class="hb card" id="cust-ltv">
+<div class="hb-head"><div><h2>Lifetime value against acquisition cost</h2>
+<p class="hb-lead">Lifetime value is what a customer is worth over {{ cust.horizon }}
+months: the orders they place, times your average order, times your margin before
+marketing. Acquisition cost is everything you spent on marketing divided by every new
+customer you won.</p></div></div>
+<p>So the ratio rises three ways: customers who stay (channel, segment, CRM, rating),
+orders that earn more (price discipline, bundles, the free-delivery threshold), and
+marketing that wins customers for less. Active customers at the end are simply what you
+won minus what you lost - the same levers, added up.</p>
+</section>
+
+<section class="hb card">
+<div class="hb-head"><div><h2>The trade-off that runs through all four</h2>
+<p class="hb-lead">Fast growth and loyal customers pull against each other. Discounts and
+cheap channels add customers quickly and lose them quickly; the channels and segments
+that stay are slower and dearer to win. Customer value is not about the most customers
+this month - it is about how many are still buying, and what they earn you, at the
+end.</p></div></div>
+<p><b>Where teams usually lose these points:</b> discounts over 25% that turn every new
+customer deal-driven; budgets tilted to TikTok for cheap clicks; CRM cut to fund
+acquisition; a customer service team that falls behind as orders grow; and a rating
+dragged down by the cheapest courier and supplier.</p>
+</section>
+{% endmacro %}
+{% macro ops_section() %}
+<h2 class="sec" id="operations">Operational efficiency</h2>
+<p class="group-intro">How your decisions drive the operational efficiency pillar:
+{{ ops.points }} points of the final score, from four measures. Each is marked
+against three published levels - below the first earns nothing, the middle earns
+half, the last earns full marks.</p>
+
+<section class="hb card">
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Measure</th><th class="r">Points</th><th class="r">Nothing</th>
+  <th class="r">Half</th><th class="r">Full</th></tr></thead>
+<tbody>
+{% for key in ['delivery', 'leak', 'turns', 'service'] %}
+{% set m = ops.measures[key] %}
+<tr><td><b>{{ m[0] }}</b></td><td class="num">{{ m[1] }}</td>
+{% for a in m[2] %}<td class="num">{% if m[3] == 'pct' %}{{ pct(a) }}{% else %}{{ '%g'|format(a) }}{% endif %}</td>{% endfor %}</tr>
+{% endfor %}
+</tbody></table>
+<p class="hint">Refused and returned parcel costs score better the lower they are. The
+months are weighted, later ones more, as everywhere on the scorecard.</p>
+</section>
+
+<section class="hb card" id="ops-levers">
+<div class="hb-head"><div><h2>Levers by measure</h2>
+<p class="hb-lead">The decisions that raise each measure, and which way to push them. The
+cards below explain why.</p></div></div>
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Measure</th><th>Levers that raise it</th></tr></thead>
+<tbody>
+<tr><td><b>{{ ops.measures.delivery[0] }}</b></td><td>Shift your
+  {{ dl('8.3', 'courier mix') }} toward the couriers that deliver more parcels. It is the
+  only lever.</td></tr>
+<tr><td><b>{{ ops.measures.leak[0] }}</b> (lower is better)</td><td>A
+  {{ dl('9.2', 'discount for paying online') }}, or {{ dl('9.1', 'cash on delivery') }}
+  off; a stricter {{ dl('10.4', 'returns policy') }}; product quality
+  ({{ dl('1.5', 'positioning') }}, {{ dl('7.4', 'quality assurance') }},
+  {{ dl('7.2', 'supplier') }}); marketing that does not promise more than the product
+  ({{ dl('3.8', 'creative') }}, {{ dl('3.9', 'brand') }}); enough capacity, through
+  {{ dl('8.2', '3PL') }}, that orders do not ship late.</td></tr>
+<tr><td><b>{{ ops.measures.turns[0] }}</b></td><td>Buy closer to what you sell
+  ({{ dl('7.1', 'stock to purchase') }}); hold less
+  {{ dl('7.5', 'safety stock cover') }}; a {{ dl('7.2', 'supplier') }} with a short lead time
+  and a small minimum order; drop lines that do not sell
+  ({{ dl('1.3', 'range changes') }}).</td></tr>
+<tr><td><b>{{ ops.measures.service[0] }}</b></td><td>Buy enough of what sells
+  ({{ dl('7.1', 'stock to purchase') }}) with enough
+  {{ dl('7.5', 'safety stock cover') }}; a short lead time, from your
+  {{ dl('7.2', 'supplier') }} and local sourcing ({{ dl('1.1', 'range and sourcing') }});
+  {{ dl('11.2', 'AI demand forecasting') }}.</td></tr>
+</tbody></table>
+<p class="hint">Stock turns and service level pull against each other: the same two
+stock levers move them in opposite directions.</p>
+</section>
+
+<section class="hb card" id="ops-delivery">
+<div class="hb-head"><div><h2>Delivery success</h2>
+<p class="hb-lead">The share of parcels your couriers manage to deliver. It is set by one
+decision: your {{ dl('8.3', 'courier mix') }}. Delivery success is the success rate of
+your couriers, weighted by the share of orders each carries.</p></div></div>
+<table class="gloss hb-facts">
+<thead><tr><th>Courier</th><th class="r">Delivered</th><th class="r">Cost per order</th>
+  <th class="r">Days</th><th class="r">Rural reach</th></tr></thead>
+<tbody>{% for c in ops.couriers %}<tr><td><b>{{ c.name }}</b></td>
+  <td class="num">{{ pct(c.success_rate|float) }}</td>
+  <td class="num">PKR {{ '{:,.0f}'.format(c.cost_per_order|float) }}</td>
+  <td class="num">{{ '%.1f'|format(c.avg_days|float) }}</td>
+  <td class="num">{{ pct(c.rural_reach|float, 0) }}</td></tr>{% endfor %}</tbody></table>
+<table class="gloss hb-facts" style="margin-top:8px">
+<thead><tr><th>A mix and what it delivers</th><th class="r">Delivery success</th></tr></thead>
+<tbody>{% for label, v in ops.mixes %}<tr><td>{{ label }}</td><td class="num">{{ pct(v) }}</td></tr>{% endfor %}</tbody></table>
+<p class="hint">The trade-off: the cheapest courier saves on every order and costs points
+here, because every parcel it fails to deliver is also a sale that never lands.</p>
+</section>
+
+<section class="hb card" id="ops-leak">
+<div class="hb-head"><div><h2>Refused and returned parcels</h2>
+<p class="hb-lead">What parcels refused at the door (shipped both ways, paid for twice) and
+customer returns (shipped back, and about {{ pct(ops.write_off, 0) }} of what comes back
+cannot be resold) cost you, as a share of revenue.</p></div></div>
+<p><b>Refused at the door.</b> Only cash-on-delivery parcels are refused. About
+{{ pct(ops.refused[0].cod, 0) }} of orders are cash on delivery, and
+{{ pct(ops.refused[0].rto, 0) }} of those are refused. A
+{{ dl('9.2', 'discount for paying online') }} works twice: fewer customers choose cash on
+delivery, and fewer of those who still do refuse the parcel.</p>
+<table class="gloss hb-facts">
+<thead><tr><th>Discount for paying online</th><th class="r">Orders on cash on delivery</th>
+  <th class="r">Of those, refused</th><th class="r">Refused, of all orders</th></tr></thead>
+<tbody>{% for r in ops.refused %}<tr><td><b>{{ pct(r.incentive, 0) }}</b></td>
+  <td class="num">{{ pct(r.cod, 0) }}</td><td class="num">{{ pct(r.rto) }}</td>
+  <td class="num">{{ pct(r.refused) }}</td></tr>{% endfor %}</tbody></table>
+<p class="hint">The discount is paid on every prepaid order, so weigh it against the
+refusals it saves. Switching {{ dl('9.1', 'cash on delivery') }} off ends refusals
+entirely - and most shoppers in this market with them. Late deliveries raise refusals
+too: when orders pass your capacity ({{ '{:,}'.format(ops.capacity) }} a month, plus
+{{ '{:,}'.format(ops.capacity_3pl) }} for every 100% of {{ dl('8.2', 'orders shipped through
+3PL') }}), parcels slip and more are turned away.</p>
+<p><b>Returned after delivery.</b> About {{ pct(ops.return_base, 0) }} of last month's
+deliveries come back, more or less depending on four things:</p>
+<ul class="hb-opts">
+  <li>Your {{ dl('10.4', 'returns policy') }}:
+    {% for label, m in ops.policies %}{{ label|lower }} &times;{{ '%.2f'|format(m) }}{{ ', ' if not loop.last }}{% endfor %}
+    the usual rate.</li>
+  <li>What your products are actually like: low quality adds up to
+    {{ pct(ops.quality_coef, 0) }} more returns. Quality is
+    {{ dl('1.5', 'quality positioning') }} and sourcing (55%),
+    {{ dl('7.4', 'quality assurance spend') }} (25%, at its best from about PKR 250,000 a
+    month) and your {{ dl('7.2', 'supplier') }} (20%).</li>
+  <li>Promising more than you deliver: when creative and brand spending
+    ({{ dl('3.8', 'creative') }}, {{ dl('3.9', 'brand') }}) lift what customers expect above
+    what the product is, more of it comes back the following month.</li>
+  <li>What you sell: some products come back more often than others - your report
+    shows which.</li>
+</ul>
+</section>
+
+<section class="hb card" id="ops-turns">
+<div class="hb-head"><div><h2>Stock turns a year</h2>
+<p class="hb-lead">How many times a year your stock sells through: cost of goods sold in a
+year over the stock you hold on average. In weeks of cover,
+{% for t, w in ops.weeks.items() %}{{ '%g'|format(t) }} turns is about {{ '%.1f'|format(w) }}
+weeks{{ ', ' if not loop.last else '.' }}{% endfor %}</p></div></div>
+<p>Turns are set by how much you buy and how much you keep in reserve -
+{{ dl('7.1', 'stock to purchase') }} and {{ dl('7.5', 'safety stock cover') }} - and by
+your {{ dl('7.2', 'supplier') }}, whose lead time decides how much you must hold while an
+order is on its way and whose minimum order decides how much you must buy at once.
+Dropping lines that do not sell ({{ dl('1.3', 'range changes') }}) lifts them too, and so
+does selling more of the same stock.</p>
+<table class="gloss hb-facts">
+<thead><tr><th>Supplier</th><th class="r">Cost index</th><th class="r">Lead time</th>
+  <th class="r">Minimum order</th><th class="r">Quality</th></tr></thead>
+<tbody>{% for s in ops.suppliers %}<tr><td><b>{{ s.name }}</b></td>
+  <td class="num">{{ '%.2f'|format(s.cost_index|float) }}</td>
+  <td class="num">{{ s.lead_time_days }} days</td>
+  <td class="num">{{ '{:,}'.format(s.moq_units|int) }} units</td>
+  <td class="num">{{ '%.2f'|format(s.quality_index|float) }}</td></tr>{% endfor %}</tbody></table>
+<p class="hint">A large minimum order makes a small business buy more than it sells in a
+month; a long lead time makes it hold more while it waits.</p>
+</section>
+
+<section class="hb card" id="ops-service">
+<div class="hb-head"><div><h2>Service level</h2>
+<p class="hb-lead">The orders you served out of the demand you had: what you lose when a
+product runs out. It moves with {{ dl('7.1', 'stock to purchase') }},
+{{ dl('7.5', 'safety stock cover') }}, your {{ dl('7.2', "supplier's") }} lead time,
+sourcing (local stock lands in 9 days, imported in 22) and
+{{ dl('11.2', 'AI demand forecasting') }}.</p></div></div>
+<p class="hint">Only a few points, but a stock-out also loses the sale, the customer and
+the rating that follow it.</p>
+</section>
+
+<section class="hb card">
+<div class="hb-head"><div><h2>The trade-off that runs through all four</h2>
+<p class="hb-lead">Stock turns and service level pull against each other: hold too little
+and you run out, hold too much and your turns collapse and your cash sits on a shelf.
+Delivery success and refused parcels pull against cost: the reliable courier and the
+prepayment discount both cost money on every order. Operations is not about maximising
+any one number - it is about finding the point where the last rupee spent saves at least
+a rupee.</p></div></div>
+<p><b>Where teams usually lose these points:</b> a courier mix built on the cheapest
+option; no reason for customers to pay in advance; free returns on the products that
+come back most; marketing that promises more than the product; and eight or more weeks
+of stock bought to save a few percent - or so little that the best sellers run out.</p>
+</section>
+{% endmacro %}
+
+{# The other scorecard pillars: each how it is marked, as the scoring guide
+   publishes it, and the levers that move it. #}
+{% macro pillar_head(id) %}{% set p = pillars[id] %}
+<h2 class="sec" id="{{ id }}">{{ p.name }}</h2>
+<p class="group-intro">{{ p.points }} points of the final score. {{ p.summary }}</p>
+{% if p.rows %}
+<section class="hb card">
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Measure</th><th class="r">Points</th><th>How it is marked</th></tr></thead>
+<tbody>{% for label, pts, where in p.rows %}<tr><td><b>{{ label }}</b></td>
+  <td class="num">{{ pts }}</td><td>{{ where }}</td></tr>{% endfor %}</tbody></table>
+</section>
+{% endif %}
+{% endmacro %}
+
+{% macro levers_head() %}
+<div class="hb-head"><div><h2>Levers by measure</h2>
+<p class="hb-lead">The decisions that raise each measure, and which way to push them.</p></div></div>
+{% endmacro %}
+
+{% macro p_profitability() %}
+{{ pillar_head('profitability') }}
+<section class="hb card" id="profitability-levers">
+{{ levers_head() }}
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Measure</th><th>Levers that raise it</th></tr></thead>
+<tbody>
+<tr><td><b>Gross margin</b><br><span class="hint">Revenue after refusals and returns, less
+  the cost of what stayed sold and of returns that cannot be resold</span></td><td>Price
+  with discipline ({{ dl('1.1', 'range prices') }}, a modest
+  {{ dl('2.2', 'site-wide discount') }}); a cheaper {{ dl('7.2', 'supplier') }} or sourcing
+  ({{ dl('1.1', 'range and sourcing') }}); fewer returns that end up written off
+  ({{ dl('10.4', 'returns policy') }}, product quality {{ dl('1.5', 'positioning') }} and
+  {{ dl('7.4', 'quality assurance') }}).</td></tr>
+<tr><td><b>Contribution margin before marketing</b><br><span class="hint">Gross margin less
+  picking, courier, refused and returned shipping, payment fees and marketplace
+  commission</span></td><td>Everything that raises gross margin, plus: a
+  {{ dl('8.3', 'courier mix') }} that is cheap per order and delivers; fewer refused parcels
+  ({{ dl('9.2', 'discount for paying online') }}, {{ dl('9.1', 'cash on delivery') }}); the
+  {{ dl('9.3', 'payment gateway') }} fee; how much you sell through the
+  {{ dl('4.1', 'marketplace') }}, which takes a commission; bigger baskets
+  ({{ dl('1.2', 'bundles') }}, {{ dl('2.4', 'free-delivery threshold') }}) that spread the
+  per-order costs.</td></tr>
+<tr><td><b>EBITDA margin</b><br><span class="hint">Contribution after marketing, less the
+  costs of running the business</span></td><td>Marketing that pays back
+  ({{ dl('3.1', 'Meta') }}, {{ dl('3.2', 'Google') }}, {{ dl('3.4', 'TikTok') }},
+  {{ dl('3.8', 'creative') }}, {{ dl('3.9', 'brand') }}, {{ dl('3.6', 'affiliates') }},
+  {{ dl('6.1', 'CRM') }}); overheads that earn their keep
+  ({{ dl('10.1', 'customer service team') }}, {{ dl('5.1', 'website') }},
+  {{ dl('7.4', 'quality assurance') }}, the running cost of AI tools in G11,
+  {{ dl('12.1', 'research') }}); less stock sitting in the warehouse
+  ({{ dl('7.1', 'stock to purchase') }}, {{ dl('7.5', 'safety stock') }}); and more revenue
+  over the same fixed costs.</td></tr>
+</tbody></table>
+<p class="hint">Profitability is marked against the best team in the room, so a margin is
+only as good as your rivals let it be.</p>
+</section>
+
+{% endmacro %}
+
+{% macro p_growth() %}
+{{ pillar_head('growth') }}
+<section class="hb card" id="growth-levers">
+{{ levers_head() }}
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Measure</th><th>Levers that raise it</th></tr></thead>
+<tbody>
+<tr><td><b>Net revenue, last month against first</b></td><td>Keep building to the end: paid
+  budgets ({{ dl('3.1', 'Meta') }}, {{ dl('3.2', 'Google') }}, {{ dl('3.4', 'TikTok') }}),
+  {{ dl('3.9', 'brand-building') }}, which fades when you stop, and
+  {{ dl('6.1', 'CRM') }} to keep the customers you won; a
+  {{ dl('5.1', 'website') }} that converts; bigger baskets ({{ dl('1.2', 'bundles') }},
+  {{ dl('2.4', 'free-delivery threshold') }}, {{ dl('11.1', 'recommendations') }}); enough
+  stock that best sellers do not run out ({{ dl('7.1', 'stock to purchase') }}).</td></tr>
+<tr><td><b>Market share gained</b></td><td>Win customers from rivals: a price customers
+  see as fair for what you sell ({{ dl('1.1', 'range prices') }}); a range in the categories
+  and segments with room to grow ({{ dl('1.3', 'range changes') }}); a rating customers
+  trust; the {{ dl('4.1', 'marketplace') }} for reach.</td></tr>
+<tr><td><b>Orders against a baseline business</b></td><td>The same levers, every month, not
+  only at the end: each month counts, later ones more.</td></tr>
+</tbody></table>
+<p class="hint">Growth bought with deep discounts shows up here and costs you twice
+elsewhere: in margin, and in deal-driven customers who leave.</p>
+</section>
+
+{% endmacro %}
+
+{% macro p_cash() %}
+{{ pillar_head('cash-capital') }}
+<section class="hb card" id="cash-capital-levers">
+{{ levers_head() }}
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Measure</th><th>Levers that raise it</th></tr></thead>
+<tbody>
+<tr><td><b>Runway at the end</b><br><span class="hint">Cash over the month's operating cash
+  burn</span></td><td>Aim for the middle band, not the most cash: end the game with
+  enough cash for 3 to 9 months of burn. Spend down a cash pile on growth; cut burn, or hold
+  less stock ({{ dl('7.1', 'stock to purchase') }}, {{ dl('7.5', 'safety stock') }}), if you
+  are running short. A business that is not burning cash, or could last more than 16
+  months, earns less - it has under-invested.</td></tr>
+<tr><td><b>Cash the business generated itself</b><br><span class="hint">Cash gained since
+  the start, less any increase in what you owe the bank</span></td><td>Profit, and less cash
+  tied up: stock bought closer to what you sell ({{ dl('7.1', 'stock to purchase') }},
+  {{ dl('7.5', 'safety stock') }}, a {{ dl('7.2', 'supplier') }} with a small minimum
+  order); more customers paying in advance ({{ dl('9.2', 'discount for paying online') }}),
+  since cash-on-delivery money arrives later; AI tools in G11 cost cash up front.
+  Borrowing does not count as cash generated, and repaying the bank
+  ({{ dl('12.7', 'extra repayment') }}) does not count against you.</td></tr>
+<tr><td><b>Net profit margin</b><br><span class="hint">EBITDA less interest</span></td><td>Every
+  lever that raises EBITDA margin, plus borrowing only what you need
+  ({{ dl('12.6', 'working capital loan') }}) and paying it down
+  ({{ dl('12.7', 'extra repayment') }}) to cut the interest.</td></tr>
+</tbody></table>
+<p class="hint">Running out of cash, being put into administration, scores nothing on this
+pillar however strong the rest.</p>
+</section>
+
+{% endmacro %}
+
+{% macro p_judged() %}
+{{ pillar_head('decision-quality') }}
+<section class="hb card" id="decision-quality-levers">
+{{ levers_head() }}
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Mark</th><th>What earns it</th></tr></thead>
+<tbody>
+<tr><td><b>Decisions taken</b> (8 points a month)</td><td>Fill in the decisions open to you
+  each month, rather than leaving them to carry over: full marks at three-quarters of
+  them.</td></tr>
+<tr><td><b>Board memo</b> (2 points a month)</td><td>Write a {{ dl('12.5', 'board memo') }}
+  every month that says what you decided and why, and that matches the decisions you
+  submitted. Your instructor can withdraw these marks for a memo that does not. Use what
+  your report and {{ dl('12.1', 'market research') }} told you.</td></tr>
+</tbody></table>
+</section>
+{% endmacro %}
+

@@ -526,6 +526,8 @@ def handbook_page(con) -> dict:
             "related": [(c, REGISTRY[c].name, handbook_anchor(c))
                         for c in entry.get("related", []) if c in REGISTRY],
             "guide": guide,
+            "impact": [(hb.MEASURE_NAMES[m], sign, why, m)
+                       for m, sign, why in hb.SCORE_IMPACT.get(spec.code, [])],
         })
     projects = {spec["decision"]: {
         "capex": spec["capex"], "months": spec["lead"],
@@ -545,6 +547,26 @@ def handbook_page(con) -> dict:
         "9.3": ("Gateway", ["Payments that succeed"],
                 [(f"Gateway {k}", f"{v:.0%}") for k, v in GATEWAY_SUCCESS.items()]),
     }
+    # The live tables the scorecard pages used to carry, beside the decision
+    # each one belongs to.
+    ops, cust = operations_guide(con), customer_guide(con)
+    facts["9.2"] = ("Discount for paying online", ["Orders on cash on delivery",
+                                                   "Of those, refused", "Refused, of all orders"],
+                    [(f"{r['incentive']:.0%}", f"{r['cod']:.0%}", f"{r['rto']:.1%}",
+                      f"{r['refused']:.1%}") for r in ops["refused"]])
+    facts["3.1"] = ("How a customer was won", ["Lost each month", "Average life"],
+                    [(c["name"], f"{c['churn']:.1%}", f"{c['months']:.0f} months")
+                     for c in cust["channels"]])
+    facts["6.1"] = ("Segment", ["Repeat orders, against the average"],
+                    [(name, f"x{r:.2f}") for name, r in cust["segments"]])
+    facts["8.5"] = ("Packaging", ["Packaging score in your rating"],
+                    [(k.title(), f"{v:.2f}") for k, v in cust["packaging"].items()])
+    facts["10.1"] = ("", ["Tickets an agent answers a month", "Orders an agent covers",
+                          "Cost an agent a month", "With AI customer service"],
+                     [("", f"{cust['agent_capacity']:,.0f}", f"{cust['orders_per_agent']:,.0f}",
+                       f"PKR {cust['agent_cost']:,.0f}", f"x{cust['ai_cs']:g} capacity")])
+    facts["10.4"] = ("Returns policy", ["Returns, against the usual rate"],
+                     [(label, f"x{m:.2f}") for label, m in ops["policies"]])
     for code, pr in projects.items():
         facts[code] = ("", ["Build cost", "Build time", "Running cost a month",
                             "Chance it works"],
@@ -2220,3 +2242,32 @@ def pillar_guide(con) -> dict:
     return {ids[name]: {"name": name, "points": pts, "summary": summary, "rows": rows}
             for name, pts, summary, rows in scoring.published(db.rules_from(con))
             if name in ids}
+
+
+def scoring_guide(con) -> list[dict]:
+    """The scorecard as teams read it: each pillar's measures, how each is
+    marked (scoring.published) and the decisions that move it, from the
+    handbook's score-impact record."""
+    from . import handbook as hb
+    rf = db.rules_from(con)
+    out = []
+    for (name, pts, summary, rows), (_, _, blurb, measures) in zip(
+            scoring.published(rf), scoring.SCORECARD):
+        keys = [m[0] for m in measures]
+        if name == "Decision quality":
+            keys = ["decisions", "memo"]
+            # Described, not its arithmetic (the playbook carries that).
+            rows = [("Decisions taken", None,
+                     "Whether you weighed the decisions open to you each month, acting "
+                     "or keeping a setting on purpose"),
+                    ("Board memo", None,
+                     "A memo each month that says what you decided and why, and matches "
+                     "the decisions you submitted")]
+        out.append({
+            "name": name, "points": pts, "summary": summary, "blurb": blurb,
+            "rows": [{"key": k, "label": label, "points": p, "where": where,
+                      "levers": [(c, REGISTRY[c].name, handbook_anchor(c))
+                                 for c in hb.levers_for(k)]}
+                     for k, (label, p, where) in zip(keys, rows)],
+        })
+    return out

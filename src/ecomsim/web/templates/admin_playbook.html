@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% block title %}Scoring playbook{% endblock %}
+{% block body %}
+{% import "_playbook.html" as pb with context %}
+<div class="crumbs"><a href="{{ url_for('admin') }}">Admin</a> &middot; Scoring playbook</div>
+<div class="head">
+  <div><p class="eyebrow">Instructor</p>
+    <h1>Scoring playbook</h1>
+    <p>Pillar by pillar: how each measure is marked, the decisions that move it, the
+    trade-offs between them and where teams usually lose the points. For coaching:
+    teams see the same effects one decision at a time in the handbook, never as a
+    strategy. Each team's console card lists its biggest gaps against this page.</p></div>
+  <div class="cta"><a class="btn ghost" href="{{ url_for('handbook') }}">Decision handbook</a>
+    <a class="btn ghost" href="{{ url_for('guide_scoring') }}">How you are scored</a></div>
+</div>
+<nav class="toc card">
+  <a href="#profitability">Profitability</a><a href="#growth">Growth</a>
+  <a href="#customer-value">Customer value</a><a href="#operations">Operational efficiency</a>
+  <a href="#cash-capital">Cash &amp; capital</a><a href="#decision-quality">Decision quality</a>
+</nav>
+{{ pb.p_profitability() }}
+{{ pb.p_growth() }}
+{{ pb.cust_section() }}
+{{ pb.ops_section() }}
+{{ pb.p_cash() }}
+{{ pb.p_judged() }}
+{% endblock %}

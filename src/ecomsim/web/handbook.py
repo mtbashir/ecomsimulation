@@ -433,3 +433,234 @@ ENTRIES = {
 }
 
 GUIDES = {"marketing": ("Performance marketing guide", "guide_marketing")}
+
+
+# --- How each decision moves the score ----------------------------------------------
+# One record, read in three places: the handbook card ("How it moves your
+# score"), the scoring guide (the decisions under each measure) and the
+# instructor's console (the levers behind a team's biggest gaps). Each line is
+# (measure, "+" for points it can win or "-" for points it can cost, why).
+# Measures are the scorecard's own keys (scoring.SCORECARD), plus the two
+# halves of decision quality. Only effects the engine models are listed.
+
+MEASURE_NAMES = {
+    "gm": "Gross margin", "cm_pre": "Contribution margin before marketing",
+    "ebitda": "EBITDA margin",
+    "rev_multiple": "Revenue growth", "share_pp": "Market share gained",
+    "order_growth": "Orders against a baseline",
+    "ltv_cac": "LTV against CAC", "repeat": "Repeat order share",
+    "active": "Active customers", "nps": "NPS",
+    "delivery": "Delivery success", "leak": "Refused and returned parcel costs",
+    "turns": "Stock turns", "service": "Service level",
+    "runway": "Runway", "free_cash": "Cash generated", "net_margin": "Net profit margin",
+    "decisions": "Decisions taken", "memo": "Board memo",
+}
+
+SCORE_IMPACT = {
+    "1.1": [
+        ("gm", "+", "Your prices and sourcing set what each sale earns over its cost."),
+        ("share_pp", "+", "A price customers see as fair for what you sell wins share; one "
+                          "above what a segment will pay drives it to rivals."),
+        ("repeat", "-", "A discount over 25% turns new customers deal-driven, the fastest "
+                        "to leave."),
+        ("service", "+", "Local sourcing lands stock in 9 days, imported in 22, so it runs "
+                         "out less while an order is on its way."),
+    ],
+    "1.5": [
+        ("nps", "+", "Quality is the biggest part of what customers rate you on."),
+        ("leak", "+", "Better products come back less."),
+    ],
+    "1.2": [
+        ("cm_pre", "+", "Bigger baskets spread the cost of picking, shipping and payment "
+                        "over more revenue."),
+        ("gm", "-", "A pack priced much below three singles sells at a loss."),
+    ],
+    "1.3": [
+        ("rev_multiple", "+", "Adding products that sell widens what you can win."),
+        ("turns", "+", "Dropping lines that do not sell frees stock that sits."),
+        ("ebitda", "-", "Changing the range carries restocking costs."),
+    ],
+    "2.2": [
+        ("order_growth", "+", "A discount buys volume."),
+        ("gm", "-", "Every point of discount comes straight off the margin."),
+        ("repeat", "-", "Over 25%, new customers join as deal-driven and most leave within "
+                        "a few months."),
+        ("ltv_cac", "-", "Deal-driven customers have the shortest lifetime of any."),
+    ],
+    "2.4": [
+        ("cm_pre", "+", "A bar a little above a typical basket makes customers add items, "
+                        "spreading the cost of each delivery."),
+        ("order_growth", "-", "Set far above a typical basket, it loses the small orders."),
+    ],
+    "3.1": [
+        ("active", "+", "Your main source of new customers."),
+        ("ltv_cac", "+", "Customers won on Meta stay about 16 months on average, far longer "
+                         "than TikTok's."),
+        ("rev_multiple", "+", "More reach, more orders."),
+        ("ebitda", "-", "It is marketing spend: it costs before it earns."),
+    ],
+    "3.2": [
+        ("order_growth", "+", "The highest-intent visitors convert best."),
+        ("ltv_cac", "-", "Customers won on search leave faster than Meta's, and clicks cost "
+                         "the most."),
+        ("ebitda", "-", "It is marketing spend."),
+    ],
+    "3.4": [
+        ("active", "+", "Cheap reach wins customers quickly."),
+        ("repeat", "-", "TikTok customers are the quickest to leave of any paid channel, "
+                        "about a quarter of them each month."),
+        ("ltv_cac", "-", "A short lifetime makes a cheap customer expensive."),
+        ("ebitda", "-", "It is marketing spend."),
+    ],
+    "3.8": [
+        ("ltv_cac", "+", "Better creative raises the return on every ad rupee, so customers "
+                         "cost less to win."),
+        ("leak", "-", "Creative that promises more than the product brings more returns "
+                      "the month after."),
+        ("ebitda", "-", "It is marketing spend."),
+    ],
+    "3.9": [
+        ("rev_multiple", "+", "Brand builds slowly and fades when you stop: keep it going "
+                              "to the last month."),
+        ("ltv_cac", "+", "It brings customers you do not pay for click by click."),
+        ("nps", "-", "Brand that promises more than the product pulls your rating down."),
+        ("ebitda", "-", "It is marketing spend, slow to pay back."),
+    ],
+    "3.10": [
+        ("ltv_cac", "+", "Promoting products that convert and earn makes each ad rupee go "
+                         "further."),
+    ],
+    "3.6": [
+        ("order_growth", "+", "Partners bring sales you would not otherwise win."),
+        ("ebitda", "-", "The commission is paid on every sale they bring."),
+    ],
+    "4.1": [
+        ("share_pp", "+", "Reaches shoppers who would never find your site."),
+        ("active", "+", "More customers, sooner."),
+        ("cm_pre", "-", "The marketplace takes a commission on every sale."),
+        ("repeat", "-", "Marketplace buyers belong to the marketplace: your CRM cannot reach "
+                        "them."),
+    ],
+    "5.1": [
+        ("order_growth", "+", "A better site converts more of the visitors you already pay "
+                              "for."),
+        ("ltv_cac", "+", "More orders from the same marketing makes each customer cheaper."),
+        ("ebitda", "-", "It is a running cost."),
+    ],
+    "6.1": [
+        ("repeat", "+", "Cuts churn by up to 62% and lifts repeat orders by up to 45%, at "
+                        "full effect from about PKR 400,000 a month."),
+        ("active", "+", "Customers you keep stay counted."),
+        ("ltv_cac", "+", "Longer lifetimes raise what each customer is worth."),
+        ("ebitda", "-", "It counts as marketing; it does not touch contribution before "
+                        "marketing."),
+    ],
+    "7.2": [
+        ("gm", "+", "A cheaper supplier lowers the cost of every unit."),
+        ("turns", "+", "A short lead time and small minimum order let you hold less."),
+        ("service", "+", "A short lead time runs out less."),
+        ("nps", "+", "The supplier's quality is part of what customers rate."),
+    ],
+    "7.1": [
+        ("service", "+", "Enough of what sells, and nothing runs out."),
+        ("turns", "-", "Buying far more than you sell leaves stock on the shelf."),
+        ("free_cash", "-", "Stock bought is cash spent before it sells."),
+        ("ebitda", "-", "Stock held costs money to keep."),
+    ],
+    "7.5": [
+        ("service", "+", "More cover, fewer stock-outs."),
+        ("turns", "-", "More cover, slower turns."),
+        ("free_cash", "-", "Cover is cash sitting on a shelf."),
+    ],
+    "7.4": [
+        ("leak", "+", "Fewer defects, fewer returns."),
+        ("nps", "+", "Quality is the biggest part of your rating."),
+        ("ebitda", "-", "It is a running cost, at its best from about PKR 250,000 a month."),
+    ],
+    "8.2": [
+        ("leak", "+", "More capacity keeps orders from shipping late, and late parcels are "
+                      "refused more."),
+    ],
+    "8.3": [
+        ("delivery", "+", "The only lever: delivery success is your couriers' rates, "
+                          "weighted by your mix."),
+        ("nps", "+", "Delivery is a fifth of what customers judge."),
+        ("cm_pre", "-", "A dearer courier costs more per order - but a failed delivery ships "
+                        "both ways and loses the sale."),
+    ],
+    "8.5": [
+        ("nps", "+", "Packaging is part of what customers rate you on."),
+    ],
+    "9.1": [
+        ("leak", "+", "With cash on delivery off, nothing is refused at the door."),
+        ("order_growth", "-", "Most shoppers here expect to pay on delivery; switching it off "
+                              "loses them."),
+        ("free_cash", "+", "Cash-on-delivery money reaches you days after delivery."),
+    ],
+    "9.2": [
+        ("leak", "+", "Fewer customers pay on delivery, and fewer of those refuse."),
+        ("free_cash", "+", "Prepaid money arrives at once."),
+        ("gm", "-", "The discount is paid on every prepaid order."),
+    ],
+    "9.3": [
+        ("order_growth", "+", "A failed payment is a lost order."),
+        ("cm_pre", "-", "Gateway fees are paid on every online payment."),
+    ],
+    "10.1": [
+        ("nps", "+", "Tickets answered on time lift rating and NPS. One agent covers about "
+                     "1,250 orders a month."),
+        ("ebitda", "-", "Each agent is a monthly cost."),
+    ],
+    "10.4": [
+        ("order_growth", "+", "A generous policy converts better."),
+        ("leak", "-", "A generous policy invites more returns."),
+        ("gm", "-", "Returns that cannot be resold are written off."),
+    ],
+    "11.1": [
+        ("cm_pre", "+", "Bigger baskets once it is live spread the cost of each order."),
+        ("rev_multiple", "+", "More revenue from the same customers."),
+        ("free_cash", "-", "Built with cash up front, and it may not work."),
+    ],
+    "11.2": [
+        ("service", "+", "Sharper forecasts, fewer stock-outs."),
+        ("turns", "+", "Less dead stock for the same cover."),
+        ("free_cash", "-", "Built with cash up front, and it may not work."),
+    ],
+    "11.3": [
+        ("gm", "+", "Prices that follow demand protect margin."),
+        ("free_cash", "-", "Built with cash up front, and it may not work."),
+    ],
+    "11.4": [
+        ("nps", "+", "Multiplies what your team can answer by 2.5."),
+        ("ebitda", "+", "Fewer agents for the same service."),
+        ("free_cash", "-", "Built with cash up front, and it may not work."),
+    ],
+    "11.5": [
+        ("ltv_cac", "+", "Cheaper creative to test makes ads go further."),
+        ("free_cash", "-", "Built with cash up front, and it may not work."),
+    ],
+    "12.1": [
+        ("memo", "+", "Evidence for the reasoning in your board memo."),
+        ("ebitda", "-", "Each study is a cost."),
+    ],
+    "12.5": [
+        ("memo", "+", "A memo that says what you decided and why, and matches the "
+                      "decisions you submitted."),
+    ],
+    "12.6": [
+        ("service", "+", "Approving what the month needs keeps your stock order whole."),
+        ("net_margin", "-", "Every rupee borrowed costs 22% a year in interest."),
+        ("runway", "+", "Cash to keep trading through a tight month."),
+    ],
+    "12.7": [
+        ("net_margin", "+", "Paying the loan down cuts the interest."),
+        ("runway", "-", "Cash used to repay is cash you no longer hold."),
+    ],
+}
+
+
+def levers_for(measure: str, sign: str | None = None) -> list[str]:
+    """The decisions that move a measure, in reading order; "+" only those
+    that can win it points."""
+    return [code for code, lines in SCORE_IMPACT.items()
+            if any(m == measure and (sign is None or s == sign) for m, s, _ in lines)]

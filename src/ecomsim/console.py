@@ -11,7 +11,7 @@ from __future__ import annotations
 from html import escape
 from pathlib import Path
 
-from . import debrief, scoring
+from . import coach, debrief, scoring
 from .charts import CSS_TOKENS, rank_bars
 
 
@@ -124,6 +124,16 @@ def render(world, params, out_dir: str | Path, submissions: dict | None = None,
              f'weight — later rounds count more, so standings will move.{seen}</p>'
              f'{_table(ranked, cards, name_of, months)}</section>')
 
+    # Where each team's points went, and which of its decisions to look at:
+    # for the instructor only, beside that team's debrief.
+    coaching = {}
+    if submissions is not None:
+        for t in teams:
+            standing = {**(getattr(t, "standing", None) or {}),
+                        **(submissions.get(t.team_id) or {})}
+            coaching[t.team_id] = coach.where_the_points_are(
+                t, params, world.teams, cards, standing, memo_rejected)
+
     # Warnings that used to sit on the per-team KPI panels now go into each
     # team's debrief, where the instructor reads about that team anyway.
     flags = {}
@@ -222,12 +232,13 @@ table.t th,table.t td{{border-color:#2c2c2a}} table.t thead th{{color:#c3c2b7}}
 .up{{color:#0ca30c}}}}
 {CSS_TOKENS}
 {debrief.CSS}
+{coach.CSS}
 </style></head><body class="viz"><div class="wrap">
 <h1>Round {round_}</h1>
 {_round_nav(round_urls, round_)}
 <p class="sub">Instructor console &middot; {len(teams)} teams &middot;
 config {params.config_hash()}</p>
-{downloads}{board}{_by_round(ranked, name_of, by_round)}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags, workbook_url, memo_rejected, memo_url)}{watch}{_targeting(ranked, params, name_of)}
+{downloads}{board}{_by_round(ranked, name_of, by_round)}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags, workbook_url, memo_rejected, memo_url, coaching)}{watch}{_targeting(ranked, params, name_of)}
 {f'<p class="note ver">{escape(footer)}</p>' if footer else ''}
 </div></body></html>"""
 

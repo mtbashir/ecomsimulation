@@ -515,8 +515,10 @@ def _decision_quality(t, h: dict, rejected: set, memo_url) -> str:
 
 def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
             scores: dict | None = None, flags: dict | None = None,
-            workbook_url=None, memo_rejected: set | None = None, memo_url=None) -> str:
-    """The debrief block for the console. Empty when no submissions are known."""
+            workbook_url=None, memo_rejected: set | None = None, memo_url=None,
+            coach: dict | None = None) -> str:
+    """The debrief block for the console. Empty when no submissions are known.
+    `coach` is each team's "where the points are" block (ecomsim.coach)."""
     if submissions is None:
         return ""
     room = {t.team_id: t.history[-1] for t in ranked}
@@ -554,6 +556,7 @@ def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
             + (f' <a class="xl" href="{escape(workbook_url(t.team_id))}">Excel</a>' if workbook_url else '')
             + '</h3>'
             f'{_results(t, h, room, score)}'
+            f'{(coach or {}).get(t.team_id, "")}'
             f'<p class="strat"><b>Strategy.</b> {strategy}</p>'
             f'<p class="strat camp"><b>Campaigns &amp; customers.</b> '
             f'{_campaigns(t, params, sub, h, room, open_codes)}</p>'
