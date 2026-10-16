@@ -186,6 +186,38 @@ half, the last earns full marks.</p>
 months are weighted, later ones more, as everywhere on the scorecard.</p>
 </section>
 
+<section class="hb card" id="ops-levers">
+<div class="hb-head"><div><h2>Levers by measure</h2>
+<p class="hb-lead">The decisions that raise each measure, and which way to push them. The
+cards below explain why.</p></div></div>
+<table class="gloss hb-facts">
+<thead><tr><th>Measure</th><th>Levers that raise it</th></tr></thead>
+<tbody>
+<tr><td><b>{{ ops.measures.delivery[0] }}</b></td><td>Shift your
+  {{ dl('8.3', 'courier mix') }} toward the couriers that deliver more parcels. It is the
+  only lever.</td></tr>
+<tr><td><b>{{ ops.measures.leak[0] }}</b> (lower is better)</td><td>A
+  {{ dl('9.2', 'discount for paying online') }}, or {{ dl('9.1', 'cash on delivery') }}
+  off; a stricter {{ dl('10.4', 'returns policy') }}; product quality
+  ({{ dl('1.5', 'positioning') }}, {{ dl('7.4', 'quality assurance') }},
+  {{ dl('7.2', 'supplier') }}); marketing that does not promise more than the product
+  ({{ dl('3.8', 'creative') }}, {{ dl('3.9', 'brand') }}); enough capacity, through
+  {{ dl('8.2', '3PL') }}, that orders do not ship late.</td></tr>
+<tr><td><b>{{ ops.measures.turns[0] }}</b></td><td>Buy closer to what you sell
+  ({{ dl('7.1', 'stock to purchase') }}); hold less
+  {{ dl('7.5', 'safety stock cover') }}; a {{ dl('7.2', 'supplier') }} with a short lead time
+  and a small minimum order; drop lines that do not sell
+  ({{ dl('1.3', 'range changes') }}).</td></tr>
+<tr><td><b>{{ ops.measures.service[0] }}</b></td><td>Buy enough of what sells
+  ({{ dl('7.1', 'stock to purchase') }}) with enough
+  {{ dl('7.5', 'safety stock cover') }}; a short lead time, from your
+  {{ dl('7.2', 'supplier') }} and local sourcing ({{ dl('1.1', 'range and sourcing') }});
+  {{ dl('11.2', 'AI demand forecasting') }}.</td></tr>
+</tbody></table>
+<p class="hint">Stock turns and service level pull against each other: the same two
+stock levers move them in opposite directions.</p>
+</section>
+
 <section class="hb card" id="ops-delivery">
 <div class="hb-head"><div><h2>Delivery success</h2>
 <p class="hb-lead">The share of parcels your couriers manage to deliver. It is set by one

@@ -616,7 +616,8 @@ def test_the_handbook_explains_the_operations_score_from_live_numbers(game):
     assert f'{params["cod_share_base"] * 100:.0f}%' in page
     for s in params.suppliers:
         assert f'{int(s["moq_units"]):,} units' in page
-    for code in ("8-3", "9-2", "10-4", "7-1", "7-2", "7-5", "7-4"):
+    assert page.index('id="operations"') < page.index('id="ops-levers"') < page.index('id="ops-delivery"')
+    for code in ("8-3", "9-2", "10-4", "7-1", "7-2", "7-5", "7-4", "9-1", "8-2", "1-3", "11-2"):
         assert f'href="#d{code}"' in page, "every lever links to its own entry"
 
 
