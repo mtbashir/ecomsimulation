@@ -2167,3 +2167,46 @@ def operations_guide(con) -> dict:
         "suppliers": params.suppliers,
         "weeks": {t: 52 / t for t in measures["turns"][2]},
     }
+
+
+def customer_guide(con) -> dict:
+    """How decisions drive the customer value pillar, from the game's own
+    parameters and scorecard (see operations_guide)."""
+    from .. import marketplace
+    from ..modules.m00_resolve import PACKAGING_SCORE
+    params = load_params(con)
+    measures = {key: (label, pts, anchors, kind)
+                for name, _, _, ms in scoring.SCORECARD if name.startswith("Customer")
+                for key, label, pts, anchors, kind in ms}
+    how = {"organic": "No paid ads: customers who found you",
+           "meta": "Meta ads (3.1) the biggest paid budget",
+           "google_search": "Google Search ads (3.2) the biggest",
+           "tiktok": "TikTok ads (3.4) the biggest",
+           marketplace.CHANNEL: "Won on the marketplace (4.1)",
+           "deal_driven": "Discounting more than 25%, whatever the channel"}
+    channels = []
+    for code, label in how.items():
+        try:
+            c = params.channel(code)
+        except Exception:
+            continue
+        churn = float(c["churn_base"])
+        channels.append({"name": c["name"], "how": label, "churn": churn,
+                         "months": 1 / churn if churn else 0})
+    return {
+        "points": sum(m[1] for m in measures.values()),
+        "measures": measures,
+        "channels": channels,
+        "segments": [(s["name"], float(s["repeat_propensity"])) for s in params.segments],
+        "crm_full": 400_000, "crm_churn": params["churn_retention_coef"], "crm_repeat": 0.45,
+        "experience_coef": params["churn_experience_coef"],
+        "tickets": params["ticket_rate"], "agent_capacity": params["agent_capacity"],
+        "agent_cost": params["cs_cost_per_agent"], "ai_cs": params["ai_cs_multiplier"],
+        "orders_per_agent": params["agent_capacity"] / params["ticket_rate"],
+        "rating": {"base": params["rating_base"], "quality": params["rating_aq_coef"],
+                   "delivery": params["rating_adr_coef"], "service": params["rating_sla_coef"],
+                   "packaging": params["rating_pack_coef"],
+                   "pace": params["rating_convergence"]},
+        "packaging": PACKAGING_SCORE,
+        "horizon": int(params["ltv_horizon_months"]),
+    }

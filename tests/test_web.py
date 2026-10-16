@@ -609,7 +609,7 @@ def test_the_handbook_explains_the_operations_score_from_live_numbers(game):
     from ecomsim import params as P
     app, pw, path = game
     page = _client(app, "team_01", pw["team_01"]).get("/handbook").get_data(as_text=True)
-    assert 'id="operations"' in page and "Operations Score" in page
+    assert 'id="operations"' in page and "Operational Efficiency" in page
     params = P.load({})
     for c in params.couriers:                      # the courier table is the real one
         assert c["name"] in page and f'{float(c["success_rate"]) * 100:.1f}%' in page
@@ -617,4 +617,23 @@ def test_the_handbook_explains_the_operations_score_from_live_numbers(game):
     for s in params.suppliers:
         assert f'{int(s["moq_units"]):,} units' in page
     for code in ("8-3", "9-2", "10-4", "7-1", "7-2", "7-5", "7-4"):
+        assert f'href="#d{code}"' in page, "every lever links to its own entry"
+
+
+def test_the_handbook_explains_customer_value_before_operational_efficiency(game):
+    from markupsafe import escape
+    from ecomsim import params as P
+    app, pw, path = game
+    page = _client(app, "team_01", pw["team_01"]).get("/handbook").get_data(as_text=True)
+    assert 'id="customer-value"' in page and "Customer Value" in page
+    # After customer service, before operational efficiency - on the page and in the contents.
+    assert page.index('id="G10"') < page.index('id="customer-value"') < page.index('id="operations"')
+    assert page.index('href="#customer-value"') < page.index('href="#operations"')
+    params = P.load({})
+    for code in ("organic", "meta", "tiktok", "deal_driven"):  # the real churn table
+        c = params.channel(code)
+        assert escape(c["name"]) in page and f'{float(c["churn_base"]) * 100:.1f}%' in page
+    for s in params.segments:
+        assert f'&times;{float(s["repeat_propensity"]):.2f}' in page
+    for code in ("3-1", "3-4", "4-1", "2-2", "6-1", "10-1", "11-4", "8-5"):
         assert f'href="#d{code}"' in page, "every lever links to its own entry"

@@ -13,12 +13,129 @@
     are scored</a></div>
 </div>
 
-{# The operations score, end to end: which decisions move each of the four
+{# The operational efficiency score, end to end: which decisions move each of the four
    measures, with every number read from the game's parameters. #}
 {% macro dl(code, name) %}<a href="#{{ 'd' ~ code|replace('.', '-') }}">{{ name }} ({{ code }})</a>{% endmacro %}
 {% macro pct(v, d=1) %}{{ ('%.' ~ d ~ 'f')|format(v * 100) }}%{% endmacro %}
+{# The customer value score, end to end, in the same way as the operations
+   section below it. #}
+{% macro cust_section() %}
+<h2 class="sec" id="customer-value">Customer value</h2>
+<p class="group-intro">How your decisions drive the customer value pillar:
+{{ cust.points }} points of the final score, from four measures. Each is marked
+against three published levels - below the first earns nothing, the middle earns
+half, the last earns full marks.</p>
+
+<section class="hb card">
+<table class="gloss hb-facts">
+<thead><tr><th>Measure</th><th class="r">Points</th><th class="r">Nothing</th>
+  <th class="r">Half</th><th class="r">Full</th></tr></thead>
+<tbody>
+{% for key in ['ltv_cac', 'repeat', 'active', 'nps'] %}
+{% set m = cust.measures[key] %}
+<tr><td><b>{{ m[0] }}</b></td><td class="num">{{ m[1] }}</td>
+{% for a in m[2] %}<td class="num">{% if m[3] == 'pct' %}{{ pct(a) }}{% elif m[3] == 'x' %}{{ '%g'|format(a) }}x{% else %}{{ '{:,}'.format(a|int) }}{% endif %}</td>{% endfor %}</tr>
+{% endfor %}
+</tbody></table>
+<p class="hint">All four come from the same two things: who you win, and whether they
+come back. Repeat share is weighted over the months, later ones more; active customers
+and NPS are read at the end of the game.</p>
+</section>
+
+<section class="hb card" id="cust-channels">
+<div class="hb-head"><div><h2>Who you win, and how</h2>
+<p class="hb-lead">Every customer joins a cohort that remembers how it was won, and the
+cohort churns at that channel's rate for the rest of the game. The channel is the paid
+channel you spend most on that month - {{ dl('3.1', 'Meta') }},
+{{ dl('3.2', 'Google Search') }} or {{ dl('3.4', 'TikTok') }} - organic if you spend
+nothing, the marketplace for buyers won on {{ dl('4.1', 'Daraz') }}, and deal-driven if
+your discount ({{ dl('1.1', 'range prices') }} and {{ dl('2.2', 'site-wide discount') }})
+is over 25%.</p></div></div>
+<table class="gloss hb-facts">
+<thead><tr><th>Channel</th><th>When it applies</th><th class="r">Lost each month</th>
+  <th class="r">Average life</th></tr></thead>
+<tbody>{% for c in cust.channels %}<tr><td><b>{{ c.name }}</b></td><td>{{ c.how }}</td>
+  <td class="num">{{ pct(c.churn) }}</td>
+  <td class="num">{{ '%.0f'|format(c.months) }} months</td></tr>{% endfor %}</tbody></table>
+<p>Who you target matters as much as where. Each segment orders again at its own rate,
+set by your positioning and segment focus:</p>
+<table class="gloss hb-facts">
+<thead><tr><th>Segment</th><th class="r">Repeat orders, against the average</th></tr></thead>
+<tbody>{% for name, r in cust.segments %}<tr><td><b>{{ name }}</b></td>
+  <td class="num">&times;{{ '%.2f'|format(r) }}</td></tr>{% endfor %}</tbody></table>
+<p class="hint">A cheap customer who leaves in three months is not cheap. Deep discounts
+and TikTok fill this month's order book and empty next quarter's.</p>
+</section>
+
+<section class="hb card" id="cust-retention">
+<div class="hb-head"><div><h2>Keeping the customers you have</h2>
+<p class="hb-lead">{{ dl('6.1', 'CRM and retention') }} reaches more of your customers the
+more you spend, at full effect from about PKR {{ '{:,}'.format(cust.crm_full) }} a month.
+At full effect it cuts churn by up to {{ pct(cust.crm_churn, 0) }} and lifts repeat orders
+by up to {{ pct(cust.crm_repeat, 0) }}. The first rupees work hardest: reach grows with
+the square root of spend.</p></div></div>
+<p>CRM cannot reach customers who bought on the marketplace - they belong to Daraz, not to
+you. And an unhappy customer leaves whatever you spend: every star your rating sits below
+4 raises next month's churn.</p>
+</section>
+
+<section class="hb card" id="cust-rating">
+<div class="hb-head"><div><h2>Rating and NPS</h2>
+<p class="hb-lead">Your rating moves {{ pct(cust.rating.pace, 0) }} of the way toward its
+target each month, so a fix takes a quarter to show. The target is built from four
+things:</p></div></div>
+<table class="gloss hb-facts">
+<thead><tr><th>What customers judge</th><th>Set by</th><th class="r">Weight</th></tr></thead>
+<tbody>
+<tr><td><b>The product</b></td><td>{{ dl('1.5', 'quality positioning') }},
+  {{ dl('7.4', 'quality assurance') }} and your {{ dl('7.2', 'supplier') }}</td>
+  <td class="num">{{ '%g'|format(cust.rating.quality) }}</td></tr>
+<tr><td><b>Delivery</b></td><td>{{ dl('8.3', 'courier mix') }}</td>
+  <td class="num">{{ '%g'|format(cust.rating.delivery) }}</td></tr>
+<tr><td><b>Customer service</b></td><td>{{ dl('10.1', 'customer service team') }} and
+  {{ dl('11.4', 'AI customer service') }}</td>
+  <td class="num">{{ '%g'|format(cust.rating.service) }}</td></tr>
+<tr><td><b>Packaging</b></td><td>{{ dl('8.5', 'packaging') }}:
+  {% for k, v in cust.packaging.items() %}{{ k }} {{ '%.2f'|format(v) }}{{ ', ' if not loop.last }}{% endfor %}</td>
+  <td class="num">{{ '%g'|format(cust.rating.packaging) }}</td></tr>
+</tbody></table>
+<p>Marketing that promises more than the product delivers ({{ dl('3.8', 'creative') }},
+{{ dl('3.9', 'brand') }}) pulls the target down. NPS is built from the rating, how many
+tickets you answer in time and how many parcels arrive.</p>
+<p class="hint">Customer service: each agent answers about {{ '{:,}'.format(cust.agent_capacity|int) }}
+tickets a month, enough for about {{ '{:,.0f}'.format(cust.orders_per_agent) }} orders, at
+PKR {{ '{:,.0f}'.format(cust.agent_cost) }} each. AI customer service multiplies what the
+team can answer by {{ '%g'|format(cust.ai_cs) }}. An unanswered ticket waits into next
+month, and the backlog grows.</p>
+</section>
+
+<section class="hb card" id="cust-ltv">
+<div class="hb-head"><div><h2>Lifetime value against acquisition cost</h2>
+<p class="hb-lead">Lifetime value is what a customer is worth over {{ cust.horizon }}
+months: the orders they place, times your average order, times your margin before
+marketing. Acquisition cost is everything you spent on marketing divided by every new
+customer you won.</p></div></div>
+<p>So the ratio rises three ways: customers who stay (channel, segment, CRM, rating),
+orders that earn more (price discipline, bundles, the free-delivery threshold), and
+marketing that wins customers for less. Active customers at the end are simply what you
+won minus what you lost - the same levers, added up.</p>
+</section>
+
+<section class="hb card">
+<div class="hb-head"><div><h2>The trade-off that runs through all four</h2>
+<p class="hb-lead">Fast growth and loyal customers pull against each other. Discounts and
+cheap channels add customers quickly and lose them quickly; the channels and segments
+that stay are slower and dearer to win. Customer value is not about the most customers
+this month - it is about how many are still buying, and what they earn you, at the
+end.</p></div></div>
+<p><b>Where teams usually lose these points:</b> discounts over 25% that turn every new
+customer deal-driven; budgets tilted to TikTok for cheap clicks; CRM cut to fund
+acquisition; a customer service team that falls behind as orders grow; and a rating
+dragged down by the cheapest courier and supplier.</p>
+</section>
+{% endmacro %}
 {% macro ops_section() %}
-<h2 class="sec" id="operations">Operations score</h2>
+<h2 class="sec" id="operations">Operational efficiency</h2>
 <p class="group-intro">How your decisions drive the operational efficiency pillar:
 {{ ops.points }} points of the final score, from four measures. Each is marked
 against three published levels - below the first earns nothing, the middle earns
@@ -153,7 +270,8 @@ of stock bought to save a few percent - or so little that the best sellers run o
 <nav class="toc card">
 {% for group, items in hb.groups.items() %}
   <a href="#{{ group }}">{{ group_names.get(group, group) }}</a>
-  {% if group == 'G10' %}<a href="#operations"><b>Operations score</b></a>{% endif %}
+  {% if group == 'G10' %}<a href="#customer-value"><b>Customer value</b></a>
+  <a href="#operations"><b>Operational efficiency</b></a>{% endif %}
 {% endfor %}
 </nav>
 
@@ -202,6 +320,6 @@ of stock bought to save a few percent - or so little that the best sellers run o
   {% endif %}
 </section>
 {% endfor %}
-{% if group == 'G10' %}{{ ops_section() }}{% endif %}
+{% if group == 'G10' %}{{ cust_section() }}{{ ops_section() }}{% endif %}
 {% endfor %}
 {% endblock %}
