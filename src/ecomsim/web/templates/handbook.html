@@ -27,7 +27,7 @@ against three published levels - below the first earns nothing, the middle earns
 half, the last earns full marks.</p>
 
 <section class="hb card">
-<table class="gloss hb-facts">
+<table class="gloss hb-facts hb-levers">
 <thead><tr><th>Measure</th><th class="r">Points</th><th class="r">Nothing</th>
   <th class="r">Half</th><th class="r">Full</th></tr></thead>
 <tbody>
@@ -46,7 +46,7 @@ and NPS are read at the end of the game.</p>
 <div class="hb-head"><div><h2>Levers by measure</h2>
 <p class="hb-lead">The decisions that raise each measure, and which way to push them. The
 cards below explain why.</p></div></div>
-<table class="gloss hb-facts">
+<table class="gloss hb-facts hb-levers">
 <thead><tr><th>Measure</th><th>Levers that raise it</th></tr></thead>
 <tbody>
 <tr><td><b>{{ cust.measures.ltv_cac[0] }}</b></td><td>Lean on
@@ -172,7 +172,7 @@ against three published levels - below the first earns nothing, the middle earns
 half, the last earns full marks.</p>
 
 <section class="hb card">
-<table class="gloss hb-facts">
+<table class="gloss hb-facts hb-levers">
 <thead><tr><th>Measure</th><th class="r">Points</th><th class="r">Nothing</th>
   <th class="r">Half</th><th class="r">Full</th></tr></thead>
 <tbody>
@@ -190,7 +190,7 @@ months are weighted, later ones more, as everywhere on the scorecard.</p>
 <div class="hb-head"><div><h2>Levers by measure</h2>
 <p class="hb-lead">The decisions that raise each measure, and which way to push them. The
 cards below explain why.</p></div></div>
-<table class="gloss hb-facts">
+<table class="gloss hb-facts hb-levers">
 <thead><tr><th>Measure</th><th>Levers that raise it</th></tr></thead>
 <tbody>
 <tr><td><b>{{ ops.measures.delivery[0] }}</b></td><td>Shift your
@@ -329,11 +329,140 @@ of stock bought to save a few percent - or so little that the best sellers run o
 </section>
 {% endmacro %}
 
+{# The other scorecard pillars: each how it is marked, as the scoring guide
+   publishes it, and the levers that move it. #}
+{% macro pillar_head(id) %}{% set p = pillars[id] %}
+<h2 class="sec" id="{{ id }}">{{ p.name }}</h2>
+<p class="group-intro">{{ p.points }} points of the final score. {{ p.summary }}</p>
+{% if p.rows %}
+<section class="hb card">
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Measure</th><th class="r">Points</th><th>How it is marked</th></tr></thead>
+<tbody>{% for label, pts, where in p.rows %}<tr><td><b>{{ label }}</b></td>
+  <td class="num">{{ pts }}</td><td>{{ where }}</td></tr>{% endfor %}</tbody></table>
+</section>
+{% endif %}
+{% endmacro %}
+
+{% macro levers_head() %}
+<div class="hb-head"><div><h2>Levers by measure</h2>
+<p class="hb-lead">The decisions that raise each measure, and which way to push them.</p></div></div>
+{% endmacro %}
+
+{% macro other_pillars() %}
+{{ pillar_head('profitability') }}
+<section class="hb card" id="profitability-levers">
+{{ levers_head() }}
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Measure</th><th>Levers that raise it</th></tr></thead>
+<tbody>
+<tr><td><b>Gross margin</b><br><span class="hint">Revenue after refusals and returns, less
+  the cost of what stayed sold and of returns that cannot be resold</span></td><td>Price
+  with discipline ({{ dl('1.1', 'range prices') }}, a modest
+  {{ dl('2.2', 'site-wide discount') }}); a cheaper {{ dl('7.2', 'supplier') }} or sourcing
+  ({{ dl('1.1', 'range and sourcing') }}); fewer returns that end up written off
+  ({{ dl('10.4', 'returns policy') }}, product quality {{ dl('1.5', 'positioning') }} and
+  {{ dl('7.4', 'quality assurance') }}).</td></tr>
+<tr><td><b>Contribution margin before marketing</b><br><span class="hint">Gross margin less
+  picking, courier, refused and returned shipping, payment fees and marketplace
+  commission</span></td><td>Everything that raises gross margin, plus: a
+  {{ dl('8.3', 'courier mix') }} that is cheap per order and delivers; fewer refused parcels
+  ({{ dl('9.2', 'discount for paying online') }}, {{ dl('9.1', 'cash on delivery') }}); the
+  {{ dl('9.3', 'payment gateway') }} fee; how much you sell through the
+  {{ dl('4.1', 'marketplace') }}, which takes a commission; bigger baskets
+  ({{ dl('1.2', 'bundles') }}, {{ dl('2.4', 'free-delivery threshold') }}) that spread the
+  per-order costs.</td></tr>
+<tr><td><b>EBITDA margin</b><br><span class="hint">Contribution after marketing, less the
+  costs of running the business</span></td><td>Marketing that pays back
+  ({{ dl('3.1', 'Meta') }}, {{ dl('3.2', 'Google') }}, {{ dl('3.4', 'TikTok') }},
+  {{ dl('3.8', 'creative') }}, {{ dl('3.9', 'brand') }}, {{ dl('3.6', 'affiliates') }},
+  {{ dl('6.1', 'CRM') }}); overheads that earn their keep
+  ({{ dl('10.1', 'customer service team') }}, {{ dl('5.1', 'website') }},
+  {{ dl('7.4', 'quality assurance') }}, the running cost of AI tools in G11,
+  {{ dl('12.1', 'research') }}); less stock sitting in the warehouse
+  ({{ dl('7.1', 'stock to purchase') }}, {{ dl('7.5', 'safety stock') }}); and more revenue
+  over the same fixed costs.</td></tr>
+</tbody></table>
+<p class="hint">Profitability is marked against the best team in the room, so a margin is
+only as good as your rivals let it be.</p>
+</section>
+
+{{ pillar_head('growth') }}
+<section class="hb card" id="growth-levers">
+{{ levers_head() }}
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Measure</th><th>Levers that raise it</th></tr></thead>
+<tbody>
+<tr><td><b>Net revenue, last month against first</b></td><td>Keep building to the end: paid
+  budgets ({{ dl('3.1', 'Meta') }}, {{ dl('3.2', 'Google') }}, {{ dl('3.4', 'TikTok') }}),
+  {{ dl('3.9', 'brand-building') }}, which fades when you stop, and
+  {{ dl('6.1', 'CRM') }} to keep the customers you won; a
+  {{ dl('5.1', 'website') }} that converts; bigger baskets ({{ dl('1.2', 'bundles') }},
+  {{ dl('2.4', 'free-delivery threshold') }}, {{ dl('11.1', 'recommendations') }}); enough
+  stock that best sellers do not run out ({{ dl('7.1', 'stock to purchase') }}).</td></tr>
+<tr><td><b>Market share gained</b></td><td>Win customers from rivals: a price customers
+  see as fair for what you sell ({{ dl('1.1', 'range prices') }}); a range in the categories
+  and segments with room to grow ({{ dl('1.3', 'range changes') }}); a rating customers
+  trust; the {{ dl('4.1', 'marketplace') }} for reach.</td></tr>
+<tr><td><b>Orders against a baseline business</b></td><td>The same levers, every month, not
+  only at the end: each month counts, later ones more.</td></tr>
+</tbody></table>
+<p class="hint">Growth bought with deep discounts shows up here and costs you twice
+elsewhere: in margin, and in deal-driven customers who leave.</p>
+</section>
+
+{{ pillar_head('cash-capital') }}
+<section class="hb card" id="cash-capital-levers">
+{{ levers_head() }}
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Measure</th><th>Levers that raise it</th></tr></thead>
+<tbody>
+<tr><td><b>Runway at the end</b><br><span class="hint">Cash over the month's operating cash
+  burn</span></td><td>Aim for the middle band, not the most cash: end the game with
+  enough cash for 3 to 9 months of burn. Spend down a cash pile on growth; cut burn, or hold
+  less stock ({{ dl('7.1', 'stock to purchase') }}, {{ dl('7.5', 'safety stock') }}), if you
+  are running short. A business that is not burning cash, or could last more than 16
+  months, earns less - it has under-invested.</td></tr>
+<tr><td><b>Cash the business generated itself</b><br><span class="hint">Cash gained since
+  the start, less any increase in what you owe the bank</span></td><td>Profit, and less cash
+  tied up: stock bought closer to what you sell ({{ dl('7.1', 'stock to purchase') }},
+  {{ dl('7.5', 'safety stock') }}, a {{ dl('7.2', 'supplier') }} with a small minimum
+  order); more customers paying in advance ({{ dl('9.2', 'discount for paying online') }}),
+  since cash-on-delivery money arrives later; AI tools in G11 cost cash up front.
+  Borrowing does not count as cash generated, and repaying the bank
+  ({{ dl('12.7', 'extra repayment') }}) does not count against you.</td></tr>
+<tr><td><b>Net profit margin</b><br><span class="hint">EBITDA less interest</span></td><td>Every
+  lever that raises EBITDA margin, plus borrowing only what you need
+  ({{ dl('12.6', 'working capital loan') }}) and paying it down
+  ({{ dl('12.7', 'extra repayment') }}) to cut the interest.</td></tr>
+</tbody></table>
+<p class="hint">Running out of cash, being put into administration, scores nothing on this
+pillar however strong the rest.</p>
+</section>
+
+{{ pillar_head('decision-quality') }}
+<section class="hb card" id="decision-quality-levers">
+{{ levers_head() }}
+<table class="gloss hb-facts hb-levers">
+<thead><tr><th>Mark</th><th>What earns it</th></tr></thead>
+<tbody>
+<tr><td><b>Decisions taken</b> (8 points a month)</td><td>Fill in the decisions open to you
+  each month, rather than leaving them to carry over: full marks at three-quarters of
+  them.</td></tr>
+<tr><td><b>Board memo</b> (2 points a month)</td><td>Write a {{ dl('12.5', 'board memo') }}
+  every month that says what you decided and why, and that matches the decisions you
+  submitted. Your instructor can withdraw these marks for a memo that does not. Use what
+  your report and {{ dl('12.1', 'market research') }} told you.</td></tr>
+</tbody></table>
+</section>
+{% endmacro %}
+
 <nav class="toc card">
 {% for group, items in hb.groups.items() %}
   <a href="#{{ group }}">{{ group_names.get(group, group) }}</a>
   {% if group == 'G10' %}<a href="#customer-value"><b>Customer value</b></a>
-  <a href="#operations"><b>Operational efficiency</b></a>{% endif %}
+  <a href="#operations"><b>Operational efficiency</b></a>
+  {% for id, p in pillars.items() %}<a href="#{{ id }}"><b>{{ p.name }}</b></a>{% endfor %}{% endif %}
 {% endfor %}
 </nav>
 
@@ -382,6 +511,6 @@ of stock bought to save a few percent - or so little that the best sellers run o
   {% endif %}
 </section>
 {% endfor %}
-{% if group == 'G10' %}{{ cust_section() }}{{ ops_section() }}{% endif %}
+{% if group == 'G10' %}{{ cust_section() }}{{ ops_section() }}{{ other_pillars() }}{% endif %}
 {% endfor %}
 {% endblock %}

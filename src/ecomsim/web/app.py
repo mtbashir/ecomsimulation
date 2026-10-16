@@ -477,7 +477,8 @@ def register_routes(app: Flask) -> None:
         the report, and the mistake teams usually make."""
         return render_template("handbook.html", hb=service.handbook_page(g.db),
                                ops=service.operations_guide(g.db),
-                           cust=service.customer_guide(g.db))
+                           cust=service.customer_guide(g.db),
+                           pillars=service.pillar_guide(g.db))
 
     @app.get("/guide/marketing")
     @login_required()

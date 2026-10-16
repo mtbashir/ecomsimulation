@@ -2210,3 +2210,13 @@ def customer_guide(con) -> dict:
         "packaging": PACKAGING_SCORE,
         "horizon": int(params["ltv_horizon_months"]),
     }
+
+
+def pillar_guide(con) -> dict:
+    """The scorecard pillars the handbook has no section of its own for, as
+    the scoring guide publishes them: {id: {name, points, summary, rows}}."""
+    ids = {"Profitability": "profitability", "Growth": "growth",
+           "Cash & capital": "cash-capital", "Decision quality": "decision-quality"}
+    return {ids[name]: {"name": name, "points": pts, "summary": summary, "rows": rows}
+            for name, pts, summary, rows in scoring.published(db.rules_from(con))
+            if name in ids}

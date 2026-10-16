@@ -639,3 +639,22 @@ def test_the_handbook_explains_customer_value_before_operational_efficiency(game
     assert 'id="cust-levers"' in page and page.index('id="cust-levers"') < page.index('id="cust-channels"')
     for code in ("3-1", "3-4", "4-1", "2-2", "6-1", "10-1", "11-4", "8-5", "1-2", "2-4", "5-1"):
         assert f'href="#d{code}"' in page, "every lever links to its own entry"
+
+
+def test_the_handbook_gives_levers_for_every_scorecard_pillar(game):
+    import re
+    from ecomsim import scoring
+    app, pw, path = game
+    page = _client(app, "team_01", pw["team_01"]).get("/handbook").get_data(as_text=True)
+    order = ["G10", "customer-value", "operations", "profitability", "growth",
+             "cash-capital", "decision-quality", "G11"]
+    at = [page.index(f'id="{i}"') for i in order]
+    assert at == sorted(at), "each pillar after customer service, in scorecard order"
+    for name, _, _, measures in scoring.SCORECARD:
+        for _, label, *_ in measures:
+            assert label in page, f"{name}: {label}"
+    for i in order[1:-1]:
+        assert f'href="#{i}"' in page
+    assert page.count("Levers by Measure") == 6
+    for h in set(re.findall(r'href="#([\w-]+)"', page)):
+        assert f'id="{h}"' in page, f"#{h} goes nowhere"
