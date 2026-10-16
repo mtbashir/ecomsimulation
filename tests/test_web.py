@@ -635,5 +635,6 @@ def test_the_handbook_explains_customer_value_before_operational_efficiency(game
         assert escape(c["name"]) in page and f'{float(c["churn_base"]) * 100:.1f}%' in page
     for s in params.segments:
         assert f'&times;{float(s["repeat_propensity"]):.2f}' in page
-    for code in ("3-1", "3-4", "4-1", "2-2", "6-1", "10-1", "11-4", "8-5"):
+    assert 'id="cust-levers"' in page and page.index('id="cust-levers"') < page.index('id="cust-channels"')
+    for code in ("3-1", "3-4", "4-1", "2-2", "6-1", "10-1", "11-4", "8-5", "1-2", "2-4", "5-1"):
         assert f'href="#d{code}"' in page, "every lever links to its own entry"
