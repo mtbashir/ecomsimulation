@@ -581,6 +581,38 @@ def _months(months: list[tuple[int, str]] | None, round_: int) -> str:
     return f'<nav class="months" aria-label="Every month\'s report">{links}</nav>'
 
 
+def _loan(record: dict) -> str:
+    """The month's borrowing, said plainly (games on the loan rules)."""
+    loan = record.get("loan")
+    if not loan:
+        return ""
+    pkr = lambda v: f"PKR {v:,.0f}"
+    lines = [f"You approved <b>{pkr(loan.get('approved', 0))}</b> and the month needed "
+             f"about {pkr(loan.get('need', 0))}."]
+    if loan.get("drawn") or loan.get("unplanned"):
+        lines.append(f"You borrowed {pkr(loan.get('drawn', 0) + loan.get('unplanned', 0))}"
+                     + (f", of which {pkr(loan['unplanned'])} was not approved: bills fell "
+                        f"due that your cash and approved loan could not cover, and the "
+                        f"bank covered the gap rather than leave you below zero. Next month, "
+                        f"approve credit for the supplier bills you know are coming."
+                        if loan.get("unplanned") else "."))
+    if loan.get("repaid"):
+        lines.append(f"You repaid {pkr(loan['repaid'])}"
+                     + (f" ({pkr(loan['repaid_by_choice'])} by choice, the rest from spare cash)."
+                        if loan.get("repaid_by_choice") else " from spare cash."))
+    cuts = []
+    if loan.get("stock_cut"):
+        cuts.append(f"your stock order by {pkr(loan['stock_cut'])}")
+    if loan.get("spend_cut"):
+        cuts.append(f"marketing and other spending by {pkr(loan['spend_cut'])}")
+    if cuts:
+        lines.append("<b>Not enough was approved to pay for the month, so we cut "
+                     + " and ".join(cuts) + ".</b>")
+    lines.append(f"You now owe {pkr(loan.get('owed_after', loan.get('owed', 0)))} at 22% a year.")
+    return ('<section class="block"><div class="blockhead"><div><h2>Working capital loan</h2>'
+            f'<p class="cap" style="max-width:82ch">{" ".join(lines)}</p></div></div></section>')
+
+
 def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None,
            download: str | None = None, hidden: set | frozenset = frozenset(),
            marked: set | frozenset = frozenset(),
@@ -814,6 +846,7 @@ td.v.warn{{color:var(--warn)}}
   {missed_html}
 </section>
 {_funnel(record, funnel.from_scratch_launch(team, record))}
+{_loan(record)}
 {run_chart}
 <h2 class="sec">Every measure, month {round_}{against}</h2>
 <div class="grid">{"".join(cards)}</div>

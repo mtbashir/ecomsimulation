@@ -809,8 +809,16 @@ def _cash(book, history, months, pl, team=None, params=None):
         parts.append(s.line("refund", "Refund for stock returned to the supplier",
                             get("supplier_refund"),
                             note="Stock sent back to the supplier this month, refunded in cash"))
+    loan_rules = any("loan" in h for h in history)
     cd = s.line("credit", "Credit drawn this month", get("credit_draw"),
-                note="Drawn automatically when cash would go below zero, up to the credit limit")
+                note=("Drawn when bills fell due, up to the loan you approved"
+                      if loan_rules else
+                      "Drawn automatically when cash would go below zero, up to the credit limit"))
+    if loan_rules:
+        # Repayments leave cash, so the closing balance subtracts them.
+        cr = s.line("repaid", "Loan repaid this month", get("credit_repaid", -1),
+                    note="Spare cash above a month of fixed costs, plus any extra repayment you chose")
+        parts.append(cr)
     closing_formula = total(*parts, cd)
     s.ws.write(s.r, 0, "Closing cash", book.f("label_b"))
     vals = []

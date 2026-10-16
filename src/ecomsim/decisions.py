@@ -349,8 +349,24 @@ REGISTRY: dict[str, DecisionSpec] = {
             help="A short note on what you are trying to achieve this month "
                  "and why. Your instructor reads it; the model ignores it.",
             guide="Optional"),
+        # Working capital: borrowing is a decision the team takes, not something
+        # that happens to it (ecomsim.loans). Offered only in games that run on
+        # the loan rules; a blank approval means no new borrowing this month.
+        DecisionSpec(
+            "12.6", "G12", "Working capital loan", "curr", None, ALL,
+            help="How much the bank may lend you this month, at 22% a year. "
+                 "Approve less than you need and your stock order is cut first, "
+                 "then your marketing, to what you can pay for.",
+            unit="PKR", guide="We suggest an amount from your own numbers"),
+        DecisionSpec(
+            "12.7", "G12", "Extra loan repayment", "curr", None, ALL,
+            help="Pay back more than the automatic repayment. Spare cash above "
+                 "a month of fixed costs repays the loan anyway; this pays down "
+                 "more, saving interest at the cost of a thinner cushion.",
+            unit="PKR", guide="Optional"),
     ]
 }
+LOAN_DECISIONS = ("12.6", "12.7")
 
 
 class Resolver:

@@ -163,6 +163,7 @@ def migrate(con) -> None:
         ("game", "range_changes", "INTEGER"),
         ("game", "scaled_purchases", "INTEGER"),
         ("game", "fair_pricing_from", "INTEGER"),
+        ("game", "loans_from", "INTEGER"),
     ]:
         have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
         if column not in have:
@@ -185,6 +186,9 @@ def migrate(con) -> None:
     # (never, unless the instructor sets a month) for one already trading.
     con.execute("UPDATE game SET fair_pricing_from = CASE WHEN round >= 1 THEN 0 ELSE 1 END "
                 "WHERE fair_pricing_from IS NULL")
+    # And working capital loans as a decision, on the same terms.
+    con.execute("UPDATE game SET loans_from = CASE WHEN round >= 1 THEN 0 ELSE 1 END "
+                "WHERE loans_from IS NULL")
 
 
 def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
@@ -200,7 +204,7 @@ def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
             "INSERT OR REPLACE INTO game "
             "(id, name, preset, round, total_rounds, open_round, start_mode, "
             "rules_from, launch_order, range_changes, scaled_purchases, fair_pricing_from, "
-            "created_at) VALUES (1, ?, ?, 0, ?, NULL, ?, 1, 1, 1, 1, 1, ?)",
+            "loans_from, created_at) VALUES (1, ?, ?, 0, ?, NULL, ?, 1, 1, 1, 1, 1, 1, ?)",
             (name, preset, rounds, start_mode, _now()))
         con.execute(
             "INSERT OR REPLACE INTO account "
@@ -451,6 +455,36 @@ def set_fair_pricing_from(con, month: int, actor: str = "admin") -> None:
     with con:
         con.execute("UPDATE game SET fair_pricing_from = ? WHERE id = 1", (month,))
         log(con, actor, "pricing.like_for_like", f"from month {month}")
+
+
+def loans_from(con) -> int:
+    """The first month borrowing is a decision (ecomsim.loans); 0 means never.
+
+    1 for a game set up from now on; 0 for one already trading when it
+    arrived, until the instructor picks a month not yet run.
+    """
+    row = game(con)
+    if row is None:
+        return 1
+    if "loans_from" in row.keys() and row["loans_from"] is not None:
+        return int(row["loans_from"])
+    return 1 if int(row["round"]) < 1 else 0
+
+
+def loans(con, month: int) -> bool:
+    """Whether `month` runs on the loan rules."""
+    start = loans_from(con)
+    return bool(start) and month >= start
+
+
+def set_loans_from(con, month: int, actor: str = "admin") -> None:
+    """Move a running game onto the loan rules from a month not yet run."""
+    g = game(con)
+    if not g["round"] < month <= g["total_rounds"]:
+        raise ValueError(f"pick a month from {g['round'] + 1} to {g['total_rounds']}")
+    with con:
+        con.execute("UPDATE game SET loans_from = ? WHERE id = 1", (month,))
+        log(con, actor, "loans.decision", f"from month {month}")
 
 
 def schedule_returns(con, round_: int, rows: list[dict], reason: str,
@@ -808,7 +842,7 @@ def new_game(con, db_path: str | Path, name: str, teams: int, rounds: int,
             "UPDATE game SET name = ?, round = 0, total_rounds = ?, "
             "open_round = NULL, start_mode = ?, overrides = ?, epoch = ?, "
             "rules_from = 1, launch_order = 1, range_changes = 1, scaled_purchases = 1, "
-            "fair_pricing_from = 1, created_at = ? WHERE id = 1",
+            "fair_pricing_from = 1, loans_from = 1, created_at = ? WHERE id = 1",
             (name, rounds, start_mode,
              old["overrides"] if keep_overrides else "{}",
              old["epoch"] + 1, _now()))

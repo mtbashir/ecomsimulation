@@ -152,6 +152,8 @@ def run(world, params, resolved, ctx) -> None:
         if tid in ctx.get("purchase", {}):
             record["purchase"] = dict(ctx["purchase"][tid])
         record["cash_flow"] = dict(ctx.get("cash_flow", {}).get(tid, {}))
+        if tid in ctx.get("loan", {}):
+            record["loan"] = dict(ctx["loan"][tid])
         record["ab_tests"] = targeting.ab_tests(team.history + [record])
         team.history.append(record)
         ctx.setdefault("scorecard", {})[tid] = _scorecard(team, params, record)

@@ -78,6 +78,38 @@
 </div>
 </section>
 
+{# Working capital. New games ask teams to approve their loan from month 1; a
+   game that was trading when this arrived stays on the automatic credit line
+   unless switched here, from a month not yet run. #}
+{% set loans_active = loans_from and game['round'] >= loans_from %}
+{% if loans_from != 1 and not loans_active and game['round'] < game['total_rounds'] %}
+<section>
+<h2>Working capital loans</h2>
+{% if loans_from %}
+<p class="note" style="margin:0">From month <strong>{{ loans_from }}</strong> teams
+approve their own loan each month, and spare cash repays it. Until then the credit
+line draws itself, as before.</p>
+{% else %}
+<p class="note">This game borrows automatically: when cash would go below zero the
+bank lends, up to PKR 24M at 22% a year, and nothing is ever repaid. Switch to loans
+as a decision from a month not yet run: each team is shown what its month needs and
+approves the loan itself - approve too little and its stock order is cut first, then
+marketing - and cash above a month of fixed costs repays the loan.</p>
+<form method="post" action="{{ url_for('admin_loans') }}"
+      style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"
+      onsubmit="return confirm('Switch to loans as a decision from this month? Tell the teams before they submit it: a month with no loan approved has its stock order cut.')">
+  <label for="lf" style="margin:0">Loans as a decision from month</label>
+  <select id="lf" name="month" style="width:auto">
+    {% for m in range(game['round'] + 1, game['total_rounds'] + 1) %}
+    <option value="{{ m }}" {{ 'selected' if m == game['round'] + 1 }}>{{ m }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="ghost">Switch</button>
+</form>
+{% endif %}
+</section>
+{% endif %}
+
 {# Pricing model. New games price like for like from month 1; a game that was
    already trading when it arrived stays on the old model unless switched here,
    from a month not yet run. Shown only while there is a choice to make. #}

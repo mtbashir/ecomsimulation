@@ -851,6 +851,7 @@ def register_routes(app: Flask) -> None:
             carried=standing,
             shelf=shelf, summaries=summaries, taken=taken,
             counted=len(counted),
+            loan=service.loan_advice(g.db, tid, rnd, current, standing),
             keeps=keeps, kept=kept,
             campaigns_open=any(s.code == targeting.DECISION for s in specs),
             standing_campaigns=(
@@ -948,7 +949,23 @@ def register_routes(app: Flask) -> None:
             report_months=list(range(1, game["total_rounds"] + 1)),
             report_view={m: db.report_view(g.db, m)
                          for m in range(1, game["total_rounds"] + 1)},
-            fair_from=db.fair_pricing_from(g.db))
+            fair_from=db.fair_pricing_from(g.db),
+            loans_from=db.loans_from(g.db))
+
+    @app.post("/admin/loans")
+    @login_required("admin")
+    def admin_loans():
+        """Move a running game onto loans-as-a-decision from a later month."""
+        try:
+            month = int(request.form.get("month", ""))
+            db.set_loans_from(g.db, month, session["user"])
+        except ValueError as exc:
+            flash(f"Not changed: {exc}.", "error")
+        else:
+            flash(f"From month {month} teams approve their own working capital loan, "
+                  f"and spare cash repays it. Tell the teams before they submit "
+                  f"month {month}: an unapproved month has its stock order cut.", "ok")
+        return redirect(url_for("admin"))
 
     @app.get("/admin/preview")
     @login_required("admin")

@@ -112,6 +112,7 @@ def trading(tmp_path):
     from ecomsim.web.app import create_app
     path = tmp_path / "g.db"
     pw = db.init(path, "Stock", 3, rounds=12, admin_password="admin-pw")
+    _c = db.connect(path); _c.execute("UPDATE game SET loans_from = 0"); _c.commit()  # not about loans
     con = db.connect(path)
     params = service.load_params(con)
     for i in (1, 2, 3):

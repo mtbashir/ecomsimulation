@@ -17,6 +17,7 @@ from ecomsim.web.titlecase import tc
 def game(tmp_path):
     path = tmp_path / "g.db"
     passwords = db.init(path, "Test", 3, rounds=12, admin_password="admin-pw")
+    _c = db.connect(path); _c.execute("UPDATE game SET loans_from = 0"); _c.commit()  # not about loans
     app = create_app(path)
     app.config["TESTING"] = True
     return app, passwords, path

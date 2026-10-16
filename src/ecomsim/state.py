@@ -147,4 +147,8 @@ class WorldState:
     # catalogue price - with no floor under the price response (ecomsim.pricing).
     # Same pattern: new worlds say so, older saved worlds read False.
     fair_pricing: bool = False
+    # Whether borrowing is a decision (ecomsim.loans): the team approves a loan
+    # each month, spending is cut to what it can fund, and spare cash repays.
+    # Older saved worlds read False and keep the automatic credit line.
+    loans: bool = False
     category_scale: float = 1.0

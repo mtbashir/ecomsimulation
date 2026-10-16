@@ -408,6 +408,28 @@ ENTRIES = {
         mistake="Describing what you did instead of what you expect to happen. A "
                 "memo that makes a prediction can be checked.",
         related=[]),
+    "12.6": dict(
+        does="Approves how much the bank may lend you this month, at 22% a year. "
+             "The form shows what your month needs: bills due, the stock you are "
+             "ordering, marketing and fixed costs, less your cash and the money "
+             "coming in. Leave it blank and you borrow nothing new.",
+        tradeoff="Borrowing lets you buy stock and keep marketing while customers' "
+                 "cash is still on its way; every rupee costs about 1.8% a month "
+                 "and weighs on the cash part of your score.",
+        watch="The loan line in your report: approved, drawn, repaid and owed - and "
+              "whether anything was cut because the loan did not cover the month.",
+        mistake="Approving nothing to look prudent, then losing the month's stock "
+                "order: a stock-out costs more than the interest would have.",
+        related=["12.7", "7.1"]),
+    "12.7": dict(
+        does="Repays more of the loan than the automatic repayment, which already "
+             "sweeps any cash above a month of fixed costs.",
+        tradeoff="Less interest against a thinner cushion: cash used to repay is not "
+                 "there if next month's bills arrive before your customers pay.",
+        watch="Interest in the P&L falling, and cash at month end.",
+        mistake="Repaying in a month you are also ordering heavily - you will "
+                "borrow it back next month and pay for the round trip.",
+        related=["12.6"]),
 }
 
 GUIDES = {"marketing": ("Performance marketing guide", "guide_marketing")}

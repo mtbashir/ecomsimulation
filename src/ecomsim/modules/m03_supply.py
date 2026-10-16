@@ -279,6 +279,19 @@ def _commit_po(team, world, params, ctx, supplier, events, units, round_days,
         for c in skus
     ) * purchase_scale(world, params)
 
+    # Loan rules: an order the team cannot fund is cut to what it can, and one
+    # that cannot reach the supplier's minimum is not placed (ecomsim.loans).
+    budget = ctx.get("po_budget", {}).get(team.team_id)
+    if budget is not None and cost > budget:
+        factor = max(0.0, budget) / cost if cost else 0.0
+        purchase = ctx["purchase"][team.team_id]
+        if units * factor < moq:
+            purchase.update(bought=0.0, unfunded=units)
+            return
+        alloc = {c: u * factor for c, u in alloc.items()}
+        cost *= factor
+        purchase.update(bought=units * factor, unfunded=units * (1 - factor))
+
     team.open_pos.append({
         "placed": world.round, "arrives": arrives,
         "units": alloc, "cost": cost, "supplier": supplier["code"],

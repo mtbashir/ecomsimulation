@@ -15,7 +15,7 @@ from dataclasses import asdict
 from .. import (assortment, bootstrap, console, founding as founding_mod, params as P,
                version,
                 report, scoring, targeting)
-from ..decisions import REGISTRY, Resolver
+from ..decisions import LOAN_DECISIONS, REGISTRY, Resolver
 from ..engine import run_round
 from ..io_csv import LIST_DECISIONS
 from . import db
@@ -46,6 +46,8 @@ def open_decisions(con, round_: int) -> list:
     manual = db.windows(con, round_)
     # A game that started before range changes existed never offers them.
     off = set() if db.range_changes(con) else {assortment.DECISION}
+    if not db.loans(con, round_):
+        off |= set(LOAN_DECISIONS)       # the automatic credit line instead
     out = []
     for code, spec in REGISTRY.items():
         if code in off:
@@ -1007,6 +1009,7 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
     world.range_changes = db.range_changes(con)
     world.scaled_purchases = db.scaled_purchases(con)
     world.fair_pricing = db.fair_pricing(con, nxt)
+    world.loans = db.loans(con, nxt)
     if nxt < world.rules_from:
         # Rules v1: only campaigns carry; every other lever left blank runs
         # on its default, as the months already played did.
@@ -2084,3 +2087,41 @@ def preview_round(con) -> tuple[int, str] | None:
         return result["round"], instructor_console(copy, result["round"])
     finally:
         copy.close()
+
+
+# --- Working capital loan -----------------------------------------------------------
+
+def loan_advice(con, team_id: str, round_: int, current: dict,
+                standing: dict | None = None) -> dict | None:
+    """What month `round_` needs and what the team owes, for the loan tile.
+
+    Worked from the decisions as they stand on the form - saved this month,
+    else carried from last - so the suggestion moves when the team changes its
+    stock order or marketing and saves. None in a game on the automatic line.
+    """
+    from .. import loans
+    if not db.loans(con, round_):
+        return None
+    params = load_params(con)
+    world = db.load_world(con)
+    if world is None:
+        world = first_world(con, params, db.game(con))
+    team = world.teams.get(team_id)
+    if team is None:
+        return None
+    # Resolved exactly as the engine will resolve them: last month's settings
+    # under this month's, then the defaults for anything still blank - so the
+    # suggestion counts the marketing a team gets without typing it.
+    from ..engine import carry
+    g = db.game(con)
+    held = getattr(team, "standing", None) or standing or {}
+    merged = carry(held, current) if round_ >= db.rules_from(con) else dict(current)
+    d = Resolver(preset=g["preset"], round_=round_).resolve(merged)
+    research = sum(float(params.study(c)["price"]) for c in (d.get("12.1") or [])
+                   if any(s["code"] == c for s in params.studies))
+    n = loans.need(team, round_, params, d, research)
+    n["rate"] = params["credit_rate_annual"]
+    n["ceiling"] = params["credit_ceiling"]
+    n["suggest"] = min(n["need"], n["headroom"])
+    n["approved"] = current.get(loans.APPROVE)
+    return n

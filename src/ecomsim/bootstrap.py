@@ -26,6 +26,9 @@ def new_world(params, n_teams: int | None = None, run_id: str = "run",
     world = WorldState(run_id=run_id)
     world.scaled_purchases = True
     world.fair_pricing = True
+    # world.loans stays False here: borrowing as a decision is a classroom
+    # rule the web game switches on per month (db.loans_from). Engine-only runs
+    # - calibration, the archetype harness - keep the automatic credit line.
     world.teams = {
         f"team_{i + 1:02d}": new_team(params, f"team_{i + 1:02d}")
         for i in range(n_teams)

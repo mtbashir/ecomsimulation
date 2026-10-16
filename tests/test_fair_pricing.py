@@ -190,6 +190,7 @@ def _class(path, niche_prices: float):
     """Six teams in the usual skincare and haircare, one taking homecare and
     hygiene nobody else stocks - at premium prices."""
     db.init(path, "x", 7, admin_password="x")
+    _c = db.connect(path); _c.execute("UPDATE game SET loans_from = 0"); _c.commit()  # not about loans
     con = db.connect(path)
     params = service.load_params(con)
     skus = {s["code"]: s for s in params.skus}

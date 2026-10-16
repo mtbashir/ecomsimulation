@@ -77,7 +77,11 @@ def run(world, params, resolved, ctx) -> None:
         team.cash += inflow - outflow + refund
 
         draw = 0.0
-        if team.cash < 0:
+        if getattr(world, "loans", False):
+            # Only what was approved, then spare cash repays (ecomsim.loans).
+            from .. import loans
+            draw = loans.settle(team, params, ctx["resolved"][tid], ctx)
+        elif team.cash < 0:
             headroom = params["credit_ceiling"] - team.credit_drawn
             draw = min(headroom, -team.cash)
             team.credit_drawn += draw
@@ -94,6 +98,7 @@ def run(world, params, resolved, ctx) -> None:
             "capex": ctx.get("capex", {}).get(tid, 0.0),
             "supplier_refund": refund,
             "credit_draw": draw, "closing": team.cash,
+            "credit_repaid": (ctx.get("loan", {}).get(tid) or {}).get("repaid", 0.0),
             "purchases_ordered": po_cost,
             "owed_to_suppliers": sum(team.payables.values()),
             "cod_in_transit": team.cod_receivable,
