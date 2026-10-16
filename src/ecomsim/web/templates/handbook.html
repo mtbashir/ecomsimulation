@@ -13,18 +13,11 @@
     are scored</a></div>
 </div>
 
-<nav class="toc card">
-  <a href="#operations"><b>Operations score</b></a>
-{% for group, items in hb.groups.items() %}
-  <a href="#{{ group }}">{{ group_names.get(group, group) }}</a>
-{% endfor %}
-</nav>
-
-
 {# The operations score, end to end: which decisions move each of the four
    measures, with every number read from the game's parameters. #}
 {% macro dl(code, name) %}<a href="#{{ 'd' ~ code|replace('.', '-') }}">{{ name }} ({{ code }})</a>{% endmacro %}
 {% macro pct(v, d=1) %}{{ ('%.' ~ d ~ 'f')|format(v * 100) }}%{% endmacro %}
+{% macro ops_section() %}
 <h2 class="sec" id="operations">Operations score</h2>
 <p class="group-intro">How your decisions drive the operational efficiency pillar:
 {{ ops.points }} points of the final score, from four measures. Each is marked
@@ -155,6 +148,15 @@ option; no reason for customers to pay in advance; free returns on the products 
 come back most; marketing that promises more than the product; and eight or more weeks
 of stock bought to save a few percent - or so little that the best sellers run out.</p>
 </section>
+{% endmacro %}
+
+<nav class="toc card">
+{% for group, items in hb.groups.items() %}
+  <a href="#{{ group }}">{{ group_names.get(group, group) }}</a>
+  {% if group == 'G10' %}<a href="#operations"><b>Operations score</b></a>{% endif %}
+{% endfor %}
+</nav>
+
 
 {% for group, items in hb.groups.items() %}
 <h2 class="sec" id="{{ group }}">{{ group_names.get(group, group) }}</h2>
@@ -200,5 +202,6 @@ of stock bought to save a few percent - or so little that the best sellers run o
   {% endif %}
 </section>
 {% endfor %}
+{% if group == 'G10' %}{{ ops_section() }}{% endif %}
 {% endfor %}
 {% endblock %}
