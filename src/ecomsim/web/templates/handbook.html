@@ -14,10 +14,147 @@
 </div>
 
 <nav class="toc card">
+  <a href="#operations"><b>Operations score</b></a>
 {% for group, items in hb.groups.items() %}
   <a href="#{{ group }}">{{ group_names.get(group, group) }}</a>
 {% endfor %}
 </nav>
+
+
+{# The operations score, end to end: which decisions move each of the four
+   measures, with every number read from the game's parameters. #}
+{% macro dl(code, name) %}<a href="#{{ 'd' ~ code|replace('.', '-') }}">{{ name }} ({{ code }})</a>{% endmacro %}
+{% macro pct(v, d=1) %}{{ ('%.' ~ d ~ 'f')|format(v * 100) }}%{% endmacro %}
+<h2 class="sec" id="operations">Operations score</h2>
+<p class="group-intro">How your decisions drive the operational efficiency pillar:
+{{ ops.points }} points of the final score, from four measures. Each is marked
+against three published levels - below the first earns nothing, the middle earns
+half, the last earns full marks.</p>
+
+<section class="hb card">
+<table class="gloss hb-facts">
+<thead><tr><th>Measure</th><th class="r">Points</th><th class="r">Nothing</th>
+  <th class="r">Half</th><th class="r">Full</th></tr></thead>
+<tbody>
+{% for key in ['delivery', 'leak', 'turns', 'service'] %}
+{% set m = ops.measures[key] %}
+<tr><td><b>{{ m[0] }}</b></td><td class="num">{{ m[1] }}</td>
+{% for a in m[2] %}<td class="num">{% if m[3] == 'pct' %}{{ pct(a) }}{% else %}{{ '%g'|format(a) }}{% endif %}</td>{% endfor %}</tr>
+{% endfor %}
+</tbody></table>
+<p class="hint">Refused and returned parcel costs score better the lower they are. The
+months are weighted, later ones more, as everywhere on the scorecard.</p>
+</section>
+
+<section class="hb card" id="ops-delivery">
+<div class="hb-head"><div><h2>Delivery success</h2>
+<p class="hb-lead">The share of parcels your couriers manage to deliver. It is set by one
+decision: your {{ dl('8.3', 'courier mix') }}. Delivery success is the success rate of
+your couriers, weighted by the share of orders each carries.</p></div></div>
+<table class="gloss hb-facts">
+<thead><tr><th>Courier</th><th class="r">Delivered</th><th class="r">Cost per order</th>
+  <th class="r">Days</th><th class="r">Rural reach</th></tr></thead>
+<tbody>{% for c in ops.couriers %}<tr><td><b>{{ c.name }}</b></td>
+  <td class="num">{{ pct(c.success_rate|float) }}</td>
+  <td class="num">PKR {{ '{:,.0f}'.format(c.cost_per_order|float) }}</td>
+  <td class="num">{{ '%.1f'|format(c.avg_days|float) }}</td>
+  <td class="num">{{ pct(c.rural_reach|float, 0) }}</td></tr>{% endfor %}</tbody></table>
+<table class="gloss hb-facts" style="margin-top:8px">
+<thead><tr><th>A mix and what it delivers</th><th class="r">Delivery success</th></tr></thead>
+<tbody>{% for label, v in ops.mixes %}<tr><td>{{ label }}</td><td class="num">{{ pct(v) }}</td></tr>{% endfor %}</tbody></table>
+<p class="hint">The trade-off: the cheapest courier saves on every order and costs points
+here, because every parcel it fails to deliver is also a sale that never lands.</p>
+</section>
+
+<section class="hb card" id="ops-leak">
+<div class="hb-head"><div><h2>Refused and returned parcels</h2>
+<p class="hb-lead">What parcels refused at the door (shipped both ways, paid for twice) and
+customer returns (shipped back, and about {{ pct(ops.write_off, 0) }} of what comes back
+cannot be resold) cost you, as a share of revenue.</p></div></div>
+<p><b>Refused at the door.</b> Only cash-on-delivery parcels are refused. About
+{{ pct(ops.refused[0].cod, 0) }} of orders are cash on delivery, and
+{{ pct(ops.refused[0].rto, 0) }} of those are refused. A
+{{ dl('9.2', 'discount for paying online') }} works twice: fewer customers choose cash on
+delivery, and fewer of those who still do refuse the parcel.</p>
+<table class="gloss hb-facts">
+<thead><tr><th>Discount for paying online</th><th class="r">Orders on cash on delivery</th>
+  <th class="r">Of those, refused</th><th class="r">Refused, of all orders</th></tr></thead>
+<tbody>{% for r in ops.refused %}<tr><td><b>{{ pct(r.incentive, 0) }}</b></td>
+  <td class="num">{{ pct(r.cod, 0) }}</td><td class="num">{{ pct(r.rto) }}</td>
+  <td class="num">{{ pct(r.refused) }}</td></tr>{% endfor %}</tbody></table>
+<p class="hint">The discount is paid on every prepaid order, so weigh it against the
+refusals it saves. Switching {{ dl('9.1', 'cash on delivery') }} off ends refusals
+entirely - and most shoppers in this market with them. Late deliveries raise refusals
+too: when orders pass your capacity ({{ '{:,}'.format(ops.capacity) }} a month, plus
+{{ '{:,}'.format(ops.capacity_3pl) }} for every 100% of {{ dl('8.2', 'orders shipped through
+3PL') }}), parcels slip and more are turned away.</p>
+<p><b>Returned after delivery.</b> About {{ pct(ops.return_base, 0) }} of last month's
+deliveries come back, more or less depending on four things:</p>
+<ul class="hb-opts">
+  <li>Your {{ dl('10.4', 'returns policy') }}:
+    {% for label, m in ops.policies %}{{ label|lower }} &times;{{ '%.2f'|format(m) }}{{ ', ' if not loop.last }}{% endfor %}
+    the usual rate.</li>
+  <li>What your products are actually like: low quality adds up to
+    {{ pct(ops.quality_coef, 0) }} more returns. Quality is
+    {{ dl('1.5', 'quality positioning') }} and sourcing (55%),
+    {{ dl('7.4', 'quality assurance spend') }} (25%, at its best from about PKR 250,000 a
+    month) and your {{ dl('7.2', 'supplier') }} (20%).</li>
+  <li>Promising more than you deliver: when creative and brand spending
+    ({{ dl('3.8', 'creative') }}, {{ dl('3.9', 'brand') }}) lift what customers expect above
+    what the product is, more of it comes back the following month.</li>
+  <li>What you sell: some products come back more often than others - your report
+    shows which.</li>
+</ul>
+</section>
+
+<section class="hb card" id="ops-turns">
+<div class="hb-head"><div><h2>Stock turns a year</h2>
+<p class="hb-lead">How many times a year your stock sells through: cost of goods sold in a
+year over the stock you hold on average. In weeks of cover,
+{% for t, w in ops.weeks.items() %}{{ '%g'|format(t) }} turns is about {{ '%.1f'|format(w) }}
+weeks{{ ', ' if not loop.last else '.' }}{% endfor %}</p></div></div>
+<p>Turns are set by how much you buy and how much you keep in reserve -
+{{ dl('7.1', 'stock to purchase') }} and {{ dl('7.5', 'safety stock cover') }} - and by
+your {{ dl('7.2', 'supplier') }}, whose lead time decides how much you must hold while an
+order is on its way and whose minimum order decides how much you must buy at once.
+Dropping lines that do not sell ({{ dl('1.3', 'range changes') }}) lifts them too, and so
+does selling more of the same stock.</p>
+<table class="gloss hb-facts">
+<thead><tr><th>Supplier</th><th class="r">Cost index</th><th class="r">Lead time</th>
+  <th class="r">Minimum order</th><th class="r">Quality</th></tr></thead>
+<tbody>{% for s in ops.suppliers %}<tr><td><b>{{ s.name }}</b></td>
+  <td class="num">{{ '%.2f'|format(s.cost_index|float) }}</td>
+  <td class="num">{{ s.lead_time_days }} days</td>
+  <td class="num">{{ '{:,}'.format(s.moq_units|int) }} units</td>
+  <td class="num">{{ '%.2f'|format(s.quality_index|float) }}</td></tr>{% endfor %}</tbody></table>
+<p class="hint">A large minimum order makes a small business buy more than it sells in a
+month; a long lead time makes it hold more while it waits.</p>
+</section>
+
+<section class="hb card" id="ops-service">
+<div class="hb-head"><div><h2>Service level</h2>
+<p class="hb-lead">The orders you served out of the demand you had: what you lose when a
+product runs out. It moves with {{ dl('7.1', 'stock to purchase') }},
+{{ dl('7.5', 'safety stock cover') }}, your {{ dl('7.2', "supplier's") }} lead time,
+sourcing (local stock lands in 9 days, imported in 22) and
+{{ dl('11.2', 'AI demand forecasting') }}.</p></div></div>
+<p class="hint">Only a few points, but a stock-out also loses the sale, the customer and
+the rating that follow it.</p>
+</section>
+
+<section class="hb card">
+<div class="hb-head"><div><h2>The trade-off that runs through all four</h2>
+<p class="hb-lead">Stock turns and service level pull against each other: hold too little
+and you run out, hold too much and your turns collapse and your cash sits on a shelf.
+Delivery success and refused parcels pull against cost: the reliable courier and the
+prepayment discount both cost money on every order. Operations is not about maximising
+any one number - it is about finding the point where the last rupee spent saves at least
+a rupee.</p></div></div>
+<p><b>Where teams usually lose these points:</b> a courier mix built on the cheapest
+option; no reason for customers to pay in advance; free returns on the products that
+come back most; marketing that promises more than the product; and eight or more weeks
+of stock bought to save a few percent - or so little that the best sellers run out.</p>
+</section>
 
 {% for group, items in hb.groups.items() %}
 <h2 class="sec" id="{{ group }}">{{ group_names.get(group, group) }}</h2>

@@ -603,3 +603,18 @@ def test_the_handbook_is_in_the_app_and_the_form_links_to_it(game):
     brief = team.get("/brief").get_data(as_text=True)
     assert "/handbook" in brief and "github.com" not in brief
     assert admin.get("/handbook").status_code == 200
+
+
+def test_the_handbook_explains_the_operations_score_from_live_numbers(game):
+    from ecomsim import params as P
+    app, pw, path = game
+    page = _client(app, "team_01", pw["team_01"]).get("/handbook").get_data(as_text=True)
+    assert 'id="operations"' in page and "Operations Score" in page
+    params = P.load({})
+    for c in params.couriers:                      # the courier table is the real one
+        assert c["name"] in page and f'{float(c["success_rate"]) * 100:.1f}%' in page
+    assert f'{params["cod_share_base"] * 100:.0f}%' in page
+    for s in params.suppliers:
+        assert f'{int(s["moq_units"]):,} units' in page
+    for code in ("8-3", "9-2", "10-4", "7-1", "7-2", "7-5", "7-4"):
+        assert f'href="#d{code}"' in page, "every lever links to its own entry"

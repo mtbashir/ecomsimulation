@@ -475,7 +475,8 @@ def register_routes(app: Flask) -> None:
     def handbook():
         """Every decision: what it does, the trade-off, where it shows up in
         the report, and the mistake teams usually make."""
-        return render_template("handbook.html", hb=service.handbook_page(g.db))
+        return render_template("handbook.html", hb=service.handbook_page(g.db),
+                               ops=service.operations_guide(g.db))
 
     @app.get("/guide/marketing")
     @login_required()

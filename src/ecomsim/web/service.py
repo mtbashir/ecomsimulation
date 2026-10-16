@@ -2125,3 +2125,45 @@ def loan_advice(con, team_id: str, round_: int, current: dict,
     n["suggest"] = min(n["need"], n["headroom"])
     n["approved"] = current.get(loans.APPROVE)
     return n
+
+
+# --- Handbook: the operations score -------------------------------------------------
+
+def operations_guide(con) -> dict:
+    """How decisions drive the operations pillar, with every number read from
+    the game's own parameters and scorecard - so the handbook cannot drift from
+    what the engine does."""
+    from ..modules.m10_fulfilment import DEFAULT_MIX
+    params = load_params(con)
+    measures = {key: (label, pts, anchors, kind)
+                for name, _, _, ms in scoring.SCORECARD if name.startswith("Operational")
+                for key, label, pts, anchors, kind in ms}
+    couriers = {c["code"]: c for c in params.couriers}
+
+    def mix_success(mix):
+        return sum(share * float(couriers[c]["success_rate"]) for c, share in mix.items())
+
+    def refused(incentive):
+        cod = max(0.0, params["cod_share_base"] - 2.4 * incentive)
+        rto = params["rto_base"] * (1 - params["rto_prepaid_coef"] * min(1.0, incentive / 0.10))
+        return {"incentive": incentive, "cod": cod, "rto": rto, "refused": cod * rto}
+
+    return {
+        "points": sum(m[1] for m in measures.values()),
+        "measures": measures,
+        "couriers": params.couriers,
+        "mixes": [("The default mix (30% Speed, 40% Value, 30% Wide)", mix_success(DEFAULT_MIX)),
+                  ("All Value Logistics", mix_success({"value": 1.0})),
+                  ("All Wide Network", mix_success({"wide": 1.0})),
+                  ("All Speed Express", mix_success({"speed": 1.0}))],
+        "refused": [refused(i) for i in (0.0, 0.05, 0.10)],
+        "return_base": params["return_base"],
+        "policies": [("Free returns", params["policy_mult_free_returns"]),
+                     ("Customer pays", params["policy_mult_customer_pays"]),
+                     ("Restocking fee", params["policy_mult_restocking"])],
+        "quality_coef": params["return_quality_coef"],
+        "write_off": 1 - params["resell_rate"],
+        "capacity": 6000, "capacity_3pl": 4000,
+        "suppliers": params.suppliers,
+        "weeks": {t: 52 / t for t in measures["turns"][2]},
+    }
