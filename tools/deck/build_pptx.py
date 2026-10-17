@@ -34,7 +34,7 @@ aside{display:none} h1,h2,h3,p{margin:0}
 *{font-family:Arial,'Liberation Sans',sans-serif !important}
 *[style*="JetBrains"], *[style*="JetBrains"] *{font-family:'Courier New','Liberation Mono',monospace !important}
 </style></head><body>__S__</body></html>"""
-EXTRACT = pathlib.Path("/tmp/claude-0/extract.js").read_text()
+EXTRACT = pathlib.Path(__file__).with_name("extract.js").read_text()
 
 def e(px): return Emu(int(round(px * EMU)))
 def rgb(h): return RGBColor.from_string(h)
