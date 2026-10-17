@@ -34,6 +34,32 @@ def _inventory_costs(team, params, ctx, tid: str) -> tuple[float, float]:
     return holding, ageing
 
 
+# Positioning (1.5) as founding.TIERS names the same tiers.
+CLAIMED_TIER = {"economy": "value", "standard": "mainstream", "premium": "premium"}
+
+
+def quality_cost_ratio(team, params, d) -> float:
+    """What sourcing to the quality tier the team claims (1.5) costs, against
+    the tier its products are actually sourced at: 1.0 on automatic.
+
+    Positioning lifts quality - rating, returns - so in a full-cost game it
+    also moves cost, as the decision says: premium costs more to source,
+    economy less.
+    """
+    from ..founding import TIERS
+    claimed = CLAIMED_TIER.get(str(d.get("1.5") or ""))
+    if claimed is None:
+        return 1.0
+    f = getattr(team, "founding", None)
+    base = getattr(f, "tier", None) if f else None
+    if base not in TIERS:
+        # A going concern: the tier its product mix is sourced at.
+        from .m00_resolve import TIER_SCORE, _quality_tier
+        q = _quality_tier(team, params, {})
+        base = CLAIMED_TIER[min(TIER_SCORE, key=lambda k: abs(TIER_SCORE[k] - q))]
+    return TIERS[claimed][1] / TIERS[base][1]
+
+
 def run(world, params, resolved, ctx) -> None:
     for team in world.teams.values():
         tid = team.team_id
@@ -59,7 +85,18 @@ def run(world, params, resolved, ctx) -> None:
         scrapped = ctx["returned_orders"][tid] - ctx["returns_recovered"][tid]
         cogs = max(0.0, sold) * cogs_per_order
         write_off = scrapped * cogs_per_order
-        gross_profit = net_revenue - cogs - write_off
+        # Full-cost games (world.full_costs) charge what three decisions say
+        # they cost: sourcing to the claimed quality tier, packaging above a
+        # plain box, and orders handled by the 3PL over your own warehouse.
+        quality_premium = packaging = tpl = 0.0
+        if getattr(world, "full_costs", False):
+            quality_premium = cogs * (quality_cost_ratio(team, params, d) - 1)
+            pack = str(d.get("8.5") or "basic")
+            per_pack = params[f"packaging_cost_{pack}"] if pack in ("branded", "premium") else 0.0
+            packaging = ctx["orders"][tid] * per_pack
+            tpl = (ctx["orders"][tid] * min(1.0, max(0.0, float(d.get("8.2", 0) or 0)))
+                   * params["tpl_cost_per_order"])
+        gross_profit = net_revenue - cogs - write_off - quality_premium
 
         orders = orders_placed
         pick_pack = orders * params["fulfil_pick_pack_cost"]
@@ -88,7 +125,7 @@ def run(world, params, resolved, ctx) -> None:
         commission = net_revenue * mp_share * params["marketplace_commission"]
 
         contribution = (
-            gross_profit - pick_pack - courier_forward - rto_shipping
+            gross_profit - pick_pack - packaging - tpl - courier_forward - rto_shipping
             - return_shipping - gateway_cost - cod_cost
             - marketing - affiliate - commission
         )
@@ -118,7 +155,8 @@ def run(world, params, resolved, ctx) -> None:
             "net_revenue": net_revenue,
             "cogs": cogs,
             "gross_profit": gross_profit,
-            "fulfilment": pick_pack + courier_forward,
+            "fulfilment": pick_pack + packaging + tpl + courier_forward,
+            "quality_premium": quality_premium,
             "rto_cost": rto_shipping,          # its own line, deliberately
             "return_cost": return_shipping + write_off,
             "payment_costs": gateway_cost + cod_cost,
@@ -137,6 +175,8 @@ def run(world, params, resolved, ctx) -> None:
             "cogs_sold": cogs,
             "write_off": write_off,
             "pick_pack": pick_pack,
+            "packaging": packaging,
+            "tpl": tpl,
             "courier": courier_forward,
             "return_shipping": return_shipping,
             "gateway": gateway_cost,

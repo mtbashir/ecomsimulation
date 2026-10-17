@@ -16,7 +16,7 @@ from . import mix
 from .modules import m03_supply as m03
 
 CASH_COSTS = ("fulfilment", "rto_cost", "return_cost", "payment_costs", "marketing",
-              "commission", "below_line")
+              "commission", "below_line", "quality_premium")
 
 
 def fill(world, saved: dict, params, decisions: dict | None = None) -> list[int]:

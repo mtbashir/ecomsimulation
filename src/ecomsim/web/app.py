@@ -950,7 +950,22 @@ def register_routes(app: Flask) -> None:
             report_view={m: db.report_view(g.db, m)
                          for m in range(1, game["total_rounds"] + 1)},
             fair_from=db.fair_pricing_from(g.db),
-            loans_from=db.loans_from(g.db))
+            loans_from=db.loans_from(g.db), costs_from=db.costs_from(g.db))
+
+    @app.post("/admin/costs")
+    @login_required("admin")
+    def admin_costs():
+        """Charge packaging, 3PL and quality positioning their full cost in a
+        running game from a later month."""
+        try:
+            month = int(request.form.get("month", ""))
+            db.set_costs_from(g.db, month, session["user"])
+        except ValueError as exc:
+            flash(f"Not changed: {exc}.", "error")
+        else:
+            flash(f"From month {month} packaging, 3PL and quality positioning carry their "
+                  f"full cost. Tell the teams before they submit month {month}.", "ok")
+        return redirect(url_for("admin"))
 
     @app.post("/admin/loans")
     @login_required("admin")

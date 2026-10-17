@@ -66,6 +66,7 @@ def run(world, params, resolved, ctx) -> None:
             + pnl["fulfilment"] + pnl["rto_cost"] + pnl["return_cost"]
             + pnl["payment_costs"] + pnl["marketing"] + pnl["commission"]
             + pnl["below_line"] + pnl["interest"]
+            + pnl.get("quality_premium", 0.0)   # paid as the stock is used
             + ctx.get("capex", {}).get(tid, 0.0)
         )
 

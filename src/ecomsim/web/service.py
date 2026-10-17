@@ -1032,6 +1032,7 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
     world.scaled_purchases = db.scaled_purchases(con)
     world.fair_pricing = db.fair_pricing(con, nxt)
     world.loans = db.loans(con, nxt)
+    world.full_costs = db.full_costs(con, nxt)
     if nxt < world.rules_from:
         # Rules v1: only campaigns carry; every other lever left blank runs
         # on its default, as the months already played did.

@@ -110,6 +110,38 @@ marketing - and cash above a month of fixed costs repays the loan.</p>
 </section>
 {% endif %}
 
+{# Full costs. Three decisions promised a cost the engine never charged:
+   packaging above a plain box, orders through the 3PL, and sourcing to a
+   claimed quality tier. New games charge them from month 1; a game already
+   trading from a month picked here. #}
+{% set costs_active = costs_from and game['round'] >= costs_from %}
+{% if costs_from != 1 and not costs_active and game['round'] < game['total_rounds'] %}
+<section>
+<h2>Full costs</h2>
+{% if costs_from %}
+<p class="note" style="margin:0">From month <strong>{{ costs_from }}</strong>, packaging
+(8.5), 3PL handling (8.2) and quality positioning (1.5) carry their full cost.</p>
+{% else %}
+<p class="note">In this game three decisions cost nothing they say they cost: branded and
+premium packaging, orders through the 3PL, and claiming a higher quality tier than your
+products are sourced at. Charge them from a month not yet run: packaging PKR 25 an order
+branded and PKR 70 premium, PKR 30 an order through the 3PL, and the sourcing difference
+on the cost of goods for a claimed tier (premium costs more, economy saves).</p>
+<form method="post" action="{{ url_for('admin_costs') }}"
+      style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"
+      onsubmit="return confirm('Charge the full costs from this month? Tell the teams before they submit it.')">
+  <label for="cf" style="margin:0">Full costs from month</label>
+  <select id="cf" name="month" style="width:auto">
+    {% for m in range(game['round'] + 1, game['total_rounds'] + 1) %}
+    <option value="{{ m }}" {{ 'selected' if m == game['round'] + 1 }}>{{ m }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="ghost">Switch</button>
+</form>
+{% endif %}
+</section>
+{% endif %}
+
 {# Pricing model. New games price like for like from month 1; a game that was
    already trading when it arrived stays on the old model unless switched here,
    from a month not yet run. Shown only while there is a choice to make. #}

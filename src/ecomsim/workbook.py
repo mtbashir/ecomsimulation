@@ -284,6 +284,9 @@ def _pnl_lines(h, params) -> dict:
         "research": -_p(h, "research"), "holding": -_p(h, "holding"),
         "ageing": -_p(h, "ageing"), "restocking": -_p(h, "restocking"),
         "interest": -_p(h, "interest"),
+        # Full-cost games only (m14); nothing in a month that predates them.
+        "quality_premium": -_p(h, "quality_premium"),
+        "packaging": -_p(h, "packaging"), "tpl": -_p(h, "tpl"),
     }
     if "cogs_sold" in p:
         out.update(cogs_sold=-_p(h, "cogs_sold"), write_off=-_p(h, "write_off"),
@@ -342,13 +345,22 @@ def _pnl(book, params, history, months):
                 note="Landed cost of the units that stayed sold, product by product")
     wo = s.line("write_off", "Returned stock that cannot be resold", col("write_off"),
                 note="Returns that are damaged or used are written off at cost")
-    gp = s.line("gross_profit", "Gross profit", total(net, cg, wo), bold=True)
+    qp = s.line("quality_premium", "Sourcing to your quality positioning", col("quality_premium"),
+                note="Full-cost games: what claiming a higher tier (1.5) costs over the tier "
+                     "your products are sourced at, or saves for a lower one")
+    gp = s.line("gross_profit", "Gross profit", total(net, cg, wo, qp), bold=True)
     s.line("gm", "Gross margin %", gp / net, kind="pct", note="Gross profit / net revenue")
 
     s.section("Cost to serve")
     serve = [
         s.line("pick_pack", "Pick and pack", col("pick_pack"),
                note=f"PKR {params['fulfil_pick_pack_cost']:,.0f} an order"),
+        s.line("packaging", "Packaging above a plain box", col("packaging"),
+               note=f"Full-cost games: PKR {params['packaging_cost_branded']:,.0f} an order "
+                    f"branded, PKR {params['packaging_cost_premium']:,.0f} premium (8.5)"),
+        s.line("tpl", "3PL handling", col("tpl"),
+               note=f"Full-cost games: PKR {params['tpl_cost_per_order']:,.0f} an order "
+                    f"shipped through the 3PL (8.2)"),
         s.line("courier", "Outbound courier", col("courier"),
                note="Orders x each courier's cost per parcel, by your courier mix"),
         s.line("rto_cost", "Failed and refused parcels: courier out and back", col("rto_cost"),
@@ -461,8 +473,9 @@ def _kpis(book, params, history, months, pl):
     s.line("ebitda", "EBITDA", link("ebitda"), link=True, note="From the P&L")
     s.line("disc", "Discount rate", _v(history, "discount_rate"), kind="pct",
            note="Your discounts averaged across products, weighted by how much of each sells")
-    s.line("fulfil", "Fulfilment cost", -(link("pick_pack") + link("courier")), link=True,
-           note="Pick and pack + outbound courier, from the P&L")
+    s.line("fulfil", "Fulfilment cost", -(link("pick_pack") + link("packaging") + link("tpl")
+                                          + link("courier")), link=True,
+           note="Pick and pack, packaging, 3PL handling and outbound courier, from the P&L")
     s.line("pay", "Payment costs", -link("payment"), link=True, note="From the P&L")
 
     s.section("Operations")

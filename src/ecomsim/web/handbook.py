@@ -469,6 +469,8 @@ SCORE_IMPACT = {
     "1.5": [
         ("nps", "+", "Quality is the biggest part of what customers rate you on."),
         ("leak", "+", "Better products come back less."),
+        ("gm", "-", "Claiming a higher tier than your products are sourced at costs the "
+                    "difference on every unit sold; a lower tier saves it."),
     ],
     "1.2": [
         ("cm_pre", "+", "Bigger baskets spread the cost of picking, shipping and payment "
@@ -580,6 +582,8 @@ SCORE_IMPACT = {
     "8.2": [
         ("leak", "+", "More capacity keeps orders from shipping late, and late parcels are "
                       "refused more."),
+        ("cm_pre", "-", "Every order through the 3PL costs more to handle than in your own "
+                        "warehouse."),
     ],
     "8.3": [
         ("delivery", "+", "The only lever: delivery success is your couriers' rates, "
@@ -590,6 +594,7 @@ SCORE_IMPACT = {
     ],
     "8.5": [
         ("nps", "+", "Packaging is part of what customers rate you on."),
+        ("cm_pre", "-", "Branded and premium packaging cost more on every order shipped."),
     ],
     "9.1": [
         ("leak", "+", "With cash on delivery off, nothing is refused at the door."),
