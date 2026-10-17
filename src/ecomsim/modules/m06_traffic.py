@@ -92,8 +92,21 @@ def run(world, params, resolved, ctx) -> None:
             * (1 + params["organic_ux_coef"] * (team.ux_score - 0.5))
         )
 
+        # Affiliates (3.6), in games where they work (world.affiliates):
+        # partners bring their own visitors, more the higher the commission,
+        # with the same diminishing returns as paid media. Some of them would
+        # have come anyway - taken from organic, commission still paid.
+        affiliate = 0.0
+        rate = min(0.30, max(0.0, float(team_resolved.get("3.6", 0) or 0)))
+        if getattr(world, "affiliates", False) and rate > 0:
+            ch = params.channel("affiliate")
+            equiv = rate * params["affiliate_reach_revenue"]
+            affiliate = (float(ch["k_base"]) * params["channel_k_scale"]
+                         * (equiv / 1_000) ** sigma)
+            organic = max(0.0, organic - params["affiliate_cannibalisation"] * affiliate)
+
         returning = _returning_sessions(team, params)
-        sessions = paid + organic + returning
+        sessions = paid + organic + returning + affiliate
         ctx.setdefault("sessions_returning", {})[team.team_id] = returning
         if active_channels > 1:
             sessions *= 1 - params["channel_overlap"] * (1 - 1 / active_channels)
@@ -105,13 +118,17 @@ def run(world, params, resolved, ctx) -> None:
         # What M8 needs to convert paid visitors at their own rate, and what
         # the report needs to show each campaign's numbers. Scaled so the
         # channel figures add up to the paid sessions actually delivered.
-        pre = paid + organic + returning
+        pre = paid + organic + returning + affiliate
         scale = sessions / pre if pre > 0 else 0.0
+        # Share of cold (non-returning) visitors the partners tracked: M12
+        # stamps that share of new customers as theirs, M14 pays commission on it.
+        cold = paid + organic + affiliate
+        ctx.setdefault("affiliate_share", {})[team.team_id] = affiliate / cold if cold > 0 else 0.0
         ctx.setdefault("paid_sessions", {})[team.team_id] = {
             c: v * scale for c, v in by_channel.items()}
         ctx.setdefault("sessions_split", {})[team.team_id] = {
             "paid": paid * scale, "organic": organic * scale,
-            "returning": returning * scale}
+            "returning": returning * scale, "affiliate": affiliate * scale}
         ctx.setdefault("channel_inflation", {})[team.team_id] = inflation_by
         ctx.setdefault("targeting", {})[team.team_id] = scored
         cvr = 1.0
@@ -120,7 +137,7 @@ def run(world, params, resolved, ctx) -> None:
                       for c in by_channel) / paid
         ctx.setdefault("paid_cvr_mult", {})[team.team_id] = cvr
         ctx.setdefault("paid_share_cold", {})[team.team_id] = (
-            paid / (paid + organic) if paid + organic > 0 else 0.0)
+            paid / (paid + organic + affiliate) if paid + organic + affiliate > 0 else 0.0)
 
     # The marketplace's own shoppers, shared between listed teams (decision 4.1).
     # Kept apart from own-site sessions: M8 turns them into orders separately.

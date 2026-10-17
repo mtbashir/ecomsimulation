@@ -533,8 +533,12 @@ SCORE_IMPACT = {
                          "further."),
     ],
     "3.6": [
-        ("order_growth", "+", "Partners bring sales you would not otherwise win."),
-        ("ebitda", "-", "The commission is paid on every sale they bring."),
+        ("order_growth", "+", "Partners bring visitors you would not otherwise reach - more "
+                              "the higher the rate, with diminishing returns."),
+        ("repeat", "-", "Partner-won customers leave faster than most: about one in five "
+                        "a month."),
+        ("ebitda", "-", "Commission is paid on every sale they track, including some that "
+                        "would have come to you anyway."),
     ],
     "4.1": [
         ("share_pp", "+", "Reaches shoppers who would never find your site."),

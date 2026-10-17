@@ -42,8 +42,13 @@ def run(world, params, resolved, ctx) -> None:
         # the marketplace's churn and frequency (decision 4.1).
         mp_new = min(ctx.get("mp_new_orders", {}).get(tid, 0.0), new_orders)
         own_new = (new_orders - mp_new) / params["first_order_units"]
-        if own_new > 0:
-            _add_cohort(team, world, params, ctx, own_new)
+        aff_new = own_new * ctx.get("affiliate_share", {}).get(tid, 0.0)
+        if own_new - aff_new > 0:
+            _add_cohort(team, world, params, ctx, own_new - aff_new)
+        if aff_new > 0:
+            # Partner-won customers: the affiliate channel's churn and frequency
+            # (a deep discount still makes them deal-driven).
+            _add_cohort(team, world, params, ctx, aff_new, channel="affiliate")
         if mp_new > 0:
             _add_cohort(team, world, params, ctx, mp_new / params["first_order_units"],
                         channel=marketplace.CHANNEL)

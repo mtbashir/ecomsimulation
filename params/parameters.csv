@@ -46,6 +46,8 @@ wtp_penalty,M7,0.2,0.1,0.5,0.0,2.0,utility,,Like-for-like games: extra pull-away
 packaging_cost_branded,M14,25,15,40,0,100,PKR/order,,Full-cost games: printed box on every order shipped (8.5)
 packaging_cost_premium,M14,70,45,110,0,200,PKR/order,,Full-cost games: premium unboxing on every order shipped (8.5)
 tpl_cost_per_order,M14,30,15,50,0,120,PKR/order,,Full-cost games: what an order through the 3PL costs over your own warehouse (8.2)
+affiliate_reach_revenue,M6,3000000,1500000,6000000,500000,12000000,PKR,,Affiliate games: partners work as if paid this revenue times the commission rate (3.6) - sets how much traffic a rate brings
+affiliate_cannibalisation,M6,0.30,0.15,0.50,0.0,0.8,ratio,,Affiliate games: share of partner-tracked visitors who would have come anyway (taken from organic; commission still paid)
 ux_cr_coef,M8,0.45,0.20,0.70,0.0,1.0,coefficient,,Conversion uplift per unit of UX score above 0.5
 ux_invest_half,M13,300000,150000,600000,50000,2000000,PKR,,Website spend (5.1) that closes half the gap to the tech-stack UX ceiling in one month
 rating_cr_coef,M8,0.20,0.10,0.35,0.0,0.50,coefficient,,Above 0.50 rating becomes the only thing that matters

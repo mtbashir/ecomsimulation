@@ -122,6 +122,14 @@ def run(world, params, resolved, ctx) -> None:
         marketing = sum(float(d.get(k, 0) or 0) for k in MARKETING_DECISIONS)
         marketing += float(d.get("6.1", 0) or 0)  # CRM is marketing (docs/10)
         affiliate = net_revenue * float(d.get("3.6", 0) or 0)
+        if getattr(world, "affiliates", False):
+            # Paid only on what partners tracked: their share of new customers'
+            # orders placed on your own site (M6, M12).
+            orders_all = max(ctx["orders"][tid], 1.0)
+            own_new = max(0.0, ctx.get("new_orders", {}).get(tid, 0.0)
+                          - ctx.get("mp_new_orders", {}).get(tid, 0.0))
+            tracked = ctx.get("affiliate_share", {}).get(tid, 0.0) * own_new / orders_all
+            affiliate = net_revenue * tracked * min(0.30, float(d.get("3.6", 0) or 0))
         commission = net_revenue * mp_share * params["marketplace_commission"]
 
         contribution = (

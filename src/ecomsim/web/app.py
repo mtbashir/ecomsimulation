@@ -950,7 +950,23 @@ def register_routes(app: Flask) -> None:
             report_view={m: db.report_view(g.db, m)
                          for m in range(1, game["total_rounds"] + 1)},
             fair_from=db.fair_pricing_from(g.db),
-            loans_from=db.loans_from(g.db), costs_from=db.costs_from(g.db))
+            loans_from=db.loans_from(g.db), costs_from=db.costs_from(g.db),
+            affiliates_from=db.affiliates_from(g.db))
+
+    @app.post("/admin/affiliates")
+    @login_required("admin")
+    def admin_affiliates():
+        """Make affiliate commission (3.6) bring partner sales, and be paid only
+        on them, in a running game from a later month."""
+        try:
+            month = int(request.form.get("month", ""))
+            db.set_affiliates_from(g.db, month, session["user"])
+        except ValueError as exc:
+            flash(f"Not changed: {exc}.", "error")
+        else:
+            flash(f"From month {month} affiliates bring their own sales and commission is "
+                  f"paid only on those. Tell the teams before they submit month {month}.", "ok")
+        return redirect(url_for("admin"))
 
     @app.post("/admin/costs")
     @login_required("admin")

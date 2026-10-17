@@ -389,7 +389,7 @@ Creative and brand: creative quality rises with spend and fades about 15% a mont
 
 Campaigns (3.10): each budget can be split into up to three campaigns aimed by product, age, gender, city tier, interests, language and format, with results per campaign in the report.
 
-Affiliate and influencer commission (3.6) is paid as a share of revenue.
+Affiliate and influencer commission (3.6): partners bring their own visitors, more the higher the rate; some would have come anyway; their customers churn about 20% a month; commission is paid only on the sales they track.
 
 Real founders estimate such numbers from their own campaigns and tests; these are the simulation's assumptions.""",
   footer="Decision rules from the simulation &middot; not market data")
