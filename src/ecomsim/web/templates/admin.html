@@ -174,6 +174,34 @@ sales they track.</p>
 </section>
 {% endif %}
 
+{# Returns to the supplier. New games offer decision 7.6 from month 1; a game
+   already trading from a month picked here. #}
+{% set ret_active = returns_from and game['round'] >= returns_from %}
+{% if returns_from != 1 and not ret_active and game['round'] < game['total_rounds'] %}
+<section>
+<h2>Returns to the supplier</h2>
+{% if returns_from %}
+<p class="note" style="margin:0">From month <strong>{{ returns_from }}</strong> teams can
+send stock back to the supplier (7.6); the supplier keeps half of its cost.</p>
+{% else %}
+<p class="note">Teams cannot send excess stock back in this game. Offer it from a month not
+yet run: a team names the units product by product, the supplier keeps half of what the
+stock cost as a restocking fee, and the other half comes back in cash that month.</p>
+<form method="post" action="{{ url_for('admin_supplier_returns') }}"
+      style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"
+      onsubmit="return confirm('Offer returns to the supplier from this month? Tell the teams before they submit it.')">
+  <label for="rf" style="margin:0">Returns to the supplier from month</label>
+  <select id="rf" name="month" style="width:auto">
+    {% for m in range(game['round'] + 1, game['total_rounds'] + 1) %}
+    <option value="{{ m }}" {{ 'selected' if m == game['round'] + 1 }}>{{ m }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="ghost">Switch</button>
+</form>
+{% endif %}
+</section>
+{% endif %}
+
 {# Pricing model. New games price like for like from month 1; a game that was
    already trading when it arrived stays on the old model unless switched here,
    from a month not yet run. Shown only while there is a choice to make. #}

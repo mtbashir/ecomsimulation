@@ -204,6 +204,17 @@ ENTRIES = {
         mistake="A high rate on a thin-margin range. The referred orders can lose "
                 "money one by one.",
         related=["3.1", "1.1"]),
+    "7.6": dict(
+        does="Sends stock you cannot sell back to the supplier, product by product. "
+             "The supplier keeps half of what it cost you; the other half comes back "
+             "in cash this month.",
+        tradeoff="Half the cost back now, against holding it: stock on the shelf costs "
+                 "about 2% of its value a month, and cover beyond six months is written "
+                 "down 10% a month - but it might still sell.",
+        watch="Cash, weeks of cover by product, and the restocking fee in the P&L.",
+        mistake="Returning stock that would have sold within a few months, or buying "
+                "too much again the same month.",
+        related=["7.1", "7.5", "1.3"]),
     "4.1": dict(
         does="Lists your range on the marketplace, from month 5. Its shoppers - who "
              "would never find your own site - are shared between the sellers "
@@ -572,6 +583,11 @@ SCORE_IMPACT = {
         ("turns", "-", "Buying far more than you sell leaves stock on the shelf."),
         ("free_cash", "-", "Stock bought is cash spent before it sells."),
         ("ebitda", "-", "Stock held costs money to keep."),
+    ],
+    "7.6": [
+        ("free_cash", "+", "Half the cost of stock that would not sell comes back as cash."),
+        ("turns", "+", "Less stock sitting on the shelf."),
+        ("ebitda", "-", "The half the supplier keeps is a cost this month."),
     ],
     "7.5": [
         ("service", "+", "More cover, fewer stock-outs."),

@@ -32,7 +32,7 @@ FOUNDING_GROUPS = [
 ]
 
 # Shown as their own product-by-product tables, so not repeated as one line.
-OWN_TABLES = {"1.1", "7.1"}
+OWN_TABLES = {"1.1", "7.1", "7.6"}
 
 
 def untouched(block: dict) -> bool:

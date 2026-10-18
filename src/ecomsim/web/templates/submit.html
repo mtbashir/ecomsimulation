@@ -72,8 +72,8 @@ first, then your marketing.</div>
          what it does not say #}
       {%- set u = '' if s.unit in ('%', '') else
           (s.unit[4:] if s.unit.startswith('PKR') else s.unit) %}
-      <span class="t-val">{{ summaries[s.code] or ('no change' if s.kind == 'range' else 'nothing approved - no new borrowing' if s.code == '12.6' else 'none' if s.code == '12.7' else 'carried forward') }}
-        {%- if u and not (s.code == '7.1' and val is mapping) %} <span class="note">&middot; {{ u }}</span>{% endif %}</span>
+      <span class="t-val">{{ summaries[s.code] or ('no change' if s.kind == 'range' else 'nothing approved - no new borrowing' if s.code == '12.6' else 'none' if s.code in ('12.7', '7.6') else 'carried forward') }}
+        {%- if u and not (s.code in ('7.1', '7.6') and val is mapping) %} <span class="note">&middot; {{ u }}</span>{% endif %}</span>
     </span>
   </summary>
   <div class="t-body">
@@ -314,6 +314,32 @@ first, then your marketing.</div>
   {% elif s.kind == 'text' %}
     <input name="{{ s.code }}" type="text" value="{{ val }}"
            placeholder="One or two sentences.">
+
+  {% elif s.code == '7.6' and purchase %}
+    {% set fee = purchase.return_fee %}
+    <table class="catalogue buy">
+    <thead><tr><th class="c-name">Product</th>
+      <th class="r">Closing stock</th><th class="r">Weeks of cover</th>
+      <th class="r">Back to you a unit</th><th class="r c-buy">Units to return</th></tr></thead>
+    <tbody>
+    {% for r in purchase.rows if r.close %}
+    <tr>
+      <td class="c-name"><strong>{{ r.name }}</strong>
+        <span class="lm">PKR {{ '{:,.0f}'.format(r.cost) }} a unit</span></td>
+      <td class="num">{{ '{:,.0f}'.format(r.close) }}</td>
+      <td class="num cover {{ r.tone }}">{{ r.cover|safe if r.cover else '–' }}</td>
+      <td class="num">PKR {{ '{:,.0f}'.format(r.cost * (1 - fee)) }}</td>
+      <td class="r"><input type="text" inputmode="decimal" class="buy-input"
+          name="ret_{{ r.code }}" value="{{ '{:,.0f}'.format(r.ret) if r.ret is not none else '' }}"></td></tr>
+    {% else %}
+    <tr><td colspan="5" class="note">No stock on the shelf to send back.</td></tr>
+    {% endfor %}
+    </tbody></table>
+    <div class="hint">The supplier keeps <b>{{ '%.0f'|format(fee * 100) }}%</b> of what each
+      unit cost you; the rest comes back in cash when the month runs. Only stock you hold
+      can go back - what is on the shelf, plus anything landing at the start of the month -
+      never more. A one-off:
+      nothing is sent back next month unless you enter it again.</div>
 
   {% elif s.code == '7.1' and purchase %}
     {% set lines = purchase.mode == 'lines' %}

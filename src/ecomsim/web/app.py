@@ -787,6 +787,12 @@ def register_routes(app: Flask) -> None:
                            for row in service.monthly_catalogue(g.db, tid, current)}
                     if not any(v.strip() for v in raw.values()):
                         raw = None
+                elif spec.code == "7.6":
+                    # Stock sent back product by product; a blank line sends none.
+                    raw = {row["code"]: request.form.get(f"ret_{row['code']}") or ""
+                           for row in service.monthly_catalogue(g.db, tid, current)}
+                    if not any(v.strip() for v in raw.values()):
+                        raw = None
                 elif spec.code in service.LIST_DECISIONS:
                     raw = request.form.getlist(spec.code)
                 else:
@@ -864,7 +870,7 @@ def register_routes(app: Flask) -> None:
             range_change=(service.range_rows(g.db, tid, current)
                           if any(s.kind == "range" for s in specs) else None),
             purchase=(service.purchase_rows(g.db, tid, current, standing)
-                      if any(s.code == service.PURCHASE for s in specs) else None),
+                      if any(s.code in (service.PURCHASE, "7.6") for s in specs) else None),
             previous_purchase=(service.decision_summary(
                 REGISTRY[service.PURCHASE], previous.get(service.PURCHASE))
                 if service.PURCHASE in previous else ""),
@@ -951,7 +957,22 @@ def register_routes(app: Flask) -> None:
                          for m in range(1, game["total_rounds"] + 1)},
             fair_from=db.fair_pricing_from(g.db),
             loans_from=db.loans_from(g.db), costs_from=db.costs_from(g.db),
-            affiliates_from=db.affiliates_from(g.db))
+            affiliates_from=db.affiliates_from(g.db), returns_from=db.returns_from(g.db))
+
+    @app.post("/admin/supplier-returns")
+    @login_required("admin")
+    def admin_supplier_returns():
+        """Let teams send stock back to the supplier (7.6) from a later month."""
+        try:
+            month = int(request.form.get("month", ""))
+            db.set_returns_from(g.db, month, session["user"])
+        except ValueError as exc:
+            flash(f"Not changed: {exc}.", "error")
+        else:
+            flash(f"From month {month} teams can return stock to the supplier (7.6), "
+                  f"which keeps half of its cost. Tell the teams before they submit "
+                  f"month {month}.", "ok")
+        return redirect(url_for("admin"))
 
     @app.post("/admin/affiliates")
     @login_required("admin")

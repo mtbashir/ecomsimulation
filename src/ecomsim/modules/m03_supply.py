@@ -27,6 +27,7 @@ def run(world, params, resolved, ctx) -> None:
         returned = _return_rto_units(team)
         supplier = dict(_supplier(params, d))
         _send_back_off_range(team, world, params, d, supplier)
+        _team_returns(team, world, params, d, supplier)
         to_supplier = _return_to_supplier(team, ctx)
         # The month's stock movements, product by product, for the workbook.
         ctx.setdefault("stock_moves", {})[tid] = {
@@ -370,6 +371,26 @@ def _send_back_off_range(team, world, params, d, supplier) -> None:
     plan = dict(getattr(team, "stock_returns", None) or {})
     for code, units in team.inventory.items():
         if code in keep or code in plan or units < 0.5:
+            continue
+        cost = (units * float(params.sku(code)["unit_cost"]) * float(supplier["cost_index"])
+                * landed_index(team, code, d) * params["cogs_scale"])
+        plan[code] = {"units": units, "refund": cost * (1 - rate), "fee": cost * rate}
+    team.stock_returns = plan
+
+
+def _team_returns(team, world, params, d, supplier) -> None:
+    """Stock the team chose to send back (decision 7.6), in games that offer
+    it: the supplier keeps `supplier_return_fee` of the landed cost and refunds
+    the rest. Never more than is on the shelf (_return_to_supplier scales it)."""
+    from ..decisions import RETURN_DECISION
+    asked = d.get(RETURN_DECISION)
+    if not getattr(world, "supplier_returns", False) or not isinstance(asked, dict):
+        return
+    rate = params["supplier_return_fee"]
+    plan = dict(getattr(team, "stock_returns", None) or {})
+    for code, units in asked.items():
+        units = min(max(0.0, float(units or 0)), team.inventory.get(code, 0.0))
+        if code in plan or units < 0.5:
             continue
         cost = (units * float(params.sku(code)["unit_cost"]) * float(supplier["cost_index"])
                 * landed_index(team, code, d) * params["cogs_scale"])

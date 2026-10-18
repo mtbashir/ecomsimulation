@@ -113,6 +113,10 @@ def _decisions(team, params, sub: dict) -> list[tuple[str, str]]:
         rows.append((_label("7.1"), f"{bought:,.0f} units"
                      + (f", product by product ({sum(1 for u in lines.values() if u > 0)} "
                         "products)" if lines else "")))
+    back = sub.get("7.6")
+    if isinstance(back, dict) and any(float(u or 0) > 0 for u in back.values()):
+        rows.append((_label("7.6"), f"{sum(float(u or 0) for u in back.values()):,.0f} units "
+                     f"({sum(1 for u in back.values() if float(u or 0) > 0)} products)"))
     if "7.5" in sub:
         rows.append((_label("7.5"), f"{float(sub['7.5']):g} weeks"))
     if "7.4" in sub:

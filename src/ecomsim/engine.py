@@ -8,7 +8,7 @@ dispute resolution possible (invariant I8).
 """
 from __future__ import annotations
 
-from .decisions import LOAN_DECISIONS, REGISTRY, Resolver
+from .decisions import LOAN_DECISIONS, REGISTRY, RETURN_DECISION, Resolver
 from .modules import PIPELINE
 
 MEMO = "12.5"
@@ -17,7 +17,7 @@ RANGE = "1.3"           # range changes (ecomsim.assortment)
 # memo are this month's; a stock order, a range change and an AI investment are
 # one-off moves.
 NOT_CARRIED = {"12.1", MEMO, "7.1", RANGE, "11.1", "11.2", "11.3", "11.4", "11.5",
-               "12.6", "12.7"}
+               "12.6", "12.7", RETURN_DECISION}
 
 
 def carry(standing: dict, submitted: dict) -> dict:
@@ -63,7 +63,8 @@ def run_round(world, params, submissions: dict[str, dict],
         # Range changes are offered only in a game that allows them.
         open_codes = [c for c in REGISTRY if resolver.enabled(c) and resolver.unlocked(c)
                       and (c != RANGE or getattr(world, "range_changes", False))
-                      and (c not in LOAN_DECISIONS or getattr(world, "loans", False))]
+                      and (c not in LOAN_DECISIONS or getattr(world, "loans", False))
+                      and (c != RETURN_DECISION or getattr(world, "supplier_returns", False))]
     counted = [c for c in open_codes if c != MEMO]
     resolved, decisions = {}, {}
     for tid, team in world.teams.items():

@@ -230,6 +230,14 @@ REGISTRY: dict[str, DecisionSpec] = {
                  "means fewer stock-outs and more cash tied up in inventory.",
             guide="Typical 2-6 weeks"),
         DecisionSpec(
+            "7.6", "G7", "Return stock to supplier", "num", None,
+            frozenset({"standard", "advanced", "expert"}),
+            unit="units, product by product",
+            help="Send stock you cannot sell back to the supplier. The supplier "
+                 "keeps half of what it cost you as a restocking fee; the other "
+                 "half comes back in cash this month.",
+            guide="Optional - only for stock you hold"),
+        DecisionSpec(
             "7.4", "G7", "Quality assurance spend", "curr", 80_000, ALL,
             unit="PKR this month",
             help="Inspection and testing before stock ships. Cuts defects, "
@@ -367,6 +375,7 @@ REGISTRY: dict[str, DecisionSpec] = {
     ]
 }
 LOAN_DECISIONS = ("12.6", "12.7")
+RETURN_DECISION = "7.6"     # stock back to the supplier, in games that offer it
 
 
 class Resolver:

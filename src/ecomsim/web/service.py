@@ -15,7 +15,7 @@ from dataclasses import asdict
 from .. import (assortment, bootstrap, console, founding as founding_mod, params as P,
                version,
                 report, scoring, targeting)
-from ..decisions import LOAN_DECISIONS, REGISTRY, Resolver
+from ..decisions import LOAN_DECISIONS, REGISTRY, RETURN_DECISION, Resolver
 from ..engine import run_round
 from ..io_csv import LIST_DECISIONS
 from . import db
@@ -48,6 +48,8 @@ def open_decisions(con, round_: int) -> list:
     off = set() if db.range_changes(con) else {assortment.DECISION}
     if not db.loans(con, round_):
         off |= set(LOAN_DECISIONS)       # the automatic credit line instead
+    if not db.supplier_returns(con, round_):
+        off.add(RETURN_DECISION)
     out = []
     for code, spec in REGISTRY.items():
         if code in off:
@@ -193,8 +195,9 @@ def coerce(code: str, raw):
         out = {k: [str(c) for c in raw.get(k) or [] if c] for k in ("add", "drop")}
         out = {k: v for k, v in out.items() if v}
         return out or None
-    if code == PURCHASE and isinstance(raw, dict):
-        # Stock bought product by product: {sku: units}. A blank line is none.
+    if code in (PURCHASE, RETURN_DECISION) and isinstance(raw, dict):
+        # Stock bought (or sent back) product by product: {sku: units}. A
+        # blank line is none.
         out = {}
         for sku, units in raw.items():
             text = str(units or "").replace(",", "").strip()
@@ -255,7 +258,7 @@ def validate(code: str, value) -> str | None:
         if any(float(v) < 0 for v in value.values()):
             return f"{spec.name}: a share cannot be negative"
         return None
-    if code == PURCHASE and isinstance(value, dict):
+    if code in (PURCHASE, RETURN_DECISION) and isinstance(value, dict):
         for sku, units in value.items():
             if float(units) < 0:
                 return f"{spec.name}: {sku} cannot be negative"
@@ -760,6 +763,7 @@ def purchase_rows(con, team_id: str, current: dict, standing: dict | None = None
 
     value = current.get(PURCHASE)
     chosen = value if isinstance(value, dict) else {}
+    back = current.get(RETURN_DECISION) if isinstance(current.get(RETURN_DECISION), dict) else {}
     rows = []
     for line in shelf:
         held = stock.get(line["code"])
@@ -774,6 +778,7 @@ def purchase_rows(con, team_id: str, current: dict, standing: dict | None = None
             "on_order": held["on_order"] if held else 0.0,
             "lands": held.get("next_arrival") if held else None,
             "buy": chosen.get(line["code"]),
+            "ret": back.get(line["code"]),
         })
     entered = sum(float(u) for u in chosen.values())
     return {
@@ -784,6 +789,7 @@ def purchase_rows(con, team_id: str, current: dict, standing: dict | None = None
         "supplier": supplier["name"], "moq": float(supplier["moq_units"]),
         "month": len(team.history) if team is not None else 0,
         "has_stock": bool(stock),
+        "return_fee": params["supplier_return_fee"],
         # Stock of products outside the range: counted in units in stock,
         # never sellable.
         "outside": sum(r["close"] for code, r in stock.items()
@@ -860,6 +866,10 @@ def decision_summary(spec, value, catalogue_rows=None) -> str:
         lines = sum(1 for u in value.values() if float(u) > 0)
         return (f"{total:,.0f} units, product by product "
                 f"({lines} product{'' if lines == 1 else 's'})")
+    if spec.code == RETURN_DECISION and isinstance(value, dict):
+        total = sum(float(u) for u in value.values())
+        lines = sum(1 for u in value.values() if float(u) > 0)
+        return f"{total:,.0f} units going back ({lines} product{'' if lines == 1 else 's'})"
     if spec.kind == "num":
         return f"{float(value):,.4g}{' ' + spec.unit if spec.unit else ''}"
     if spec.kind == "select":
@@ -1034,6 +1044,7 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
     world.loans = db.loans(con, nxt)
     world.full_costs = db.full_costs(con, nxt)
     world.affiliates = db.affiliates(con, nxt)
+    world.supplier_returns = db.supplier_returns(con, nxt)
     if nxt < world.rules_from:
         # Rules v1: only campaigns carry; every other lever left blank runs
         # on its default, as the months already played did.
@@ -1568,7 +1579,7 @@ def export_decisions(con, round_: int) -> str:
         for code, value in sorted(decisions.items()):
             if code == targeting.DECISION or REGISTRY[code].kind == "range":
                 value = json.dumps(value)
-            elif code == PURCHASE and isinstance(value, dict):
+            elif code in (PURCHASE, RETURN_DECISION) and isinstance(value, dict):
                 value = ";".join(f"{sku}:{float(units):g}" for sku, units in value.items())
             elif isinstance(value, list):
                 value = ";".join(str(v) for v in value)
