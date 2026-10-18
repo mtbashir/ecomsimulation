@@ -59,3 +59,17 @@ def test_the_overview_offers_it_and_teams_cannot(game):
     team = admin.application.test_client()
     team.post("/login", data={"username": "team_01", "password": "secret-1"})
     assert team.get("/admin/preview").status_code == 403
+
+
+def test_a_memo_can_be_judged_in_the_preview_and_counts_when_the_month_runs(game):
+    con, admin = game
+    db.submit(con, 3, "team_02", {"12.5": "We spent on ads"}, "team_02")
+    page = admin.get("/admin/preview").get_data(as_text=True)
+    assert "memo does not match" in page.lower() and "back=preview" in page
+    r = admin.post("/admin/memo/3/team_02?back=preview", data={"ok": "0"})
+    assert r.status_code == 302 and "/admin/preview" in r.headers["Location"]
+    assert ("team_02", 3) in db.memo_rejected(con)
+    assert "memo judged not to match (0)" in admin.get("/admin/preview").get_data(as_text=True)
+    service.process_round(con)                      # the verdict stays and counts
+    page = admin.get("/admin/console/3").get_data(as_text=True)
+    assert "memo judged not to match (0)" in page

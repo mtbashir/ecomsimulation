@@ -2094,13 +2094,15 @@ def final_table(con) -> list[dict]:
 
 # --- Preview ------------------------------------------------------------------------
 
-def preview_round(con) -> tuple[int, str] | None:
+def preview_round(con, memo_url=None) -> tuple[int, str] | None:
     """Run the next month on a throwaway copy and return its console.
 
     Nothing is saved: the live database is copied into memory, the month runs
     there exactly as Run would run it (the engine is deterministic), and the
     copy is discarded. The instructor sees the rankings before the teams do,
-    and before committing to them.
+    and before committing to them. With `memo_url` each team's memo can be
+    judged here: the verdict is saved on the live game for the open month and
+    counts when it runs.
     """
     import sqlite3
     copy = sqlite3.connect(":memory:", detect_types=sqlite3.PARSE_DECLTYPES)
@@ -2108,7 +2110,7 @@ def preview_round(con) -> tuple[int, str] | None:
     try:
         con.backup(copy)
         result = process_round(copy, actor="preview")
-        return result["round"], instructor_console(copy, result["round"])
+        return result["round"], instructor_console(copy, result["round"], memo_url=memo_url)
     finally:
         copy.close()
 

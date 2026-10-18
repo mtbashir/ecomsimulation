@@ -1006,7 +1006,8 @@ def register_routes(app: Flask) -> None:
         if game["round"] >= game["total_rounds"]:
             abort(404)
         try:
-            made = service.preview_round(g.db)
+            made = service.preview_round(g.db, memo_url=lambda team, rnd: url_for(
+                "admin_memo", round_=rnd, team=team, back="preview"))
         except BandViolation as exc:
             flash(f"Cannot preview: {exc}", "error")
             return redirect(url_for("admin"))
@@ -1018,6 +1019,7 @@ def register_routes(app: Flask) -> None:
             'padding:10px 16px;font:600 14px Inter,sans-serif">'
             f'Preview of month {month} &middot; nothing has been saved. This is what '
             f'Run would produce with the decisions submitted so far; teams see nothing. '
+            f'Memo verdicts you give here are kept and count when the month runs. '
             f'<a href="{url_for("admin")}" style="color:#111">Back to the console</a></div>')
         html = html.replace("<body>", "<body>" + banner, 1) if "<body>" in html \
             else banner + html
@@ -1368,6 +1370,8 @@ def register_routes(app: Flask) -> None:
         """The instructor's verdict on a team's memo: does it match the month?"""
         db.set_memo_review(g.db, round_, team, request.form.get("ok") == "1",
                            session["user"])
+        if request.args.get("back") == "preview":     # judged before the month ran
+            return redirect(url_for("admin_preview") + f"#{team}")
         return redirect(url_for("admin_console", round_=round_) + f"#{team}")
 
     @app.route("/admin/workbooks/<int:round_>.zip")
