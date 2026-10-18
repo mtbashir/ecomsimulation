@@ -23,6 +23,11 @@ def game(tmp_path):
     return app, passwords, path
 
 
+# New games run on the loan rules: spending must fit cash plus the loan
+# applied for, and the opening month's defaults already need some credit.
+LOAN = {"12.6": "10000000"}
+
+
 def _client(app, username, password):
     c = app.test_client()
     r = c.post("/login", data={"username": username, "password": password})
@@ -131,12 +136,12 @@ def test_submit_revise_and_blank_means_default(game):
     db.set_game(con, open_round=1)
     team = _client(app, "team_01", pw["team_01"])
 
-    team.post("/submit", data={"3.1": "900000", "2.2": ""}, follow_redirects=True)
+    team.post("/submit", data={**LOAN, "3.1": "900000", "2.2": ""}, follow_redirects=True)
     saved = db.submission(con, 1, "team_01")
     assert saved["3.1"] == 900_000
     assert "2.2" not in saved, "a blank field must fall through to the default"
 
-    team.post("/submit", data={"3.1": "500000"}, follow_redirects=True)
+    team.post("/submit", data={**LOAN, "3.1": "500000"}, follow_redirects=True)
     assert db.submission(con, 1, "team_01")["3.1"] == 500_000, "revision must replace"
 
 
@@ -191,7 +196,7 @@ def test_a_percentage_field_takes_a_percentage(game):
     con = db.connect(path)
     db.set_game(con, open_round=1)
     team = _client(app, "team_01", pw["team_01"])
-    team.post("/submit", data={"9.2": "15"}, follow_redirects=True)
+    team.post("/submit", data={**LOAN, "9.2": "15"}, follow_redirects=True)
     assert db.submission(con, 1, "team_01")["9.2"] == pytest.approx(0.15)
 
 
@@ -209,7 +214,7 @@ def test_courier_mix_reaches_the_engine_as_a_mix(game):
     con = db.connect(path)
     db.set_game(con, open_round=1)
     team = _client(app, "team_01", pw["team_01"])
-    team.post("/submit", data={"8.3__speed": "50", "8.3__value": "20",
+    team.post("/submit", data={**LOAN, "8.3__speed": "50", "8.3__value": "20",
                                "8.3__wide": "30"}, follow_redirects=True)
     saved = db.submission(con, 1, "team_01")["8.3"]
     assert saved == {"speed": 0.5, "value": 0.2, "wide": 0.3}
@@ -259,7 +264,7 @@ def test_submitting_the_form_cannot_wipe_a_commissioned_study(game):
     team = _client(app, "team_01", pw["team_01"])
     team.post("/research/commission", data={"study": ["MR-07"]},
               follow_redirects=True)
-    team.post("/submit", data={"3.1": "900000"}, follow_redirects=True)
+    team.post("/submit", data={**LOAN, "3.1": "900000"}, follow_redirects=True)
     stored = db.submission(con, 1, "team_01")
     assert stored["12.1"] == ["MR-07"], "the decision form ate the order"
     assert stored["3.1"] == 900_000
@@ -420,7 +425,7 @@ def test_decisions_export_matches_the_file_runner_format(game):
     team = _client(app, "team_01", pw["team_01"])
     team.post("/research/commission", data={"study": ["MR-01", "MR-17"]},
               follow_redirects=True)
-    team.post("/submit", data={"3.1": "900000"}, follow_redirects=True)
+    team.post("/submit", data={**LOAN, "3.1": "900000"}, follow_redirects=True)
 
     csv_text = _client(app, "admin", "admin-pw").get("/admin/export/1.csv").data.decode()
     assert csv_text.splitlines()[0] == "team_id,decision,value"
@@ -477,7 +482,7 @@ def test_campaigns_carry_forward_until_changed_and_broad_is_a_setting(game):
     team.post("/campaigns", data=HAIR_OIL, follow_redirects=True)
     admin.post("/admin/run", follow_redirects=True)
     admin.post("/admin/open", data={"round": 4})
-    team.post("/submit", data={"3.1": "500000"}, follow_redirects=True)
+    team.post("/submit", data={**LOAN, "3.1": "500000"}, follow_redirects=True)
     assert "3.10" not in db.submission(con, 4, "team_01")
     admin.post("/admin/run", follow_redirects=True)
     rows = db.load_world(con).teams["team_01"].history[-1]["campaigns"]

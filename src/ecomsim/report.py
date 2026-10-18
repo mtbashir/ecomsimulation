@@ -585,7 +585,7 @@ def _loan(record: dict) -> str:
     """The month's borrowing, said plainly (games on the loan rules)."""
     loan = record.get("loan")
     if not loan:
-        return ""
+        return _funding(record)
     pkr = lambda v: f"PKR {v:,.0f}"
     lines = [f"You approved <b>{pkr(loan.get('approved', 0))}</b> and the month needed "
              f"about {pkr(loan.get('need', 0))}."]
@@ -611,6 +611,23 @@ def _loan(record: dict) -> str:
     lines.append(f"You now owe {pkr(loan.get('owed_after', loan.get('owed', 0)))} at 22% a year.")
     return ('<section class="block"><div class="blockhead"><div><h2>Working capital loan</h2>'
             f'<p class="cap" style="max-width:82ch">{" ".join(lines)}</p></div></div></section>')
+
+
+def _funding(record: dict) -> str:
+    """Spending cut to the cash available (games on the automatic line)."""
+    cut = record.get("funding")
+    if not cut:
+        return ""
+    pkr = lambda v: f"PKR {v:,.0f}"
+    cuts = []
+    if cut.get("stock_cut"):
+        cuts.append(f"your stock order by {pkr(cut['stock_cut'])}")
+    if cut.get("spend_cut"):
+        cuts.append(f"marketing and other spending by {pkr(cut['spend_cut'])}")
+    return ('<section class="block"><div class="blockhead"><div><h2>Cash available</h2>'
+            f'<p class="cap" style="max-width:82ch"><b>The month\'s spending came to more than '
+            f'your cash and what was left on the credit line, so we cut '
+            f'{" and ".join(cuts)}.</b></p></div></div></section>')
 
 
 def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None,

@@ -2134,6 +2134,34 @@ def preview_round(con, memo_url=None) -> tuple[int, str] | None:
 
 # --- Working capital loan -----------------------------------------------------------
 
+def _month_need(con, team_id: str, round_: int, current: dict,
+                standing: dict | None = None):
+    """Month `round_`'s money as the engine will see it, from the decisions as
+    they stand on the form: (need, resolved decisions, on loan rules), or None."""
+    from .. import loans
+    params = load_params(con)
+    world = db.load_world(con)
+    if world is None:
+        world = first_world(con, params, db.game(con))
+    team = world.teams.get(team_id)
+    if team is None:
+        return None
+    # Resolved exactly as the engine will resolve them: last month's settings
+    # under this month's, then the defaults for anything still blank - so the
+    # figures count the marketing a team gets without typing it.
+    from ..engine import carry
+    g = db.game(con)
+    held = getattr(team, "standing", None) or standing or {}
+    merged = carry(held, current) if round_ >= db.rules_from(con) else dict(current)
+    d = Resolver(preset=g["preset"], round_=round_).resolve(merged)
+    research = sum(float(params.study(c)["price"]) for c in (d.get("12.1") or [])
+                   if any(s["code"] == c for s in params.studies))
+    n = loans.need(team, round_, params, d, research)
+    n["rate"] = params["credit_rate_annual"]
+    n["ceiling"] = params["credit_ceiling"]
+    return n, d, db.loans(con, round_)
+
+
 def loan_advice(con, team_id: str, round_: int, current: dict,
                 standing: dict | None = None) -> dict | None:
     """What month `round_` needs and what the team owes, for the loan tile.
@@ -2145,29 +2173,39 @@ def loan_advice(con, team_id: str, round_: int, current: dict,
     from .. import loans
     if not db.loans(con, round_):
         return None
-    params = load_params(con)
-    world = db.load_world(con)
-    if world is None:
-        world = first_world(con, params, db.game(con))
-    team = world.teams.get(team_id)
-    if team is None:
+    got = _month_need(con, team_id, round_, current, standing)
+    if got is None:
         return None
-    # Resolved exactly as the engine will resolve them: last month's settings
-    # under this month's, then the defaults for anything still blank - so the
-    # suggestion counts the marketing a team gets without typing it.
-    from ..engine import carry
-    g = db.game(con)
-    held = getattr(team, "standing", None) or standing or {}
-    merged = carry(held, current) if round_ >= db.rules_from(con) else dict(current)
-    d = Resolver(preset=g["preset"], round_=round_).resolve(merged)
-    research = sum(float(params.study(c)["price"]) for c in (d.get("12.1") or [])
-                   if any(s["code"] == c for s in params.studies))
-    n = loans.need(team, round_, params, d, research)
-    n["rate"] = params["credit_rate_annual"]
-    n["ceiling"] = params["credit_ceiling"]
+    n = got[0]
     n["suggest"] = min(n["need"], n["headroom"])
     n["approved"] = current.get(loans.APPROVE)
     return n
+
+
+def cash_balance(con, team_id: str, round_: int, current: dict,
+                 standing: dict | None = None) -> dict | None:
+    """The month's cash balance for the form: cash available (with the loan
+    applied for, or what is left on the automatic line), what the decisions
+    spend, and what is left. `fits` is False when spending runs past the cash."""
+    from .. import loans
+    got = _month_need(con, team_id, round_, current, standing)
+    if got is None:
+        return None
+    n, d, on_loans = got
+    return {**n, **loans.check(n, loans.approved_of(n, d, on_loans)), "loans": on_loans}
+
+
+def cash_refusal(bal: dict) -> str:
+    """Why a month that spends more than its cash cannot be saved, and the way out."""
+    pkr = lambda v: f"PKR {v:,.0f}"
+    over = bal["planned"] - max(bal["available"], 0.0)
+    head = bal["headroom"] - (bal["approved"] if bal["loans"] else bal["headroom"])
+    way = (f"Apply for a bigger working capital loan (you can borrow up to {pkr(bal['headroom'])} "
+           f"in all) or cut spending by {pkr(over)}." if bal["loans"] and head > 0 else
+           f"Cut spending by {pkr(over)}.")
+    return (f"Not enough cash: this month's stock, marketing and other spending come to "
+            f"{pkr(bal['planned'])}, but only {pkr(max(bal['available'], 0.0))} is available "
+            f"after the supplier bills and running costs due this month. {way}")
 
 
 # --- Handbook: the operations score -------------------------------------------------

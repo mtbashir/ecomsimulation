@@ -17,6 +17,13 @@ the loan rules (world.loans):
    it cover the gap, reported as unplanned borrowing.
 4. Spare cash repays: anything above a month of fixed costs goes to the loan
    automatically, and the team may repay more on purpose (decision 12.7).
+
+Spending never runs past the cash (`check`, `fund`): stock, marketing, the
+other monthly budgets, research and technology projects must fit within cash
+in hand, plus customer money due this month, plus the loan applied for, less
+the bills and running costs the month must pay anyway. The form refuses a
+month that does not fit; the engine cuts one that still gets through. A game
+on the automatic credit line counts what is left on the line as applied for.
 """
 from __future__ import annotations
 
@@ -62,6 +69,14 @@ def spend_of(d, research: float = 0.0) -> float:
     return sum(float(d.get(k, 0) or 0) for k in SPEND) + research
 
 
+def projects_of(team, d) -> float:
+    """Technology projects started this month, paid in full when committed."""
+    from .modules.m04_capability import PROJECTS
+    started = {p["code"] for p in team.projects} | set(team.capabilities)
+    return sum(float(spec["capex"]) for code, spec in PROJECTS.items()
+               if code not in started and d.get(spec["decision"]))
+
+
 def need(team, rnd: int, params, d, research: float = 0.0) -> dict:
     """Month `rnd`'s money, line by line, and the loan it calls for. The same
     arithmetic the form shows the team and the engine then applies."""
@@ -70,14 +85,35 @@ def need(team, rnd: int, params, d, research: float = 0.0) -> dict:
     interest = team.credit_drawn * params["credit_rate_annual"] * params["round_months"] / 12
     stock = stock_estimate(team, params, d)
     spend = spend_of(d, research)
+    projects = projects_of(team, d)
     fixed = fixed_costs(params)
-    out = due_out + fixed + interest + stock + spend
+    out = due_out + fixed + interest + stock + spend + projects
     has = team.cash + due_in
     return {"cash": team.cash, "receipts_due": due_in, "bills_due": due_out,
             "fixed": fixed, "interest": interest, "stock": stock, "spend": spend,
+            "projects": projects,
             "outgoings": out, "need": max(0.0, out - has),
             "owed": team.credit_drawn,
             "headroom": max(0.0, params["credit_ceiling"] - team.credit_drawn)}
+
+
+def approved_of(n, d, on_loans: bool) -> float:
+    """The loan this month's spending may lean on: what the team applied for
+    under the loan rules, else whatever is left on the automatic line."""
+    if not on_loans:
+        return n["headroom"]
+    return min(max(0.0, float(d.get(APPROVE) or 0)), n["headroom"])
+
+
+def check(n, approved: float) -> dict:
+    """The month's cash balance: what is available to spend, what the team's
+    decisions spend, and what is left - negative when they do not fit."""
+    available = (n["cash"] + n["receipts_due"] + approved
+                 - n["bills_due"] - n["fixed"] - n["interest"])
+    planned = n["stock"] + n["spend"] + n["projects"]
+    return {"available": available, "planned": planned,
+            "left": available - planned, "approved": approved,
+            "fits": planned <= max(available, 0.0) + 1.0}
 
 
 def fund(team, world, params, d, ctx) -> None:
@@ -85,19 +121,21 @@ def fund(team, world, params, d, ctx) -> None:
 
     Mutates the team's resolved decisions so every later module - traffic,
     the P&L, the order itself - sees the spending that could actually be paid.
+    Runs in every game: on the automatic line the loan is what the line has left.
     """
     tid = team.team_id
     research = ctx.get("research_cost", {}).get(tid, 0.0)
     n = need(team, world.round, params, d, research)
-    approved = min(max(0.0, float(d.get(APPROVE) or 0)), n["headroom"])
-    available = (n["cash"] + n["receipts_due"] + approved
-                 - n["bills_due"] - n["fixed"] - n["interest"])
+    approved = approved_of(n, d, getattr(world, "loans", False))
+    # Projects are committed first: the form refuses a month they do not fit.
+    available = check(n, approved)["available"] - n["projects"]
     shortfall = n["stock"] + n["spend"] - available
     stock_cut = spend_cut = 0.0
-    po_budget = None
+    # The order itself is capped, not just the estimate: an order left to the
+    # engine can come out larger than last month's.
+    po_budget = max(0.0, available - n["spend"])
     if shortfall > 0:
         stock_cut = min(shortfall, n["stock"])
-        po_budget = n["stock"] - stock_cut
         rest = shortfall - stock_cut
         if rest > 0 and n["spend"] > 0:
             spend_cut = min(rest, n["spend"])
@@ -108,8 +146,14 @@ def fund(team, world, params, d, ctx) -> None:
             if keep < 1 and research:
                 d["12.1"] = []
                 ctx.setdefault("research_cost", {})[tid] = 0.0
-    if po_budget is not None:
-        ctx.setdefault("po_budget", {})[tid] = po_budget
+    ctx.setdefault("po_budget", {})[tid] = po_budget
+    if not getattr(world, "loans", False):
+        # The automatic line: no loan record (its presence marks the loan
+        # rules in the reports), only what had to be cut, if anything.
+        if stock_cut or spend_cut:
+            ctx.setdefault("funding", {})[tid] = {
+                "available": available, "stock_cut": stock_cut, "spend_cut": spend_cut}
+        return
     ctx.setdefault("loan", {})[tid] = {
         **n, "approved": approved, "stock_cut": stock_cut, "spend_cut": spend_cut,
         "drawn": 0.0, "unplanned": 0.0, "repaid": 0.0, "repaid_by_choice": 0.0}

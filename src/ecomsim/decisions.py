@@ -362,9 +362,10 @@ REGISTRY: dict[str, DecisionSpec] = {
         # the loan rules; a blank approval means no new borrowing this month.
         DecisionSpec(
             "12.6", "G12", "Working capital loan", "curr", None, ALL,
-            help="How much the bank may lend you this month, at 22% a year. "
-                 "Approve less than you need and your stock order is cut first, "
-                 "then your marketing, to what you can pay for.",
+            help="How much the bank may lend you this month, at 22% a year, "
+                 "charged only on what the month draws. Your stock, marketing "
+                 "and other spending must fit your cash plus this loan: a month "
+                 "that spends more cannot be submitted.",
             unit="PKR", guide="We suggest an amount from your own numbers"),
         DecisionSpec(
             "12.7", "G12", "Extra loan repayment", "curr", None, ALL,

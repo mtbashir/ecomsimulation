@@ -823,12 +823,23 @@ def register_routes(app: Flask) -> None:
                     if (keeps and spec.code not in values and spec.code in standing
                             and request.form.get(f"keep_{spec.code}")):
                         values[spec.code] = standing[spec.code]
-                db.submit(g.db, rnd, tid, values, session["user"])
-                with g.db:
-                    db.log(g.db, session["user"], "submit", f"r{rnd}: {len(values)} decisions")
-                flash(f"Submitted for round {rnd}. You may revise until the "
-                      f"instructor closes it.", "ok")
-                return redirect(url_for("home"))
+                # Spending never runs past the cash: stock, marketing and the
+                # other budgets must fit cash plus the loan applied for.
+                bal = service.cash_balance(g.db, tid, rnd, values, standing)
+                # A team that cannot apply for a loan this month (the window
+                # is held shut) is not refused for want of one.
+                can_borrow = any(s.code == "12.6" for s in specs)
+                if bal and not bal["fits"] and (can_borrow or not bal["loans"]):
+                    flash(service.cash_refusal(bal), "error")
+                    current = values        # show what they typed, not saved
+                else:
+                    db.submit(g.db, rnd, tid, values, session["user"])
+                    with g.db:
+                        db.log(g.db, session["user"], "submit",
+                               f"r{rnd}: {len(values)} decisions")
+                    flash(f"Submitted for round {rnd}. You may revise until the "
+                          f"instructor closes it.", "ok")
+                    return redirect(url_for("home"))
 
         by_group: dict[str, list] = {}
         for spec in specs:
@@ -858,6 +869,7 @@ def register_routes(app: Flask) -> None:
             shelf=shelf, summaries=summaries, taken=taken,
             counted=len(counted),
             loan=service.loan_advice(g.db, tid, rnd, current, standing),
+            cash=service.cash_balance(g.db, tid, rnd, current, standing),
             keeps=keeps, kept=kept,
             campaigns_open=any(s.code == targeting.DECISION for s in specs),
             standing_campaigns=(

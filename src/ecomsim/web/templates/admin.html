@@ -93,8 +93,10 @@ line draws itself, as before.</p>
 <p class="note">This game borrows automatically: when cash would go below zero the
 bank lends, up to PKR 24M at 22% a year, and nothing is ever repaid. Switch to loans
 as a decision from a month not yet run: each team is shown what its month needs and
-approves the loan itself - approve too little and its stock order is cut first, then
-marketing - and cash above a month of fixed costs repays the loan.</p>
+approves the loan itself - a month whose spending is more than cash plus the loan
+cannot be submitted - and cash above a month of fixed costs repays the loan. In every
+game, spending is capped at the cash available: on the automatic line that includes
+what is left of the PKR 24M.</p>
 <form method="post" action="{{ url_for('admin_loans') }}"
       style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"
       onsubmit="return confirm('Switch to loans as a decision from this month? Tell the teams before they submit it: a month with no loan approved has its stock order cut.')">

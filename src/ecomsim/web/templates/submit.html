@@ -15,11 +15,26 @@
 </div>
 
 <form method="post">
+{% if cash %}
+<div class="cash-bal{{ '' if cash.fits else ' short' }}">
+  <span>Cash available this month <b class="num">PKR {{ '{:,.0f}'.format(cash.available) }}</b></span>
+  <span>Your decisions spend <b class="num">PKR {{ '{:,.0f}'.format(cash.planned) }}</b></span>
+  <span>Left <b class="num{{ '' if cash.fits else ' neg' }}">PKR {{ '{:,.0f}'.format(cash.left) }}</b></span>
+  <span class="muted" style="flex-basis:100%">Cash in hand {{ '{:,.0f}'.format(cash.cash) }}
+  + customer money due {{ '{:,.0f}'.format(cash.receipts_due) }}
+  + {{ 'loan applied for' if cash.loans else 'left on the credit line' }} {{ '{:,.0f}'.format(cash.approved) }}
+  &minus; supplier bills due {{ '{:,.0f}'.format(cash.bills_due) }}
+  &minus; running costs and interest {{ '{:,.0f}'.format(cash.fixed + cash.interest) }}.
+  Stock, marketing, the other budgets, research and projects must fit in what is available.
+  {% if not cash.fits %}<b>Over by PKR {{ '{:,.0f}'.format(-cash.left if cash.available > 0 else cash.planned) }}:
+  {{ 'apply for a bigger loan or ' if cash.loans and cash.approved < cash.headroom else '' }}cut spending, or this month cannot be submitted.</b>{% endif %}</span>
+</div>
+{% endif %}
 {% if loan and loan.suggest > 0 and not loan.approved %}
 <div class="loan-alert">What you have decided this month needs about
 <b>PKR {{ '{:,.0f}'.format(loan.suggest) }}</b> of credit available from the bank. Nothing is approved yet: approve it under
-<b>Finance &amp; Research &rarr; Working Capital Loan</b>, or your stock order will be cut
-first, then your marketing.</div>
+<b>Finance &amp; Research &rarr; Working Capital Loan</b>: a month that spends more than
+its cash cannot be submitted. Interest is charged only on what the month actually draws.</div>
 {% endif %}
 <div class="tally">
   <div><b class="num">{{ taken }}</b> of {{ counted }} decisions taken this month</div>
@@ -298,7 +313,7 @@ first, then your marketing.</div>
       <p class="hint" style="margin:8px 0 0">An estimate from your decisions as saved: change
       your stock order or marketing and save to see it move. What you approve is a limit:
       the bank lends only what you actually draw when bills fall due, and charges interest
-      only on that. Approve less and your stock order is cut first, then marketing. Spare
+      only on that. Approve less and the month cannot be submitted until you cut spending. Spare
       cash above a month of fixed costs repays the loan automatically.</p>
     </div>
     {% endif %}

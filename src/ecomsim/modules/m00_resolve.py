@@ -94,11 +94,10 @@ def run(world, params, resolved, ctx) -> None:
             for code in (d.get("12.1") or [])
             if any(st["code"] == code for st in params.studies)
         )
-        if getattr(world, "loans", False):
-            # Spending fitted to cash plus the approved loan, before anything
-            # reads it (ecomsim.loans).
-            from .. import loans
-            loans.fund(team, world, params, d, ctx)
+        # Spending fitted to cash plus the approved loan - or what is left on
+        # the automatic line - before anything reads it (ecomsim.loans).
+        from .. import loans
+        loans.fund(team, world, params, d, ctx)
 
     # Price index is relative, so it needs every team's price first. Incumbents
     # sit in the average too - they are part of the market a team is priced against.
