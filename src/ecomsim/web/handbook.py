@@ -276,14 +276,14 @@ ENTRIES = {
         mistake="Ordering to last month's sales in a month demand is about to move "
                 "- a product you are about to push, discount or pack needs the extra "
                 "stock bought a month ahead.",
-        related=["7.5", "7.2", "11.2"]),
+        related=["7.5", "7.2", "11.2", "7.6"]),
     "7.5": dict(
         does="The weeks of demand you hold on top of forecast.",
         tradeoff="More cover means fewer stock-outs and more cash locked in stock.",
         watch="In-stock rate and weeks of cover; cash balance.",
         mistake="Raising cover after a stock-out that was really a lead-time "
                 "problem. Check the supplier first.",
-        related=["7.1", "7.2", "11.2"]),
+        related=["7.1", "7.2", "11.2", "7.6"]),
     "7.4": dict(
         does="Inspection and testing before stock ships. Cuts defects, returns and "
              "the reviews that follow them.",

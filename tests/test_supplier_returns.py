@@ -94,3 +94,18 @@ def test_the_team_names_units_product_by_product_on_the_form(tmp_path):
     c.post("/submit", data={f"ret_{code}": "50"})
     saved = db.submissions(con, 2).get("team_01") or {}
     assert saved.get("7.6") == {code: 50.0}
+
+
+def test_the_handbook_explains_returns_with_the_game_numbers(tmp_path):
+    from ecomsim.web.app import create_app
+    path = tmp_path / "g.db"
+    pw = db.init(path, "x", 3, admin_password="admin-pw")
+    app = create_app(path); app.config["TESTING"] = True
+    c = app.test_client()
+    c.post("/login", data={"username": "team_01", "password": pw["team_01"]})
+    page = c.get("/handbook").get_data(as_text=True)
+    card = page[page.index('id="d7-6"'):]
+    card = card[:card.index("</section>")]
+    assert "Return Stock to Supplier" in card or "Return stock to supplier" in card
+    assert "50% of its cost" in card and "2.1% of its value" in card
+    assert 'href="/guide/scoring#m-free_cash"' in card

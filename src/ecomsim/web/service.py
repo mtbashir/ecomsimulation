@@ -568,6 +568,12 @@ def handbook_page(con) -> dict:
                           "Cost an agent a month", "With AI customer service"],
                      [("", f"{cust['agent_capacity']:,.0f}", f"{cust['orders_per_agent']:,.0f}",
                        f"PKR {cust['agent_cost']:,.0f}", f"x{cust['ai_cs']:g} capacity")])
+    fee = params["supplier_return_fee"]
+    facts["7.6"] = ("", ["Supplier keeps", "Back to you in cash", "Holding stock a month",
+                         f"Cover past {params['inventory_obsolescence_rounds']:g} months"],
+                    [("", f"{fee:.0%} of its cost", f"{1 - fee:.0%} of its cost",
+                      f"{params['inventory_holding_rate']:.1%} of its value",
+                      "10% of the excess written down a month")])
     facts["10.4"] = ("Returns policy", ["Returns, against the usual rate"],
                      [(label, f"x{m:.2f}") for label, m in ops["policies"]])
     for code, pr in projects.items():
