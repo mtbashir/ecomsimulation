@@ -4,7 +4,7 @@
 /* Two sections, each a pink header bar. Founding folds away: it is read once,
    at the start; the month is what gets read every week. */
 .sx{background:var(--panel);border:1px solid var(--line);border-radius:11px;
-  box-shadow:var(--shadow);margin:0 0 12px;overflow:hidden}
+  box-shadow:var(--shadow);margin:0 0 12px;overflow:clip}
 .sx-head{display:flex;gap:12px;align-items:center;flex-wrap:wrap;
   background:var(--tint);padding:12px 16px;cursor:pointer;list-style:none}
 .sx-head::-webkit-details-marker{display:none}
@@ -22,7 +22,7 @@ details.sx[open]>.sx-head h2::before{transform:rotate(90deg)}
 /* Fixed, equal team columns: six fill the width, more scroll sideways. The
    same column sizes run through every table so teams line up top to bottom. */
 .sg-wrap{container-type:inline-size;overflow-x:auto}
-.sg{--opt:clamp(150px,26cqw,300px);--cnt:56px;
+.sg{--opt:clamp(150px,24cqw,280px);--cnt:64px;
   --col:max(104px,calc((100cqw - var(--opt) - var(--cnt)) / 6));
   table-layout:fixed;border-collapse:separate;border-spacing:0;font-size:13px;
   width:calc(var(--opt) + var(--cnt) + var(--n) * var(--col))}
@@ -35,7 +35,7 @@ details.sx[open]>.sx-head h2::before{transform:rotate(90deg)}
 .sg td.c{text-align:center;color:var(--mute)}
 .sg td.yes{text-align:center}
 .sg td.yes span{display:inline-block;background:var(--accent);color:#fff;
-  border-radius:99px;padding:1px 9px;font-size:11.5px;font-weight:600}
+  border-radius:4px;padding:2px 8px;font-size:11.5px;font-weight:600}
 .sg td.v{text-align:center;color:var(--ink)}
 .sg td.n{text-align:center;color:var(--dim);font-variant-numeric:tabular-nums}
 .sg tr.dec td{background:var(--panel-2);font-weight:650;font-size:12.5px}
@@ -51,6 +51,31 @@ details.sx[open]>.sx-head h2::before{transform:rotate(90deg)}
 .sg .fig small{color:var(--mute);font-size:11px;margin-right:3px}
 .sg .sub{display:block;color:var(--accent);font-size:11.5px}
 .sg td.unused{color:var(--mute);font-size:12px;border-bottom:0;padding-top:8px}
+
+/* Thin dividers between team columns. */
+.sg th:not(.opt),.sg td:not(.opt){border-left:1px solid var(--line)}
+.sg tr.cat td,.sg td.unused{border-left:0}
+/* The team names stay in view while the page scrolls; they follow the grid
+   sideways when more than six teams scroll it. */
+.sg-head{position:sticky;top:0;z-index:5;background:var(--panel);overflow:hidden;
+  container-type:inline-size;box-shadow:0 1px 0 var(--line)}
+/* Stock, cover and order: three labelled rows per product, numbers only in
+   the team columns; a product's rows share one block. */
+.sg tr.stk td{padding-top:3px;padding-bottom:3px;border-bottom:0;border-top:0}
+.sg tr.stk.first td{padding-top:8px}
+.sg tr.stk.last td{padding-bottom:8px;border-bottom:1px solid var(--line)}
+.sg tr.stk .lbl{display:flex;align-items:baseline;gap:8px}
+.sg tr.stk .sku{flex:1;min-width:0}
+.sg tr.stk .met{color:var(--mute);font-size:11.5px;white-space:nowrap}
+.sg tr.stk td.v{font-variant-numeric:tabular-nums}
+.sg tr.stk .chg{display:inline-block;margin:0 0 0 5px;vertical-align:1px}
+.sg tr.stk.total td{font-weight:650}
+.sg tr.stk.total.first td{border-top:2px solid var(--line)}
+/* Change on last month: a small green rise or red fall. */
+.chg{display:block;width:max-content;margin:2px auto 0;font-size:10.5px;font-weight:650;
+  padding:0 4px;border-radius:3px;line-height:1.45;font-variant-numeric:tabular-nums}
+.chg.up{color:#0a7d33;background:rgba(10,125,51,.11)}
+.chg.down{color:#c0392b;background:rgba(192,57,43,.11)}
 
 /* Decision groups fold too; the instructor opens the ones they want. */
 details.g{border-top:1px solid var(--line)}
@@ -78,6 +103,8 @@ details.g>summary small{color:var(--mute);font-weight:400;margin-left:8px;font-s
 {% for h in heads %}<th class="nc">{{ h.name }}{% if h.brand %}<small>{{ h.brand }}</small>{% endif %}</th>{% endfor %}
 <th>Teams</th></tr></thead></table>
 {% endmacro %}
+
+{% macro chip(c, f, short=false) %}{% set x = (c.chg or {}).get(f) %}{% if x %}<span class="chg {{ x[0] }}">{{ '&#9650;'|safe if x[0] == 'up' else '&#9660;'|safe }}{{ '' if short else ' ' }}{{ x[1]|replace('%', '') if short else x[1] }}</span>{% endif %}{% endmacro %}
 
 {% macro blocks_table(blocks, unused, unused_label) %}
 <table class="sg" style="--n:{{ n }}">{{ colgroup() }}<tbody>
@@ -130,8 +157,8 @@ details.g>summary small{color:var(--mute);font-weight:400;margin-left:8px;font-s
     <button type="button" class="linkbtn" data-all="founding" data-to="close">Collapse all</button></span>
 </summary>
 <div class="sx-body" id="founding-body">
+<div class="sg-head">{{ team_header() }}</div>
 <div class="sg-wrap">
-{{ team_header() }}
 {% for g in founding_groups %}
   {% call group("f" ~ loop.index, g.group, counts(g)) %}
     {{ blocks_table(g.blocks, g.unused, "Not chosen by any team") }}
@@ -165,8 +192,8 @@ details.g>summary small{color:var(--mute);font-weight:400;margin-left:8px;font-s
 </div>
 <div class="sx-body" id="month-body">
 {% if month_groups or range_rows %}
+<div class="sg-head">{{ team_header() }}</div>
 <div class="sg-wrap">
-{{ team_header() }}
 
 {% if range_rows %}
 {% call group("range", "Range and prices", "Regular price (PKR) and the discount offered this month, product by product") %}
@@ -177,7 +204,7 @@ details.g>summary small{color:var(--mute);font-weight:400;margin-left:8px;font-s
   <tr><td class="opt">{{ r.label }}</td>
   {% for c in r.cells %}
     {% if c is none %}<td class="c">–</td>
-    {% else %}<td class="v"><span class="fig">{{ c.price }}</span>{% if c.discount %}<span class="sub">{{ c.discount }}</span>{% endif %}</td>{% endif %}
+    {% else %}<td class="v"><span class="fig">{{ c.price }}</span>{{ chip(c, 'price') }}{% if c.discount %}<span class="sub">{{ c.discount }}</span>{% endif %}{{ chip(c, 'discount') }}</td>{% endif %}
   {% endfor %}<td></td></tr>
   {% endif %}
 {% endfor %}
@@ -186,19 +213,19 @@ details.g>summary small{color:var(--mute);font-weight:400;margin-left:8px;font-s
 {% endif %}
 
 {% if stock.rows %}
-{% call group("stock", "Stock by product", ("Stock at the end of the month, weeks of cover, and units ordered in it" if stock.ran else "Stock the month starts with, weeks of cover, and units ordered so far")) %}
+{% call group("stock", "Stock by product", ("Stock at the end of the month, weeks of cover, and units ordered in it" if stock.ran else "Stock the month starts with, weeks of cover, and units ordered so far") ~ "; arrows show the change on last month") %}
 <table class="sg" style="--n:{{ n }}">{{ colgroup() }}<tbody>
 {% for r in stock.rows %}
   {% if r.category %}<tr class="cat"><td colspan="{{ n + 2 }}">{{ r.category }}</td></tr>
   {% else %}
-  <tr class="{{ 'total' if r.total }}"><td class="opt">{{ r.label }}</td>
-  {% for c in r.cells %}
-    {% if c is none %}<td class="c">–</td>
-    {% else %}<td class="v">
-      <span class="fig"><small>Stock</small>{{ c.stock or '–' }}</span>
-      <span class="fig"><small>Cover</small>{{ c.cover or '–' }}</span>
-      <span class="fig"><small>Order</small>{{ c.ordered or '–' }}</span></td>{% endif %}
-  {% endfor %}<td></td></tr>
+  {% for f, name in [("stock", "Stock"), ("cover", "Cover, weeks"), ("ordered", "Order")] %}
+  <tr class="stk {{ 'first' if loop.first }}{{ ' last' if loop.last }}{{ ' total' if r.total }}">
+    <td class="opt"><div class="lbl"><span class="sku">{{ r.label if loop.first else '' }}</span><span class="met">{{ name }}</span></div></td>
+    {% for c in r.cells %}
+      {% if c is none %}<td class="c">–</td>
+      {% else %}<td class="v">{{ ((c[f] or '–')|replace(' wk', '')) }}{{ chip(c, f) }}</td>{% endif %}
+    {% endfor %}<td></td></tr>
+  {% endfor %}
   {% endif %}
 {% endfor %}
 </tbody></table>
@@ -233,6 +260,11 @@ and teams start submitting.</p>
       open[d.dataset.key] = d.open;
       try { sessionStorage.setItem(KEY, JSON.stringify(open)); } catch (e) {}
     });
+  });
+  // The pinned team names follow the grid when it scrolls sideways.
+  document.querySelectorAll(".sg-head").forEach(function (head) {
+    var wrap = head.nextElementSibling;
+    if (wrap) wrap.addEventListener("scroll", function () { head.scrollLeft = wrap.scrollLeft; });
   });
   document.querySelectorAll("[data-all]").forEach(function (b) {
     b.addEventListener("click", function (ev) {

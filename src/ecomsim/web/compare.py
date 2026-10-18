@@ -379,3 +379,39 @@ def stock_table(con, teams: list[str], month: int) -> dict:
                        "ordered": ordered_s})
     rows.append({"label": "All products", "total": True, "cells": totals})
     return {"rows": rows, "ran": ran}
+
+
+def _num(text) -> float | None:
+    """The number in a formatted cell ("1,234", "3.2 wk", "10% off")."""
+    import re
+    m = re.search(r"-?[\d,]+(?:\.\d+)?", str(text or ""))
+    return float(m.group().replace(",", "")) if m else None
+
+
+def with_change(rows: list[dict], before: list[dict], fields: tuple[str, ...],
+                points: tuple[str, ...] = ()) -> list[dict]:
+    """Mark each cell with its change on the same product and team last month:
+    cell["chg"][field] = (direction, label), e.g. ("up", "12%"). `points`
+    fields (a discount) change in percentage points rather than percent."""
+    prev = {r["label"]: r["cells"] for r in before if "cells" in r}
+    for r in rows:
+        old = prev.get(r.get("label"))
+        if "cells" not in r or old is None:
+            continue
+        for i, c in enumerate(r["cells"]):
+            o = old[i] if i < len(old) else None
+            if not c or not o:
+                continue
+            chg = {}
+            for f in fields:
+                now, was = _num(c.get(f)), _num(o.get(f))
+                if f in points:
+                    now, was = now or 0.0, was or 0.0
+                    if abs(now - was) >= 0.5:
+                        chg[f] = ("up" if now > was else "down", f"{abs(now - was):.0f} pts")
+                elif now is not None and was:
+                    pct = (now - was) / was * 100
+                    if abs(pct) >= 0.5:
+                        chg[f] = ("up" if pct > 0 else "down", f"{abs(pct):.0f}%")
+            c["chg"] = chg
+    return rows

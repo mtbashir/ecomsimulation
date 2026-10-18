@@ -1077,9 +1077,27 @@ def register_routes(app: Flask) -> None:
             "admin_strategy.html", heads=heads, month=month, last=last,
             founding_groups=founding_groups,
             month_groups=compare.month_blocks(g.db, teams, month) if month else [],
-            range_rows=compare.range_table(g.db, teams, month) if month else [],
-            stock=compare.stock_table(g.db, teams, month) if month
-            else {"rows": [], "ran": False})
+            range_rows=_changed_range(teams, month), stock=_changed_stock(teams, month))
+
+    def _changed_range(teams, month):
+        """Prices and discounts this month, each marked with its change on last month."""
+        if not month:
+            return []
+        rows = compare.range_table(g.db, teams, month)
+        if month > 1:
+            compare.with_change(rows, compare.range_table(g.db, teams, month - 1),
+                                ("price", "discount"), points=("discount",))
+        return rows
+
+    def _changed_stock(teams, month):
+        """Stock, cover and orders this month, each marked with its change on last month."""
+        if not month:
+            return {"rows": [], "ran": False}
+        stock = compare.stock_table(g.db, teams, month)
+        if month > 1:
+            compare.with_change(stock["rows"], compare.stock_table(g.db, teams, month - 1)["rows"],
+                                ("stock", "cover", "ordered"))
+        return stock
 
     @app.post("/admin/report-view")
     @login_required("admin")

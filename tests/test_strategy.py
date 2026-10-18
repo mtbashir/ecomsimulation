@@ -182,8 +182,11 @@ def test_the_stock_table_reports_stock_cover_and_orders(game):
     page = _months(admin.get("/admin/strategy?month=1").get_data(as_text=True))
     section = page.split("Stock by Product", 1)[1].split("</table>", 1)[0]
     assert "All products" in section
-    assert section.count("<small>Stock</small>") > 3
-    assert " wk" in section and "<small>Order</small>" in section
+    # Three labelled rows per product; the team columns hold only numbers.
+    assert section.count('<span class="met">Stock</span>') > 3
+    assert '<span class="met">Cover, weeks</span>' in section
+    assert '<span class="met">Order</span>' in section
+    assert " wk</td>" not in section
 
 
 def test_a_board_memo_is_shown_in_full(game):
@@ -196,3 +199,15 @@ def test_a_board_memo_is_shown_in_full(game):
     con.close()
     page = admin.get("/admin/strategy?month=1").get_data(as_text=True)
     assert memo in page
+
+
+def test_changes_on_last_month_are_marked():
+    from ecomsim.web import compare
+    before = [{"label": "Soap", "cells": [{"price": "500", "discount": "10% off"}, None]}]
+    now = [{"label": "Soap", "cells": [{"price": "550", "discount": ""}, None]}]
+    compare.with_change(now, before, ("price", "discount"), points=("discount",))
+    chg = now[0]["cells"][0]["chg"]
+    assert chg["price"] == ("up", "10%") and chg["discount"] == ("down", "10 pts")
+    same = [{"label": "Soap", "cells": [{"price": "500", "discount": "10% off"}]}]
+    compare.with_change(same, before, ("price", "discount"), points=("discount",))
+    assert same[0]["cells"][0]["chg"] == {}, "nothing marked where nothing moved"
