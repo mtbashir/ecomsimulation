@@ -146,6 +146,19 @@ def connect(path: str | Path) -> sqlite3.Connection:
     return con
 
 
+# Starting capital before it rose to PKR 13M, kept by games that began on it.
+OLD_CAPITAL = 12_000_000
+
+
+def capital(con) -> int:
+    """The starting capital this game pins, or 0 for the parameter's own.
+    An archive from before the column began on the old capital."""
+    g = game(con)
+    if g is None:
+        return 0
+    return int(g["capital"] or 0) if "capital" in g.keys() else OLD_CAPITAL
+
+
 def migrate(con) -> None:
     """Bring an older database up to the current schema, in place.
 
@@ -167,6 +180,7 @@ def migrate(con) -> None:
         ("game", "costs_from", "INTEGER"),
         ("game", "affiliates_from", "INTEGER"),
         ("game", "returns_from", "INTEGER"),
+        ("game", "capital", "INTEGER"),
     ]:
         have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
         if column not in have:
@@ -201,6 +215,10 @@ def migrate(con) -> None:
     # And returning stock to the supplier as a decision (7.6, m03).
     con.execute("UPDATE game SET returns_from = CASE WHEN round >= 1 THEN 0 ELSE 1 END "
                 "WHERE returns_from IS NULL")
+    # And PKR 13M of starting capital (it was 12M): a game already trading keeps
+    # the capital it started with, or every team's free cash would be rebased.
+    con.execute(f"UPDATE game SET capital = CASE WHEN round >= 1 THEN {OLD_CAPITAL} "
+                "ELSE 0 END WHERE capital IS NULL")
 
 
 def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
@@ -216,8 +234,8 @@ def init(path: str | Path, name: str, teams: int, preset: str = "advanced",
             "INSERT OR REPLACE INTO game "
             "(id, name, preset, round, total_rounds, open_round, start_mode, "
             "rules_from, launch_order, range_changes, scaled_purchases, fair_pricing_from, "
-            "loans_from, costs_from, affiliates_from, returns_from, created_at) "
-            "VALUES (1, ?, ?, 0, ?, NULL, ?, 1, 1, 1, 1, 1, 1, 1, 1, 1, ?)",
+            "loans_from, costs_from, affiliates_from, returns_from, capital, created_at) "
+            "VALUES (1, ?, ?, 0, ?, NULL, ?, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, ?)",
             (name, preset, rounds, start_mode, _now()))
         con.execute(
             "INSERT OR REPLACE INTO account "
@@ -940,7 +958,7 @@ def new_game(con, db_path: str | Path, name: str, teams: int, rounds: int,
             "open_round = NULL, start_mode = ?, overrides = ?, epoch = ?, "
             "rules_from = 1, launch_order = 1, range_changes = 1, scaled_purchases = 1, "
             "fair_pricing_from = 1, loans_from = 1, costs_from = 1, affiliates_from = 1, "
-            "returns_from = 1, "
+            "returns_from = 1, capital = 0, "
             "created_at = ? WHERE id = 1",
             (name, rounds, start_mode,
              old["overrides"] if keep_overrides else "{}",

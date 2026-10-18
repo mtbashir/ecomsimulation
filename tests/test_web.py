@@ -24,7 +24,7 @@ def game(tmp_path):
 
 
 # New games run on the loan rules: spending must fit cash plus the loan
-# applied for, and the opening month's defaults already need some credit.
+# applied for.
 LOAN = {"12.6": "10000000"}
 
 

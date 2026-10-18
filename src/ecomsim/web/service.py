@@ -32,6 +32,8 @@ def load_params(con):
     g = db.game(con)
     over = dict(db.overrides(con))
     over["n_teams"] = len(db.accounts(con, "team"))
+    if db.capital(con):
+        over.setdefault("starting_cash", db.capital(con))
     return P.load(over)
 
 

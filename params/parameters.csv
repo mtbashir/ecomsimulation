@@ -2,7 +2,7 @@ name,module,default,green_min,green_max,hard_min,hard_max,unit,danger,note
 rounds,structural,12,6,20,4,24,rounds,,Total operating rounds excluding Round 0
 round_months,structural,1,1,12,1,12,months,,Round length; 12 disables seasonality
 n_teams,structural,8,2,16,2,16,count,,Adjustments auto-apply at N<=3 and N>=12
-starting_cash,structural,12000000,6000000,30000000,4000000,60000000,PKR,HIGH,Below 8M one ordinary R2 mistake is unrecoverable
+starting_cash,structural,13000000,6000000,30000000,4000000,60000000,PKR,HIGH,Below 8M one ordinary R2 mistake is unrecoverable
 baseline_team_revenue,M1,12000000,8000000,20000000,5000000,40000000,PKR,,Round 0 revenue per team; drives category sizing
 team_share_total,M1,0.64,0.5,0.8,0.3,0.9,ratio,,Share of category held by teams; remainder to incumbents
 category_growth_per_round,M1,0.025,0.0,0.05,-0.02,0.10,ratio,,Above 0.10 growth covers every mistake

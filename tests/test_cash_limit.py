@@ -50,13 +50,32 @@ def test_applying_for_a_loan_makes_the_cash_available(game):
     assert db.submission(con, 1, "team_01")["7.1"] == 10_000
 
 
+def test_the_opening_months_defaults_fit_the_starting_capital(game):
+    con, _ = game
+    assert service.cash_balance(con, "team_01", 1, {})["fits"]
+
+
 def test_cutting_spending_instead_of_borrowing_also_works(game):
     con, team = game
-    bal = service.cash_balance(con, "team_01", 1, {})
-    assert not bal["fits"], "the opening month's defaults need a little credit"
-    cut = {k: "0" for k in ("3.1", "3.2", "3.4", "3.8", "3.9", "5.1", "6.1", "7.4")}
-    team.post("/submit", data=cut, follow_redirects=True)
+    over = {"3.1": "3000000"}
+    r = team.post("/submit", data=over, follow_redirects=True)
+    assert b"Not enough cash" in r.data
+    cut = {k: "0" for k in ("3.2", "3.4", "3.8", "3.9", "5.1", "6.1", "7.4")}
+    team.post("/submit", data={"3.1": "1000000", **cut}, follow_redirects=True)
     assert db.submission(con, 1, "team_01") is not None
+
+
+def test_a_game_already_trading_keeps_its_starting_capital(tmp_path):
+    path = tmp_path / "old.db"
+    db.init(path, "Old", 3)
+    con = db.connect(path)
+    with con:
+        con.execute("UPDATE game SET round = 6, capital = NULL")
+    db.migrate(con)
+    assert service.load_params(con)["starting_cash"] == db.OLD_CAPITAL
+    fresh = tmp_path / "new.db"
+    db.init(fresh, "New", 3)
+    assert service.load_params(db.connect(fresh))["starting_cash"] == 13_000_000
 
 
 def test_the_form_shows_the_cash_balance(game):

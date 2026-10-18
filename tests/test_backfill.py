@@ -138,7 +138,7 @@ def test_workbook_shows_stock_and_the_cash_from_the_first_rupee(old_game):
     cash = _sheet(data, "Cash")
     params = service.load_params(con)
     f = db.load_world(con).teams["team_01"].founding
-    assert cash["Starting capital"][0] == params["starting_cash"] == 12_000_000
+    assert cash["Starting capital"][0] == params["starting_cash"] == 13_000_000
     assert cash["Opening stock bought"][0] == -f.capital_inventory
     assert str(cash["Cash at the start of month 1"][0]).startswith("=SUM(")
     opening = cash["Opening cash"]
@@ -154,7 +154,7 @@ def test_setup_lines_add_up_to_month_one_opening():
     params, world, saved, subs = _played(1)
     team = next(iter(world.teams.values()))
     lines = workbook.setup_cash(team, params, team.history)
-    assert lines[0] == ("Starting capital", 12_000_000.0, "The capital every team started with")
+    assert lines[0] == ("Starting capital", 13_000_000.0, "The capital every team started with")
     assert sum(v for _, v, _ in lines) == pytest.approx(team.history[0]["cash_flow"]["opening"])
     team.history[0]["cash_flow"]["opening"] += 5
     assert workbook.setup_cash(team, params, team.history) is None, "never a block that misleads"
