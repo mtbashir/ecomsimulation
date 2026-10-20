@@ -146,8 +146,9 @@ def _market(teams, params) -> str:
         return f' <small class="{cls}">{d:+.0%}</small>'
 
     def table(now, was, fmt, label):
-        def cell(n, w):
-            return f"<td>{fmt(n)}{change(n, w)}</td>"
+        def cell(n, w, row=0.0):
+            share = f' <small class="sh">{n / row:.0%}</small>' if row > 0 else ""
+            return f"<td>{fmt(n)}{change(n, w)}{share}</td>"
         head = ("<tr><th>Product</th>" + "".join(f"<th>{escape(n)}</th>" for _, n in segs)
                 + "<th>Total</th></tr>")
         body, cat = [], None
@@ -160,7 +161,7 @@ def _market(teams, params) -> str:
             n_row = sum(now.get((c, k), 0.0) for k, _ in segs)
             w_row = sum(was.get((c, k), 0.0) for k, _ in segs)
             body.append(f"<tr><td>{escape(s['name'])}</td>"
-                        + "".join(cell(now.get((c, k), 0.0), was.get((c, k), 0.0))
+                        + "".join(cell(now.get((c, k), 0.0), was.get((c, k), 0.0), n_row)
                                   for k, _ in segs)
                         + f'<td class="top">{fmt(n_row)}{change(n_row, w_row)}</td></tr>')
         n_col = {k: sum(now.get((c, k), 0.0) for c in codes) for k, _ in segs}
@@ -176,14 +177,42 @@ def _market(teams, params) -> str:
         return (f'<div class="gridwrap"><table class="t grid" aria-label="{label}">'
                 f"<thead>{head}</thead><tbody>{''.join(body)}</tbody></table></div>")
 
+    def by_segment():
+        n_col = {k: sum(v for (c, s), v in now_o.items() if s == k) for k, _ in segs}
+        w_col = {k: sum(v for (c, s), v in was_o.items() if s == k) for k, _ in segs}
+        n_all, w_all = sum(n_col.values()) or 1.0, sum(w_col.values())
+        rows = []
+        for k, name in sorted(segs, key=lambda s: -n_col[s[0]]):
+            sh = n_col[k] / n_all
+            pts = ""
+            if w_all:
+                d = round((sh - w_col[k] / w_all) * 100, 1) + 0.0   # no -0.0
+                cls = "up" if d > 0.05 else "down" if d < -0.05 else "mute"
+                pts = f' <small class="{cls}">{d:+.1f} pts</small>'
+            rows.append(f"<tr><td>{escape(name)}</td><td>{n_col[k]:,.0f}</td>"
+                        f"<td>{change(n_col[k], w_col[k]).strip() or '&mdash;'}</td>"
+                        f"<td>{sh:.0%}{pts}</td></tr>")
+        rows.append(f'<tr class="tot"><td>All segments</td><td>{sum(n_col.values()):,.0f}</td>'
+                    f"<td>{change(sum(n_col.values()), w_all).strip() or '&mdash;'}</td>"
+                    "<td>100%</td></tr>")
+        return ('<table class="t grid seg" aria-label="Orders by segment"><thead><tr>'
+                "<th>Segment</th><th>Orders</th><th>Change on last month</th>"
+                "<th>Share of orders</th></tr></thead><tbody>" + "".join(rows)
+                + "</tbody></table>")
+
     return (
         '<section class="wide"><h2>Market size &middot; orders by product and segment</h2>'
+        + by_segment()
+        + '<p class="note">Orders asked for by each customer segment this month, its change '
+        'on last month, and its share of all orders (the small figure: the move in share, '
+        'in points).</p>'
         + table(now_o, was_o, lambda v: f"{v:,.0f}", "Orders asked for")
         + '<p class="note">Orders asked for across every team&rsquo;s store this month '
         '(orders served plus those lost to stock-outs), split across products by the '
-        'units each was asked for and across segments by who buys that product. The '
-        'small figure is the change on last month. A product only counts where a team '
-        'sells it; incumbent brands are not included.</p>'
+        'units each was asked for and across segments by who buys that product. In each '
+        'cell: orders, the change on last month, and in grey the segment&rsquo;s share of '
+        'that product&rsquo;s orders. A product only counts where a team sells it; '
+        'incumbent brands are not included.</p>'
         '<details><summary>The same grid in sales value (PKR, what was sold)</summary>'
         + table(now_v, was_v, lambda v: f"{v / 1e6:,.2f}M" if v >= 1e6 else f"{v / 1e3:,.0f}k",
                 "Sales value")
@@ -318,6 +347,8 @@ table.t td.mute{{color:#898781}}
 table.t.grid td small{{font-size:11px;margin-left:3px}}
 table.t.grid small.up{{color:#006300}} table.t.grid small.down{{color:#d03b3b}}
 table.t.grid small.mute{{color:#898781}}
+table.t.grid small.sh{{color:#898781;display:block;font-size:10.5px;line-height:1.1}}
+table.t.seg{{max-width:620px}} table.t.seg td small{{display:inline}}
 table.t.grid tr.grp td{{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#52514e;padding-top:10px;font-weight:600}}
 table.t.grid tr.tot td{{font-weight:700;border-top:2px solid #c9c8c0}}
 table.t.grid tr.mix td{{color:#52514e}}

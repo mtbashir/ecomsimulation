@@ -19,3 +19,4 @@ def test_the_grid_adds_up_to_every_order_asked_for(tmp_path):
     page = console.render(world, params, tmp_path).read_text()
     assert "Orders by Product and Segment" in page
     assert "Quality Loyalists" in page and "Share of orders" in page
+    assert 'aria-label="Orders by segment"' in page and 'class="sh"' in page
