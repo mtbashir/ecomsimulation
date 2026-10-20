@@ -95,6 +95,101 @@ def _targeting(ranked, params, name_of) -> str:
         '</tbody></table></details></section>')
 
 
+def _grid(record: dict | None) -> tuple[dict, dict]:
+    """One team-month's orders asked for and sales value, by product and segment.
+
+    Orders asked for are the orders served plus those lost to stock-outs,
+    shared across products by the units each was asked for, then across
+    segments by who buys that product (`buyers`). Sales value is what was
+    actually sold, split the same way."""
+    orders, value = {}, {}
+    if not record:
+        return orders, value
+    lines = record.get("products") or []
+    asked = record.get("orders", 0.0) + record.get("lost_to_stockout", 0.0)
+    units = sum(r.get("wanted", 0.0) for r in lines) or 1.0
+    for r in lines:
+        share = r.get("wanted", 0.0) / units
+        for seg, b in (r.get("buyers") or {}).items():
+            key = (r["code"], seg)
+            orders[key] = orders.get(key, 0.0) + asked * share * b
+            value[key] = value.get(key, 0.0) + r.get("net_sales", 0.0) * b
+    return orders, value
+
+
+def _market(teams, params) -> str:
+    """Market size: every store's orders by product and customer segment this
+    month, against last month. For the instructor - teams never see segments."""
+    def total(back: int):
+        o, v = {}, {}
+        for t in teams:
+            rec = t.history[-1 - back] if len(t.history) > back else None
+            go, gv = _grid(rec)
+            for k, x in go.items():
+                o[k] = o.get(k, 0.0) + x
+            for k, x in gv.items():
+                v[k] = v.get(k, 0.0) + x
+        return o, v
+
+    (now_o, now_v), (was_o, was_v) = total(0), total(1)
+    if not now_o:
+        return ""
+    segs = [(s["code"], s["name"]) for s in params.segments]
+    codes = {c for c, _ in now_o}
+    skus = [s for s in params.skus if s["code"] in codes]
+
+    def change(now, was):
+        if not was:
+            return ""
+        d = now / was - 1
+        cls = "up" if d > 0.005 else "down" if d < -0.005 else "mute"
+        return f' <small class="{cls}">{d:+.0%}</small>'
+
+    def table(now, was, fmt, label):
+        def cell(n, w):
+            return f"<td>{fmt(n)}{change(n, w)}</td>"
+        head = ("<tr><th>Product</th>" + "".join(f"<th>{escape(n)}</th>" for _, n in segs)
+                + "<th>Total</th></tr>")
+        body, cat = [], None
+        for s in skus:
+            if s["category"] != cat:
+                cat = s["category"]
+                body.append(f'<tr class="grp"><td colspan="{len(segs) + 2}">'
+                            f'{escape(cat.title())}</td></tr>')
+            c = s["code"]
+            n_row = sum(now.get((c, k), 0.0) for k, _ in segs)
+            w_row = sum(was.get((c, k), 0.0) for k, _ in segs)
+            body.append(f"<tr><td>{escape(s['name'])}</td>"
+                        + "".join(cell(now.get((c, k), 0.0), was.get((c, k), 0.0))
+                                  for k, _ in segs)
+                        + f'<td class="top">{fmt(n_row)}{change(n_row, w_row)}</td></tr>')
+        n_col = {k: sum(now.get((c, k), 0.0) for c in codes) for k, _ in segs}
+        w_col = {k: sum(was.get((c, k), 0.0) for c in codes) for k, _ in segs}
+        n_all, w_all = sum(n_col.values()), sum(w_col.values())
+        body.append('<tr class="tot"><td>All products</td>'
+                    + "".join(f"<td>{fmt(n_col[k])}{change(n_col[k], w_col[k])}</td>"
+                              for k, _ in segs)
+                    + f"<td>{fmt(n_all)}{change(n_all, w_all)}</td></tr>")
+        body.append('<tr class="mix"><td>Share of orders</td>'
+                    + "".join(f"<td>{n_col[k] / (n_all or 1):.0%}</td>" for k, _ in segs)
+                    + "<td>100%</td></tr>")
+        return (f'<div class="gridwrap"><table class="t grid" aria-label="{label}">'
+                f"<thead>{head}</thead><tbody>{''.join(body)}</tbody></table></div>")
+
+    return (
+        '<section class="wide"><h2>Market size &middot; orders by product and segment</h2>'
+        + table(now_o, was_o, lambda v: f"{v:,.0f}", "Orders asked for")
+        + '<p class="note">Orders asked for across every team&rsquo;s store this month '
+        '(orders served plus those lost to stock-outs), split across products by the '
+        'units each was asked for and across segments by who buys that product. The '
+        'small figure is the change on last month. A product only counts where a team '
+        'sells it; incumbent brands are not included.</p>'
+        '<details><summary>The same grid in sales value (PKR, what was sold)</summary>'
+        + table(now_v, was_v, lambda v: f"{v / 1e6:,.2f}M" if v >= 1e6 else f"{v / 1e3:,.0f}k",
+                "Sales value")
+        + '</details></section>')
+
+
 def render(world, params, out_dir: str | Path, submissions: dict | None = None,
            open_codes: list[str] | None = None, workbook_url=None,
            workbooks_zip: str | None = None, memo_rejected: set | None = None,
@@ -219,6 +314,13 @@ border-bottom:1px solid #e1e0d9;font-variant-numeric:tabular-nums}}
 table.t th:first-child,table.t td:first-child{{text-align:left}}
 table.t thead th{{color:#52514e;font-weight:600}}
 table.t td.mute{{color:#898781}}
+.gridwrap{{overflow-x:auto}}
+table.t.grid td small{{font-size:11px;margin-left:3px}}
+table.t.grid small.up{{color:#006300}} table.t.grid small.down{{color:#d03b3b}}
+table.t.grid small.mute{{color:#898781}}
+table.t.grid tr.grp td{{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#52514e;padding-top:10px;font-weight:600}}
+table.t.grid tr.tot td{{font-weight:700;border-top:2px solid #c9c8c0}}
+table.t.grid tr.mix td{{color:#52514e}}
 table.t.key th,table.t.key td{{text-align:left;font-size:12px;vertical-align:top}}
 table.t.key td.l{{min-width:240px}}
 @media(prefers-color-scheme:dark){{
@@ -238,7 +340,7 @@ table.t th,table.t td{{border-color:#2c2c2a}} table.t thead th{{color:#c3c2b7}}
 {_round_nav(round_urls, round_)}
 <p class="sub">Instructor console &middot; {len(teams)} teams &middot;
 config {params.config_hash()}</p>
-{downloads}{board}{_by_round(ranked, name_of, by_round)}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags, workbook_url, memo_rejected, memo_url, coaching)}{watch}{_targeting(ranked, params, name_of)}
+{downloads}{board}{_by_round(ranked, name_of, by_round)}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags, workbook_url, memo_rejected, memo_url, coaching)}{watch}{_targeting(ranked, params, name_of)}{_market(ranked, params)}
 {f'<p class="note ver">{escape(footer)}</p>' if footer else ''}
 </div></body></html>"""
 
