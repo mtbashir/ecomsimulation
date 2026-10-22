@@ -583,11 +583,15 @@ def _projects(builds: list[dict] | None, record: dict) -> str:
     for b in builds or []:
         if b["outcome"] == "live":
             what, cls = f"Live since month {b['month']}", "up"
+        elif b["outcome"] == "failed" and b.get("refunded"):
+            what, cls = (f"Failed in month {b['month']}; refunded in month {b['refunded']} "
+                         f"when it was withdrawn from the game"), "flat"
         elif b["outcome"] == "failed":
             what, cls = (f"Failed in month {b['month']}: the build did not work; its cost is "
                          f"not refunded"), "down"
         elif b["outcome"] == "withdrawn":
-            what, cls = (f"Withdrawn from the game in month {b['month']}; refunded"), "flat"
+            what, cls = (f"Withdrawn from the game in month {b['month']}; refunded"
+                         + (f" in month {b['refunded']}" if b.get("refunded") else "")), "flat"
         else:
             what, cls = f"Building: ready in month {b['completes']} if it works", "flat"
         rows.append(f'<tr><th>{escape(b["name"])}</th><td class="v">{b["started"]}</td>'

@@ -1110,16 +1110,20 @@ def project_timeline(con, upto: int | None = None) -> dict[str, list[dict]]:
     A failed build left no trace a team could see - its cost was gone and the
     module simply never arrived - so a team ticked it again and paid again.
     {team_id: [{"code", "name", "decision", "started", "completes", "capex",
-    "outcome": "building" | "live" | "failed" | "withdrawn", "month"}]},
-    "month" being when it went live, failed or was withdrawn.
+    "outcome": "building" | "live" | "failed" | "withdrawn", "month",
+    "refunded"}]}, "month" being when it went live, failed or was withdrawn and
+    "refunded" the month a withdrawn lever's cost came back (else None).
     """
     from ..modules.m04_capability import PROJECTS
     upto = db.game(con)["round"] if upto is None else upto
     builds: dict[tuple, dict] = {}
+    refunded: dict[str, int] = {}
     for m in range(1, (upto or 0) + 1):
         world = db.load_world(con, m)
         if world is None:
             continue
+        for code in getattr(world, "withdrawn_refunded", None) or ():
+            refunded.setdefault(code, m)
         for tid, team in world.teams.items():
             running = {(p["code"], p["started"]) for p in team.projects}
             for p in team.projects:
@@ -1127,7 +1131,8 @@ def project_timeline(con, upto: int | None = None) -> dict[str, list[dict]]:
                     "code": p["code"], "decision": PROJECTS[p["code"]]["decision"],
                     "name": REGISTRY[PROJECTS[p["code"]]["decision"]].name,
                     "started": p["started"], "completes": p["completes"],
-                    "capex": float(p["capex"]), "outcome": "building", "month": None})
+                    "capex": float(p["capex"]), "outcome": "building", "month": None,
+                    "refunded": None})
             for (t, code, started), b in builds.items():
                 if t != tid:
                     continue
@@ -1142,6 +1147,8 @@ def project_timeline(con, upto: int | None = None) -> dict[str, list[dict]]:
     out: dict[str, list[dict]] = {}
     for (tid, _, _), b in sorted(builds.items(), key=lambda kv: (kv[0][0], kv[1]["started"],
                                                                   kv[1]["decision"])):
+        if b["code"] in refunded and refunded[b["code"]] >= b["started"]:
+            b["refunded"] = refunded[b["code"]]
         out.setdefault(tid, []).append(b)
     return out
 

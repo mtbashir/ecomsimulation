@@ -468,10 +468,12 @@ def _projects(ranked, name_of, builds) -> str:
         def names(outcome):
             return ", ".join(f"{b['name']} (M{b['month'] or b['completes']})"
                              for b in mine if b["outcome"] == outcome) or "&mdash;"
-        lost = sum(b["capex"] for b in mine if b["outcome"] == "failed")
+        lost = sum(b["capex"] for b in mine if b["outcome"] == "failed" and not b.get("refunded"))
+        back = ", ".join(f"{b['name']} (M{b['refunded']})" for b in mine if b.get("refunded")) \
+            or "&mdash;"
         rows.append(f"<tr><td>{escape(name_of(t))}</td><td>{names('live')}</td>"
                     f"<td>{names('building')}</td><td>{names('failed')}</td>"
-                    f"<td>{lost / 1e6:,.2f}M</td><td>{names('withdrawn')}</td></tr>")
+                    f"<td>{lost / 1e6:,.2f}M</td><td>{back}</td></tr>")
     return ('<section class="wide"><h2>Technology projects</h2><table class="t"><thead><tr>'
             '<th>Team</th><th>Live (since)</th><th>Building (ready)</th><th>Failed (month)</th>'
             '<th>Lost on failed builds</th><th>Withdrawn, refunded</th></tr></thead><tbody>'

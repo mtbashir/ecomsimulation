@@ -127,3 +127,21 @@ def test_what_was_paid_for_dynamic_pricing_is_refunded_once(game):
     assert outcome["dyn_pricing"] == "withdrawn"
     _run(con, 5)
     assert db.load_world(con).teams["team_01"].history[-1]["cash_flow"]["tech_refund"] == 0
+
+
+def test_a_failed_build_of_a_withdrawn_lever_counts_as_refunded(game):
+    con, _, _ = game
+    for m in (1, 2, 3):
+        _run(con, m)
+    for m in (1, 2, 3):
+        world = db.load_world(con, m)
+        world.__dict__.pop("withdrawn_refunded", None)
+        if m == 2:      # a build started in month 2 that failed in month 3
+            world.teams["team_01"].projects.append(
+                {"code": "dyn_pricing", "started": 2, "completes": 3, "capex": 3_800_000})
+        db.save_round(con, m, world, "x")
+    _run(con, 4)
+    (b,) = [b for b in service.project_timeline(con)["team_01"] if b["code"] == "dyn_pricing"]
+    assert b["outcome"] == "failed" and b["month"] == 3 and b["refunded"] == 4
+    world = db.load_world(con)
+    assert world.teams["team_01"].history[-1]["cash_flow"]["tech_refund"] == pytest.approx(3_800_000)
