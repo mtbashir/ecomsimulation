@@ -52,6 +52,9 @@ def open_decisions(con, round_: int) -> list:
         off |= set(LOAN_DECISIONS)       # the automatic credit line instead
     if not db.supplier_returns(con, round_):
         off.add(RETURN_DECISION)
+    # Withdrawn from the game (enabled in no preset): never open, whatever the
+    # windows say - the engine would not act on it (m04_capability.WITHDRAWN).
+    off |= {code for code, spec in REGISTRY.items() if not spec.presets}
     out = []
     for code, spec in REGISTRY.items():
         if code in off:
@@ -1063,6 +1066,7 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
     for team_id, plan in db.stock_returns(con, nxt).items():
         if team_id in world.teams:
             world.teams[team_id].stock_returns = plan
+    _refund_withdrawn(con, world)
     run_round(world, params, submitted, preset=g["preset"],
               decision_overrides=window_overrides(con, nxt),
               open_codes=[s.code for s in form_decisions(con, nxt)])
@@ -1081,6 +1085,124 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
         console.render(world, params, out_dir / f"round_{nxt}")
 
     return {"round": nxt, "submitted": n_submitted, "teams": len(world.teams)}
+
+
+def _refund_withdrawn(con, world) -> None:
+    """Pay back, once, what each team spent on a lever since withdrawn
+    (m04_capability.WITHDRAWN): its build costs and the running costs it was
+    charged. Paid in cash by M15 in the month about to run."""
+    from ..modules.m04_capability import WITHDRAWN
+    todo = WITHDRAWN - set(getattr(world, "withdrawn_refunded", None) or ())
+    if not todo:
+        return
+    for team_id, refund in withdrawn_refunds(con, world.round, todo).items():
+        if team_id in world.teams:
+            world.teams[team_id].tech_refund = refund
+    world.withdrawn_refunded = frozenset(set(world.withdrawn_refunded) | todo)
+
+
+# --- Technology projects (11.1-11.5) ------------------------------------------------
+
+def project_timeline(con, upto: int | None = None) -> dict[str, list[dict]]:
+    """Every team's technology builds, read from the world saved at the end of
+    each month: when each started, what it cost and how it ended.
+
+    A failed build left no trace a team could see - its cost was gone and the
+    module simply never arrived - so a team ticked it again and paid again.
+    {team_id: [{"code", "name", "decision", "started", "completes", "capex",
+    "outcome": "building" | "live" | "failed" | "withdrawn", "month"}]},
+    "month" being when it went live, failed or was withdrawn.
+    """
+    from ..modules.m04_capability import PROJECTS
+    upto = db.game(con)["round"] if upto is None else upto
+    builds: dict[tuple, dict] = {}
+    for m in range(1, (upto or 0) + 1):
+        world = db.load_world(con, m)
+        if world is None:
+            continue
+        for tid, team in world.teams.items():
+            running = {(p["code"], p["started"]) for p in team.projects}
+            for p in team.projects:
+                builds.setdefault((tid, p["code"], p["started"]), {
+                    "code": p["code"], "decision": PROJECTS[p["code"]]["decision"],
+                    "name": REGISTRY[PROJECTS[p["code"]]["decision"]].name,
+                    "started": p["started"], "completes": p["completes"],
+                    "capex": float(p["capex"]), "outcome": "building", "month": None})
+            for (t, code, started), b in builds.items():
+                if t != tid:
+                    continue
+                if b["outcome"] == "building" and (code, started) not in running:
+                    if b["completes"] <= m:
+                        b["outcome"] = "live" if code in team.capabilities else "failed"
+                    else:
+                        b["outcome"] = "withdrawn"
+                    b["month"] = m
+                elif b["outcome"] == "live" and code not in team.capabilities:
+                    b["outcome"], b["month"] = "withdrawn", m
+    out: dict[str, list[dict]] = {}
+    for (tid, _, _), b in sorted(builds.items(), key=lambda kv: (kv[0][0], kv[1]["started"],
+                                                                  kv[1]["decision"])):
+        out.setdefault(tid, []).append(b)
+    return out
+
+
+def withdrawn_refunds(con, upto: int, codes) -> dict[str, dict]:
+    """What each team paid for the withdrawn levers `codes` up to month
+    `upto`: every build's cost, and the running cost of each month it was live."""
+    from ..modules.m04_capability import PROJECTS
+    builds = project_timeline(con, upto)
+    running: dict[str, float] = {}
+    for m in range(1, (upto or 0) + 1):
+        world = db.load_world(con, m)
+        for tid, team in (world.teams.items() if world else ()):
+            for code in codes:
+                if code in team.capabilities:
+                    running[tid] = running.get(tid, 0.0) + float(PROJECTS[code]["ongoing"])
+    out = {}
+    for tid in set(builds) | set(running):
+        capex = sum(b["capex"] for b in builds.get(tid, []) if b["code"] in codes)
+        ran = running.get(tid, 0.0)
+        if capex + ran > 0:
+            names = ", ".join(sorted({REGISTRY[PROJECTS[c]["decision"]].name.lower()
+                                      for c in codes}))
+            out[tid] = {"amount": capex + ran, "capex": capex, "running": ran,
+                        "what": f"{names[0].upper() + names[1:]} withdrawn from the game"}
+    return out
+
+
+def ai_status(con, team_id: str) -> dict[str, str]:
+    """One line per technology decision for the form: what the team owns, what
+    is building, what failed - and what Yes would do now."""
+    from ..modules.m04_capability import PROJECTS, WITHDRAWN
+    game = db.game(con)
+    nxt = (game["round"] or 0) + 1
+    mine = project_timeline(con).get(team_id, [])
+    pkr = lambda v: f"PKR {v:,.0f}"
+    out = {}
+    for code, spec in PROJECTS.items():
+        if code in WITHDRAWN:
+            continue
+        builds = [b for b in mine if b["code"] == code]
+        offer = (f"Yes builds it: {pkr(spec['capex'])} paid now, ready in month "
+                 f"{nxt + spec['lead']} if it works ({spec['p']:.0%} chance), then "
+                 f"{pkr(spec['ongoing'])} a month.")
+        last = builds[-1] if builds else None
+        if last and last["outcome"] == "live":
+            text = (f"Yours: live since month {last['month']}, costing "
+                    f"{pkr(spec['ongoing'])} a month. Yes or No changes nothing.")
+        elif last and last["outcome"] == "building":
+            text = (f"Building: started month {last['started']} ({pkr(last['capex'])} paid), "
+                    f"ready in month {last['completes']} if it works ({spec['p']:.0%} chance).")
+        elif last and last["outcome"] == "failed":
+            lost = sum(b["capex"] for b in builds if b["outcome"] == "failed")
+            text = (f"Failed in month {last['month']}: the build did not work and its "
+                    f"{pkr(last['capex'])} is not refunded"
+                    + (f" ({pkr(lost)} lost on failed builds in all)" if lost > last["capex"] else "")
+                    + f". A new attempt is a new build. {offer}")
+        else:
+            text = offer
+        out[spec["decision"]] = text
+    return out
 
 
 def _seed_standing(con, world, preset: str, nxt: int) -> None:
@@ -1453,7 +1575,9 @@ def team_report(con, team_id: str, round_: int, download: str | None = None,
         return report.render(team, round_, Path(tmp), card, download=download,
                              hidden=set() if instructor else hidden,
                              marked=hidden if instructor else set(),
-                             months=months).read_text(encoding="utf-8")
+                             months=months,
+                             builds=project_timeline(con, round_).get(team_id)
+                             ).read_text(encoding="utf-8")
 
 
 def rankings(con, upto: int | None = None) -> list[dict]:
@@ -1546,6 +1670,7 @@ def instructor_console(con, round_: int, workbook_url=None,
                               seen_by_teams=seen,
                               total_rounds=db.game(con)["total_rounds"] or 12,
                               by_round=rankings(con, round_),
+                              builds=project_timeline(con, round_),
                               round_urls=([(r, console_url(r)) for r in
                                            range(1, (db.game(con)["round"] or 0) + 1)]
                                           if console_url else None),
@@ -1678,7 +1803,7 @@ STUDY_READS = {
                   bears_on=["4.1", "1.1", "1.5"],
                   read="Only means anything while you are listed."),
     "MR-14": dict(kind="index", asks="Is the creative any good, before you back it?",
-                  bears_on=["3.8", "3.1", "11.3"],
+                  bears_on=["3.8", "3.1", "11.5"],
                   read="Twenty thousand to find out before you spend four hundred "
                        "thousand pushing it. Creative quality multiplies every "
                        "paid rupee that follows it."),

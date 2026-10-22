@@ -822,6 +822,10 @@ def _cash(book, history, months, pl, team=None, params=None):
         parts.append(s.line("refund", "Refund for stock returned to the supplier",
                             get("supplier_refund"),
                             note="Stock sent back to the supplier this month, refunded in cash"))
+    if any(f.get("tech_refund") for f in flows):
+        parts.append(s.line("tech_refund", "Refund for a withdrawn technology lever",
+                            get("tech_refund"),
+                            note="Dynamic pricing was withdrawn from the game: its build and running costs came back"))
     loan_rules = any("loan" in h for h in history)
     cd = s.line("credit", "Credit drawn this month", get("credit_draw"),
                 note=("Drawn when bills fell due, up to the loan you approved"

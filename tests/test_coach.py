@@ -44,6 +44,8 @@ def test_every_decision_says_how_it_moves_the_score():
     from ecomsim.web import handbook as hb
     assert set(hb.SCORE_IMPACT) == set(REGISTRY)
     for code, lines in hb.SCORE_IMPACT.items():
+        if not REGISTRY[code].presets:      # withdrawn from the game (11.3)
+            continue
         assert lines, code
         for measure, sign, why in lines:
             assert measure in scoring.PILLAR_OF and sign in "+-" and why, code

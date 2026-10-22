@@ -113,6 +113,17 @@ CREATE TABLE IF NOT EXISTS stock_return (
   PRIMARY KEY (round, team_id, sku)
 );
 
+-- A team's latest changes that could not be saved as its submission - the
+-- month did not fit its cash - kept so the form reopens with them.
+CREATE TABLE IF NOT EXISTS draft (
+  round      INTEGER NOT NULL,
+  team_id    TEXT    NOT NULL,
+  decisions  TEXT    NOT NULL,
+  reason     TEXT,
+  saved_at   TEXT    NOT NULL,
+  PRIMARY KEY (round, team_id)
+);
+
 -- What each month's team report shows, set by the instructor month by month.
 -- Absent means the default: every section shown, rankings from RANKINGS_FROM.
 CREATE TABLE IF NOT EXISTS report_view (
@@ -736,6 +747,53 @@ def submit(con, round_: int, team_id: str, decisions: dict, by: str) -> None:
             (round_, team_id, json.dumps(decisions, sort_keys=True), _now(), by))
 
 
+def save_draft(con, round_: int, team_id: str, decisions: dict, reason: str) -> None:
+    """Keep changes that could not be submitted, so the form shows them again."""
+    with con:
+        con.execute(
+            "INSERT INTO draft (round, team_id, decisions, reason, saved_at) "
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT (round, team_id) DO UPDATE SET "
+            "decisions = excluded.decisions, reason = excluded.reason, "
+            "saved_at = excluded.saved_at",
+            (round_, team_id, json.dumps(decisions, sort_keys=True), reason, _now()))
+
+
+def draft(con, round_: int, team_id: str) -> dict | None:
+    """{"decisions", "reason", "saved_at"} for changes not yet submitted, or None."""
+    try:
+        row = con.execute("SELECT decisions, reason, saved_at FROM draft "
+                          "WHERE round = ? AND team_id = ?", (round_, team_id)).fetchone()
+    except sqlite3.OperationalError:          # a past game saved before drafts
+        return None
+    return ({"decisions": json.loads(row["decisions"]), "reason": row["reason"],
+             "saved_at": row["saved_at"]} if row else None)
+
+
+def drafts(con, round_: int) -> dict[str, dict]:
+    try:
+        rows = con.execute("SELECT team_id, reason, saved_at FROM draft WHERE round = ?",
+                           (round_,)).fetchall()
+    except sqlite3.OperationalError:
+        return {}
+    return {r["team_id"]: {"reason": r["reason"], "saved_at": r["saved_at"]} for r in rows}
+
+
+def clear_draft(con, round_: int, team_id: str) -> None:
+    with con:
+        con.execute("DELETE FROM draft WHERE round = ? AND team_id = ?", (round_, team_id))
+
+
+def logged_lately(con, actor: str, action: str, minutes: int) -> bool:
+    """Whether `actor` logged `action` in the last `minutes` - so an autosave
+    on every keystroke leaves one line in the activity log, not hundreds."""
+    row = con.execute("SELECT at FROM audit WHERE actor = ? AND action = ? "
+                      "ORDER BY id DESC LIMIT 1", (actor, action)).fetchone()
+    if row is None:
+        return False
+    then = datetime.fromisoformat(row["at"])
+    return (datetime.now(timezone.utc) - then).total_seconds() < minutes * 60
+
+
 def submission(con, round_: int, team_id: str) -> dict | None:
     row = con.execute("SELECT decisions FROM submission WHERE round = ? AND team_id = ?",
                       (round_, team_id)).fetchone()
@@ -950,7 +1008,7 @@ def new_game(con, db_path: str | Path, name: str, teams: int, rounds: int,
     old = game(con)
     with con:
         for table in ("submission", "decision_window", "founding", "round_log",
-                      "memo_review", "stock_return", "report_view", "audit"):
+                      "memo_review", "stock_return", "report_view", "draft", "audit"):
             con.execute(f"DELETE FROM {table}")
         con.execute("DELETE FROM account WHERE role = 'team'")
         con.execute(

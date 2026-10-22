@@ -379,11 +379,12 @@ ENTRIES = {
                 "never reaches your cash.",
         related=["7.5", "7.1"]),
     "11.3": dict(
-        does="Prices that move with demand and rivals.",
-        tradeoff="The most expensive build with the lowest odds of success; it "
-                 "protects margin when it works.",
-        watch="Gross margin; capex in the P&L.",
-        mistake="Expecting it to fix a price position that is wrong to begin with.",
+        does="Withdrawn from the game: dynamic pricing had no effect in the "
+             "simulation. It can no longer be bought.",
+        tradeoff="None now. Teams that paid for it - build and running costs - "
+                 "were refunded in cash.",
+        watch="The refund line in your Cash sheet.",
+        mistake="Looking for it on the form: price your products yourself under 1.1.",
         related=["1.1", "2.2"]),
     "11.4": dict(
         does="Automated first-line support for routine contacts.",
@@ -651,10 +652,7 @@ SCORE_IMPACT = {
         ("turns", "+", "Less dead stock for the same cover."),
         ("free_cash", "-", "Built with cash up front, and it may not work."),
     ],
-    "11.3": [
-        ("gm", "+", "Prices that follow demand protect margin."),
-        ("free_cash", "-", "Built with cash up front, and it may not work."),
-    ],
+    "11.3": [],          # withdrawn: no effect on any measure
     "11.4": [
         ("nps", "+", "Multiplies what your team can answer by 2.5."),
         ("ebitda", "+", "Fewer agents for the same service."),

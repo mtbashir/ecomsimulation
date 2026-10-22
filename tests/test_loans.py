@@ -256,3 +256,53 @@ def test_the_loan_box_names_the_order_we_place(game):
     page = team.get("/submit").data.decode()
     assert "Stock we order for you this month" in page
     assert "Left blank, we order for you:" in page
+
+
+# --- Autosave ---------------------------------------------------------------------------
+
+def _team_client(con, path, pw, month):
+    db.set_game(con, open_round=month)
+    app = create_app(path)
+    app.config["TESTING"] = True
+    c = app.test_client()
+    c.post("/login", data={"username": "team_01", "password": pw["team_01"]})
+    c.post("/brief")
+    return app, c
+
+
+def test_every_change_saves_as_it_is_made(game):
+    con, path, pw = game
+    _, c = _team_client(con, path, pw, 1)
+    r = c.post("/submit", data={"3.1": "400000", "_autosave": "1"})
+    assert r.is_json and r.get_json()["saved"] is True
+    assert db.submission(con, 1, "team_01")["3.1"] == 400_000
+    c.post("/submit", data={"3.1": "450000", "_autosave": "1"})
+    assert db.submission(con, 1, "team_01")["3.1"] == 450_000
+    page = c.get("/submit").get_data(as_text=True)
+    assert "Changes save automatically." in page and "Submit Month 1" in page
+    log = [a["action"] for a in db.audit(con, 20) if a["actor"] == "team_01"]
+    assert log.count("autosave") == 1, "one log line per stretch of editing"
+
+
+def test_a_change_the_cash_cannot_pay_for_is_kept_as_a_draft(game):
+    con, path, pw = game
+    app, c = _team_client(con, path, pw, 1)
+    c.post("/submit", data={"3.1": "400000", "_autosave": "1"})
+    r = c.post("/submit", data={"7.1": "500000", "_autosave": "1"}).get_json()
+    assert r["saved"] is False and r["draft"] and "Not enough cash" in r["message"]
+    assert db.submission(con, 1, "team_01")["3.1"] == 400_000, "the saved month stands"
+    page = c.get("/submit").get_data(as_text=True)
+    assert "not submitted" in page and 'value="500,000"' in page
+    admin = app.test_client()
+    admin.post("/login", data={"username": "admin", "password": "admin-pw"})
+    assert "changes\nnot submitted" in admin.get("/admin").get_data(as_text=True)
+    c.post("/submit", data={"7.1": "5000", "_autosave": "1"})
+    assert db.draft(con, 1, "team_01") is None and db.submission(con, 1, "team_01")["7.1"] == 5000
+
+
+def test_the_submit_button_still_saves_and_says_so(game):
+    con, path, pw = game
+    _, c = _team_client(con, path, pw, 1)
+    r = c.post("/submit", data={"3.1": "400000"}, follow_redirects=True)
+    assert b"Submitted for round 1" in r.data
+    assert db.submission(con, 1, "team_01")["3.1"] == 400_000

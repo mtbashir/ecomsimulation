@@ -12,7 +12,7 @@ from functools import wraps
 from pathlib import Path
 
 from flask import (
-    Flask, Response, abort, flash, g, redirect, render_template,
+    Flask, Response, abort, flash, g, jsonify, redirect, render_template,
     request, send_file, session, url_for,
 )
 
@@ -720,6 +720,11 @@ def register_routes(app: Flask) -> None:
         specs.sort(key=lambda s: (int(s.group[1:]), s.code != "1.5",
                                   tuple(int(p) for p in s.code.split("."))))
         current = db.submission(g.db, rnd, tid) or {}
+        # Changes that could not be submitted (the month did not fit its cash)
+        # are kept as a draft: the form reopens with them, not the older save.
+        pending = db.draft(g.db, rnd, tid)
+        if pending:
+            current = pending["decisions"]
         previous = db.submission(g.db, rnd - 1, tid) or {}
         # Rules v2: what each lever runs on if left alone (last month's
         # setting). Empty before v2, when a blank lever runs on its default.
@@ -734,6 +739,9 @@ def register_routes(app: Flask) -> None:
         }
 
         if request.method == "POST":
+            # Every change on the form is saved as it is made (autosave); the
+            # Submit button saves too, and says so. Both take the same path.
+            autosave = request.form.get("_autosave") == "1"
             values, errors = {}, []
             for spec in specs:
                 if spec.code in ELSEWHERE:
@@ -811,6 +819,8 @@ def register_routes(app: Flask) -> None:
                 else:
                     values[spec.code] = value
             if errors:
+                if autosave:
+                    return jsonify(saved=False, message="Not saved: " + "; ".join(errors))
                 for e in errors:
                     flash(e, "error")
             else:
@@ -830,16 +840,30 @@ def register_routes(app: Flask) -> None:
                 # is held shut) is not refused for want of one.
                 can_borrow = any(s.code == "12.6" for s in specs)
                 if bal and not bal["fits"] and (can_borrow or not bal["loans"]):
-                    flash(service.cash_refusal(bal), "error")
+                    refusal = service.cash_refusal(bal)
+                    db.save_draft(g.db, rnd, tid, values, refusal)
+                    if autosave:
+                        return jsonify(saved=False, draft=True,
+                                       message="Your changes are kept but not submitted: "
+                                               + refusal)
+                    flash(refusal, "error")
                     current = values        # show what they typed, not saved
                 else:
                     db.submit(g.db, rnd, tid, values, session["user"])
+                    db.clear_draft(g.db, rnd, tid)
+                    note = service.auto_order_note(bal)
+                    if autosave:
+                        # One line in the activity log per stretch of editing.
+                        if not db.logged_lately(g.db, session["user"], "autosave", 10):
+                            with g.db:
+                                db.log(g.db, session["user"], "autosave",
+                                       f"r{rnd}: {len(values)} decisions")
+                        return jsonify(saved=True, note=note)
                     with g.db:
                         db.log(g.db, session["user"], "submit",
                                f"r{rnd}: {len(values)} decisions")
                     flash(f"Submitted for round {rnd}. You may revise until the "
                           f"instructor closes it.", "ok")
-                    note = service.auto_order_note(bal)
                     if note:
                         flash(note, "error")
                     return redirect(url_for("home"))
@@ -872,6 +896,8 @@ def register_routes(app: Flask) -> None:
             shelf=shelf, summaries=summaries, taken=taken,
             counted=len(counted),
             loan=service.loan_advice(g.db, tid, rnd, current, standing),
+            ai_status=service.ai_status(g.db, tid),
+            pending=pending,
             cash=service.cash_balance(g.db, tid, rnd, current, standing),
             keeps=keeps, kept=kept,
             campaigns_open=any(s.code == targeting.DECISION for s in specs),
@@ -961,6 +987,7 @@ def register_routes(app: Flask) -> None:
         return render_template(
             "admin.html", next_round=nxt,
             status=db.submission_status(g.db, game["open_round"] or nxt),
+            drafts=db.drafts(g.db, game["open_round"] or nxt),
             teams=teams, audit=db.audit(g.db, 12),
             overrides=db.overrides(g.db),
             setting_up=(game["start_mode"] == "founding" and game["round"] == 0),

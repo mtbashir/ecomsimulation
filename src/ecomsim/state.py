@@ -65,6 +65,10 @@ class TeamState:
     # Stock going back to the supplier at the start of the next month run:
     # {sku: {"units", "refund", "fee"}}. Set by the app, used up by M3.
     stock_returns: dict = field(default_factory=dict)
+    # Money back for a technology lever withdrawn from the game (dynamic
+    # pricing): {"amount", "what"}. Set by the app, paid into cash by M15 the
+    # month it runs, then cleared. Absent from worlds saved before it.
+    tech_refund: dict = field(default_factory=dict)
     # Products added to the range (decision 1.3), waiting for their first
     # order to land: {sku: month it goes on sale}.
     pending_lines: dict = field(default_factory=dict)
@@ -151,4 +155,7 @@ class WorldState:
     # each month, spending is cut to what it can fund, and spare cash repays.
     # Older saved worlds read False and keep the automatic credit line.
     loans: bool = False
+    # Withdrawn technology levers whose cost has been refunded (m04_capability
+    # .WITHDRAWN): the refund is paid once, the month after the withdrawal.
+    withdrawn_refunded: frozenset = frozenset()
     category_scale: float = 1.0

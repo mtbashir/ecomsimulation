@@ -22,8 +22,17 @@ PROJECTS = {
 }
 
 
+# Levers withdrawn from the game. Dynamic pricing (11.3) was never wired to
+# anything a team could see - it cost PKR 3.8M and PKR 300k a month and changed
+# nothing - so it is switched off: never built, never owned, never charged, and
+# teams that paid for it are refunded by the app (service.withdrawn_refunds).
+WITHDRAWN = {"dyn_pricing"}
+
+
 def run(world, params, resolved, ctx) -> None:
     for team in world.teams.values():
+        team.capabilities -= WITHDRAWN
+        team.projects = [p for p in team.projects if p["code"] not in WITHDRAWN]
         _commit(team, world, ctx)
         _complete(team, world, params, ctx)
         ctx.setdefault("ongoing_tech_cost", {})[team.team_id] = sum(
@@ -35,7 +44,7 @@ def _commit(team, world, ctx) -> None:
     d = ctx["resolved"][team.team_id]
     in_flight = {p["code"] for p in team.projects}
     for code, spec in PROJECTS.items():
-        if code in team.capabilities or code in in_flight:
+        if code in team.capabilities or code in in_flight or code in WITHDRAWN:
             continue
         if not d.get(spec["decision"]):
             continue

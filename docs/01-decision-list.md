@@ -116,7 +116,7 @@ All are **projects**: capex, lead time, ongoing cost, success probability. See `
 |---|---|---|---|---|---|---|
 | 11.1 | Recommendation engine | PKR 3,000,000 | 2 rds | 250,000 | 0.85 | AOV +6–9%, CR +0.15pp |
 | 11.2 | Demand forecasting AI | PKR 2,200,000 | 2 rds | 180,000 | 0.80 | Forecast error −40%, stock-outs down |
-| 11.3 | Dynamic pricing | PKR 3,800,000 | 3 rds | 300,000 | 0.70 | Margin +1.5–3pp; **rating risk if aggressive** |
+| 11.3 | Dynamic pricing — **withdrawn** (it was never wired to an effect; teams that paid were refunded, see `m04_capability.WITHDRAWN`) | — | — | — | — | — |
 | 11.4 | AI customer service | PKR 1,800,000 | 1 rd | 120,000 | 0.90 | CS capacity ×2.5; CSAT −3 unless 5.4 funded |
 | 11.5 | AI creative generation | PKR 1,200,000 | 1 rd | 90,000 | 0.75 | Creative cost −50%; quality ceiling capped at 0.75 |
 

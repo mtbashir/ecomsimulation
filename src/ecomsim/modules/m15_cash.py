@@ -75,7 +75,10 @@ def run(world, params, resolved, ctx) -> None:
         # It is money back, not money the business made, so it is kept out of
         # receipts and out of operating cash flow below.
         refund = ctx.get("supplier_refund", {}).get(tid, 0.0)
-        team.cash += inflow - outflow + refund
+        # A withdrawn technology lever refunded (set by the app): money back too.
+        tech_refund = float((getattr(team, "tech_refund", None) or {}).get("amount", 0.0))
+        team.tech_refund = {}
+        team.cash += inflow - outflow + refund + tech_refund
 
         draw = 0.0
         if getattr(world, "loans", False):
@@ -98,6 +101,7 @@ def run(world, params, resolved, ctx) -> None:
             "interest": pnl["interest"],
             "capex": ctx.get("capex", {}).get(tid, 0.0),
             "supplier_refund": refund,
+            "tech_refund": tech_refund,
             "credit_draw": draw, "closing": team.cash,
             "credit_repaid": (ctx.get("loan", {}).get(tid) or {}).get("repaid", 0.0),
             "purchases_ordered": po_cost,

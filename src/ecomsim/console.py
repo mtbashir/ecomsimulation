@@ -224,7 +224,8 @@ def render(world, params, out_dir: str | Path, submissions: dict | None = None,
            workbooks_zip: str | None = None, memo_rejected: set | None = None,
            memo_url=None, footer: str = "", seen_by_teams: str = "",
            total_rounds: int = 12, by_round: list[dict] | None = None,
-           round_urls: list[tuple[int, str]] | None = None) -> Path:
+           round_urls: list[tuple[int, str]] | None = None,
+           builds: dict | None = None) -> Path:
     round_ = world.round
     teams = list(world.teams.values())
     cards = {t.team_id: scoring.final_score(t, params, world.teams, memo_rejected)
@@ -371,7 +372,7 @@ table.t th,table.t td{{border-color:#2c2c2a}} table.t thead th{{color:#c3c2b7}}
 {_round_nav(round_urls, round_)}
 <p class="sub">Instructor console &middot; {len(teams)} teams &middot;
 config {params.config_hash()}</p>
-{downloads}{board}{_by_round(ranked, name_of, by_round)}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags, workbook_url, memo_rejected, memo_url, coaching)}{watch}{_targeting(ranked, params, name_of)}{_market(ranked, params)}
+{downloads}{board}{_by_round(ranked, name_of, by_round)}{_projects(ranked, name_of, builds)}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags, workbook_url, memo_rejected, memo_url, coaching)}{watch}{_targeting(ranked, params, name_of)}{_market(ranked, params)}
 {f'<p class="note ver">{escape(footer)}</p>' if footer else ''}
 </div></body></html>"""
 
@@ -452,6 +453,31 @@ def _by_round(ranked, name_of, by_round) -> str:
             + '<p class="note">Teams in today\'s cumulative order; the best in each round in '
               'bold. The round on its own applies the published scorecard to that month '
               'alone (docs/08); it is not added to the final score.</p></section>')
+
+
+def _projects(ranked, name_of, builds) -> str:
+    """Every team's technology builds: live, building, failed and the money a
+    failed build cost - which teams are never refunded and rarely notice."""
+    if not builds or not any(builds.get(t.team_id) for t in ranked):
+        return ""
+    rows = []
+    for t in ranked:
+        mine = builds.get(t.team_id) or []
+        if not mine:
+            continue
+        def names(outcome):
+            return ", ".join(f"{b['name']} (M{b['month'] or b['completes']})"
+                             for b in mine if b["outcome"] == outcome) or "&mdash;"
+        lost = sum(b["capex"] for b in mine if b["outcome"] == "failed")
+        rows.append(f"<tr><td>{escape(name_of(t))}</td><td>{names('live')}</td>"
+                    f"<td>{names('building')}</td><td>{names('failed')}</td>"
+                    f"<td>{lost / 1e6:,.2f}M</td><td>{names('withdrawn')}</td></tr>")
+    return ('<section class="wide"><h2>Technology projects</h2><table class="t"><thead><tr>'
+            '<th>Team</th><th>Live (since)</th><th>Building (ready)</th><th>Failed (month)</th>'
+            '<th>Lost on failed builds</th><th>Withdrawn, refunded</th></tr></thead><tbody>'
+            + "".join(rows) + '</tbody></table><p class="note">A failed build is not refunded '
+            'and ticking it again pays for a new one; teams see the same history in their '
+            'report and beside each AI decision.</p></section>')
 
 
 def _table(ranked, cards, name_of, months=None) -> str:

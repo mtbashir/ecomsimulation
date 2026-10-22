@@ -330,10 +330,12 @@ REGISTRY: dict[str, DecisionSpec] = {
             help="Sharper forecasts mean fewer stock-outs and less dead stock "
                  "for the same cover."),
         DecisionSpec(
+            # Withdrawn: enabled in no preset, so it is never on the form and
+            # always resolves to No (see m04_capability.WITHDRAWN).
             "11.3", "G11", "Dynamic pricing", "select", False,
-            frozenset({"advanced", "expert"}), unlock_round=3,
-            help="Prices that move with demand and competitor moves. Protects "
-                 "margin, and customers notice when it is heavy-handed."),
+            frozenset(), unlock_round=3,
+            help="Withdrawn from the game: it had no effect in the simulation. "
+                 "Teams that paid for it are refunded."),
         DecisionSpec(
             "11.4", "G11", "AI customer service", "select", False,
             frozenset({"advanced", "expert"}), unlock_round=3,

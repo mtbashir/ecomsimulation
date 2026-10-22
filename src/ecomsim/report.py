@@ -571,6 +571,42 @@ def _funnel(record: dict, launch: bool = False) -> str:
             f'<div class="frow">{row2}</div>{row3}</section>')
 
 
+def _projects(builds: list[dict] | None, record: dict) -> str:
+    """The team's technology builds: what went live, what is building, what
+    failed. A failed build used to leave no trace - the module simply never
+    arrived - so a team paid for it again."""
+    refund = float((record.get("cash_flow") or {}).get("tech_refund", 0.0) or 0.0)
+    if not builds and not refund:
+        return ""
+    month = int(record.get("round") or 0)
+    rows = []
+    for b in builds or []:
+        if b["outcome"] == "live":
+            what, cls = f"Live since month {b['month']}", "up"
+        elif b["outcome"] == "failed":
+            what, cls = (f"Failed in month {b['month']}: the build did not work; its cost is "
+                         f"not refunded"), "down"
+        elif b["outcome"] == "withdrawn":
+            what, cls = (f"Withdrawn from the game in month {b['month']}; refunded"), "flat"
+        else:
+            what, cls = f"Building: ready in month {b['completes']} if it works", "flat"
+        rows.append(f'<tr><th>{escape(b["name"])}</th><td class="v">{b["started"]}</td>'
+                    f'<td class="v">{b["capex"]:,.0f}</td>'
+                    f'<td><span class="d {cls}">{escape(what)}</span></td></tr>')
+    note = (f' This month PKR {refund:,.0f} came back in cash: dynamic pricing was withdrawn '
+            f'from the game, so what you paid for it - build and running costs - is refunded.'
+            if refund else "")
+    table = ('<div class="sx"><table class="perf"><tr><th>Module</th><th class="v">Started</th>'
+             '<th class="v">Paid (PKR)</th><th>Outcome</th></tr>' + "".join(rows)
+             + '</table></div>') if rows else ""
+    return (f'<h2 class="sec">Technology projects, to month {month}</h2>'
+            f'<section class="prods">{table}'
+            '<p class="fn">A build is paid in full when you start it and goes live after its '
+            'build time - if it works. Each module has a published chance of working; a '
+            'build that fails is not refunded, and ticking it again starts, and pays for, a '
+            f'new build.{note}</p></section>')
+
+
 def _months(months: list[tuple[int, str]] | None, round_: int) -> str:
     """Links to every month's report, this one marked."""
     if not months or len(months) < 2:
@@ -633,7 +669,8 @@ def _funding(record: dict) -> str:
 def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None,
            download: str | None = None, hidden: set | frozenset = frozenset(),
            marked: set | frozenset = frozenset(),
-           months: list[tuple[int, str]] | None = None) -> Path:
+           months: list[tuple[int, str]] | None = None,
+           builds: list[dict] | None = None) -> Path:
     """One team's report for one month.
 
     `hidden`: sections the team does not see this month ("products", "buyers",
@@ -871,6 +908,7 @@ td.v.warn{{color:var(--warn)}}
 {"" if "stock" in hidden else _stock(record, team, tag("stock"))}
 {"" if "campaigns" in hidden else _campaigns(record, tag("campaigns"))}
 {"" if "campaigns" in hidden else _tests(record, tag("campaigns"))}
+{_projects(builds, record)}
 {scorecard_section}
 <div class="themebar"><span>Appearance</span>
   <button class="sw sw-consulytics" data-set-theme="consulytics"

@@ -676,7 +676,8 @@ def test_the_handbook_is_decisions_only_each_with_its_score_effect(game):
     for gone in ('id="customer-value"', 'id="operations"', 'id="profitability"',
                  "Levers by Measure"):
         assert gone not in page, "no scorecard sections in the handbook"
-    assert page.count('class="hb-score"') == len(REGISTRY), "every card says how it scores"
+    live = [c for c, s in REGISTRY.items() if s.presets]       # 11.3 is withdrawn
+    assert page.count('class="hb-score"') == len(live), "every card says how it scores"
     assert 'href="/guide/scoring#m-delivery"' in page
     from markupsafe import escape
     assert escape(hb.SCORE_IMPACT["8.3"][0][2]) in page

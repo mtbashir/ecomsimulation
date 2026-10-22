@@ -14,7 +14,11 @@
     {% endif %}</div>
 </div>
 
-<form method="post">
+<form method="post" class="decision-form">
+{% if pending %}
+<div class="msg error autosave-pending">Your latest changes are kept but <b>not submitted</b>:
+{{ pending.reason }} Change them and they save, or press Submit.</div>
+{% endif %}
 {% if cash %}
 <div class="cash-bal{{ '' if cash.fits else ' short' }}">
   <span>Cash available this month <b class="num">PKR {{ '{:,.0f}'.format(cash.available) }}</b></span>
@@ -47,7 +51,8 @@ its cash cannot be submitted. Interest is charged only on what the month actuall
   <div><b class="num">{{ taken }}</b> of {{ counted }} decisions taken this month</div>
   <div class="key"><span><i class="dot set"></i>taken</span>
     <span><i class="dot"></i>{{ 'keeps last month' if keeps else 'runs on default' }}</span></div>
-  <div style="margin-left:auto;display:flex;gap:8px">
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <span class="autosave-status note" aria-live="polite">Changes save automatically.</span>
     <button type="submit">Submit month {{ round }}</button>
     <a class="btn ghost" href="{{ url_for('home') }}">Cancel</a></div>
 </div>
@@ -442,6 +447,7 @@ its cash cannot be submitted. Interest is charged only on what the month actuall
     {% if funnel.lost_to_stockout >= 1 %}Last month about
     {{ '{:,.0f}'.format(funnel.lost_to_stockout) }} orders were lost to stock-outs.{% endif %}</div>
   {% endif %}
+  {% if ai_status and s.code in ai_status %}<div class="hint"><b>{{ ai_status[s.code] }}</b></div>{% endif %}
   {% if s.guide %}<div class="hint">{{ s.guide }}</div>{% endif %}
   {% if keeps and s.code in kept %}
   <label class="keep"><input type="checkbox" name="keep_{{ s.code }}" value="1">
@@ -474,12 +480,68 @@ its cash cannot be submitted. Interest is charged only on what the month actuall
 {% endfor %}
 
 <div class="tally" style="margin-top:18px">
-  <div style="margin-left:auto;display:flex;gap:8px">
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <span class="autosave-status note" aria-live="polite">Changes save automatically.</span>
     <button type="submit">Submit month {{ round }}</button>
     <a class="btn ghost" href="{{ url_for('home') }}">Cancel</a></div>
 </div>
 </form>
 
+<script>
+// Autosave: every change is saved as it is made - the same save as the Submit
+// button, cash check included. A change the month cannot pay for is kept as a
+// draft and the line says why. Typing saves a moment after you stop; ticks,
+// choices and radio buttons save at once. The cash and loan panels refresh
+// after each save, so the figures always match what is saved.
+(function () {
+  var form = document.querySelector("form.decision-form");
+  if (!form || !window.fetch || !window.FormData) return;
+  var lines = [].slice.call(document.querySelectorAll(".autosave-status"));
+  var timer = null, busy = false, again = false;
+  function say(text, tone) {
+    lines.forEach(function (el) {
+      el.textContent = text;
+      el.style.color = tone === "bad" ? "var(--bad-ink, #b3231e)" : tone === "good" ? "var(--good-ink, #0a7d0a)" : "";
+    });
+  }
+  function refresh() {
+    fetch(location.pathname, {credentials: "same-origin"}).then(function (r) { return r.text(); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        [".cash-bal", ".loan-box", ".loan-alert", ".autosave-pending"].forEach(function (sel) {
+          var now = document.querySelector(sel), next = doc.querySelector(sel);
+          if (now && next) now.outerHTML = next.outerHTML;
+          else if (now && !next) now.remove();
+        });
+        var count = document.querySelector(".tally b.num"), fresh = doc.querySelector(".tally b.num");
+        if (count && fresh) count.textContent = fresh.textContent;
+      }).catch(function () {});
+  }
+  function send() {
+    if (busy) { again = true; return; }
+    busy = true;
+    say("Saving…");
+    var data = new FormData(form);
+    data.set("_autosave", "1");
+    fetch(location.pathname, {method: "POST", body: data, credentials: "same-origin"})
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var t = new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+        if (j.saved) say("Saved " + t + (j.note ? " · " + j.note : ""), j.note ? "bad" : "good");
+        else say(j.message || "Not saved.", "bad");
+        refresh();
+      })
+      .catch(function () { say("Not saved: no connection. Press Submit to try again.", "bad"); })
+      .then(function () { busy = false; if (again) { again = false; send(); } });
+  }
+  function soon(ms) { clearTimeout(timer); timer = setTimeout(send, ms); }
+  form.addEventListener("change", function () { soon(250); });
+  form.addEventListener("input", function (e) {
+    var el = e.target;
+    if (el && (el.tagName === "TEXTAREA" || /^(text|number|search)$/.test(el.type || ""))) soon(1200);
+  });
+})();
+</script>
 <script>
 // Stock: the mode in use is the one you can type in, and the product-by-product
 // total and cost follow as you type. The server reads the ticked mode either way.

@@ -81,7 +81,7 @@ anything.
 | **8** | Getting Customers to Come Back | R6 → R7 | `6.1` CRM & retention · `10.1` CS team size · `10.4` returns policy | Retention spend against acquisition spend. A deal-driven cohort churns at more than twice an organic one, and by now they have one. |
 | **9** | How Will You Deliver the Order? | R7 → R8 | `7.1` stock · `7.2` supplier · `7.4` QA · `7.5` safety stock · `8.2` 3PL share · `8.3` courier mix · `9.1` COD · `9.2` prepaid discount | The Pakistan session. COD share, RTO, courier success against stated SLA, lead time and the cash tied up in it. |
 | **10** | Is Your Business Working? | R8 → R9 | Nothing new — `12.1` research is the session | No new levers. The whole session is the report, the research desk and the twenty studies. Which numbers can be trusted, which are biased, and what the platforms over-report. |
-| **11** | How Can AI Help? | R9 → R10 | `11.1` recommendations · `11.2` AI forecasting · `11.3` dynamic pricing · `11.4` AI customer service · `11.5` AI creative | Five AI levers with real costs and real ceilings. AI creative raises the floor and caps the ceiling; AI forecasting narrows the error band rather than shortening lead time. |
+| **11** | How Can AI Help? | R9 → R10 | `11.1` recommendations · `11.2` AI forecasting · `11.4` AI customer service · `11.5` AI creative (`11.3` dynamic pricing withdrawn) | Four AI levers with real costs and real ceilings. AI creative raises the floor and caps the ceiling; AI forecasting narrows the error band rather than shortening lead time. |
 | **12** | How Do You Grow? | **R11 and R12 processed** | Decisions closed | Final scorecard, variance against the month-0 targets, presentations. |
 
 **The double-session day** is best placed at sessions 6+7 or 8+9 — the two

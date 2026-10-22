@@ -337,7 +337,10 @@ left out.</p>
 <td>{% if t['team_id'] in status %}
 <span class="pill on">submitted</span>
 <span class="note">{{ status[t['team_id']][11:16] }}</span>
-{% else %}<span class="pill off">waiting</span>{% endif %}</td>
+{% else %}<span class="pill off">waiting</span>{% endif %}
+{% if t['team_id'] in drafts %}<span class="pill warn" title="{{ drafts[t['team_id']].reason }}">changes
+not submitted</span> <span class="note">{{ drafts[t['team_id']].saved_at[11:16] }}: did not fit the
+month's cash</span>{% endif %}</td>
 <td class="num">{% if game['round'] %}
 <a href="{{ url_for('results_admin', team=t['team_id'], round_=game['round']) }}"
    target="_blank" class="note">report</a> &middot;
