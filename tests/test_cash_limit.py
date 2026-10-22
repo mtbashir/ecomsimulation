@@ -50,9 +50,16 @@ def test_applying_for_a_loan_makes_the_cash_available(game):
     assert db.submission(con, 1, "team_01")["7.1"] == 10_000
 
 
-def test_the_opening_months_defaults_fit_the_starting_capital(game):
+def test_the_opening_month_fits_with_the_loan_it_is_shown(game):
+    """Blank stock means we order for you, and that order is counted: the
+    loan the form suggests pays for it, and everything else fits the
+    starting capital on its own."""
     con, _ = game
-    assert service.cash_balance(con, "team_01", 1, {})["fits"]
+    bal = service.cash_balance(con, "team_01", 1, {})
+    assert bal["stock_auto"] and bal["stock"] > 0
+    suggest = service.loan_advice(con, "team_01", 1, {})["suggest"]
+    assert service.cash_balance(con, "team_01", 1, {"12.6": suggest})["fits"]
+    assert service.cash_balance(con, "team_01", 1, {"7.1": 0.0})["fits"]
 
 
 def test_cutting_spending_instead_of_borrowing_also_works(game):
@@ -60,7 +67,7 @@ def test_cutting_spending_instead_of_borrowing_also_works(game):
     over = {"3.1": "3000000"}
     r = team.post("/submit", data=over, follow_redirects=True)
     assert b"Not enough cash" in r.data
-    cut = {k: "0" for k in ("3.2", "3.4", "3.8", "3.9", "5.1", "6.1", "7.4")}
+    cut = {k: "0" for k in ("3.2", "3.4", "3.8", "3.9", "5.1", "6.1", "7.4", "7.1")}
     team.post("/submit", data={"3.1": "1000000", **cut}, follow_redirects=True)
     assert db.submission(con, 1, "team_01") is not None
 

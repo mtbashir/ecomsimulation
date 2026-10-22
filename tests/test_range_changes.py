@@ -150,7 +150,8 @@ def test_a_change_from_the_form_runs_and_the_grid_follows(tmp_path):
     new = next(s["code"] for s in service.load_params(con).skus
                if s["code"] not in team.active_skus)
     gone = team.active_skus[-1]
-    c.post("/submit", data={"range_add": new, "range_drop": gone})
+    # The loan approves the order we place for the blank stock line.
+    c.post("/submit", data={"range_add": new, "range_drop": gone, "12.6": "20000000"})
     assert db.submission(con, 3, "team_01")["1.3"] == {"add": [new], "drop": [gone]}
     assert "1 added, 1 dropped" in c.get("/submit").data.decode()
     service.process_round(con)

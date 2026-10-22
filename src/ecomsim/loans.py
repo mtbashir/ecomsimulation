@@ -38,17 +38,41 @@ def fixed_costs(params) -> float:
     return params["payroll_base"] + params["warehouse_fixed_cost"] + params["tech_fixed_cost"]
 
 
-def stock_estimate(team, params, d) -> float:
+def automatic_order(team, params, d, world=None, rnd: int | None = None) -> tuple[float, float]:
+    """(units, cost) of the order the engine places when 7.1 is left blank:
+    "we order for you" - to the cover target, from this month's demand
+    forecast, at the supplier's minimum or more. (0, 0) when the shelf and
+    the orders already placed cover the target.
+
+    It used to be read as whatever the engine ordered last month, so a month
+    whose order had been cut for want of cash showed the next one as costing
+    nothing: the loan suggested was too small, the form let the month
+    through, and the order was cut again.
+    """
+    from .modules.m03_supply import (_expected_orders, automatic_units, demand_forecast,
+                                     priced_order, purchase_scale)
+    supplier = next((s for s in params.suppliers if s["code"] == str(d.get("7.2") or "B")),
+                    params.suppliers[0])
+    expected = (demand_forecast(team, params, world.run_id, rnd)[0]
+                if world is not None and rnd else _expected_orders(team, params))
+    units = automatic_units(team, params, d, supplier, expected)
+    if units <= 0:
+        return 0.0, 0.0
+    units = max(units, float(supplier["moq_units"]))
+    scale = purchase_scale(world, params) if world is not None else params["cogs_scale"]
+    return units, priced_order(team, params, d, supplier, units, scale=scale)[1]
+
+
+def stock_estimate(team, params, d, world=None, rnd: int | None = None) -> float:
     """What this month's stock order will cost: the team's own quantity at
-    catalogue cost, or - when it leaves ordering to the engine - what the
-    engine ordered last month."""
-    from .modules.m03_supply import purchase_plan, purchase_scale
+    catalogue cost, or - when it leaves ordering to the engine - the order
+    the engine will place (`automatic_order`)."""
+    from .modules.m03_supply import purchase_plan
     total, lines = purchase_plan(d.get("7.1"))
     supplier = next((s for s in params.suppliers if s["code"] == str(d.get("7.2") or "B")),
                     params.suppliers[0])
     if total is None:
-        last = team.history[-1] if team.history else {}
-        return float((last.get("cash_flow") or {}).get("purchases_ordered", 0.0))
+        return automatic_order(team, params, d, world, rnd)[1]
     if total <= 0:
         return 0.0
     units = max(total, float(supplier["moq_units"]))
@@ -77,20 +101,25 @@ def projects_of(team, d) -> float:
                if code not in started and d.get(spec["decision"]))
 
 
-def need(team, rnd: int, params, d, research: float = 0.0) -> dict:
+def need(team, rnd: int, params, d, research: float = 0.0, world=None) -> dict:
     """Month `rnd`'s money, line by line, and the loan it calls for. The same
-    arithmetic the form shows the team and the engine then applies."""
+    arithmetic the form shows the team and the engine then applies. `world`
+    (the one the month runs from) prices an order left to the engine exactly."""
+    from .modules.m03_supply import purchase_plan
     due_out = team.payables.get(rnd, 0.0)
     due_in = team.receivables.get(rnd, 0.0)
     interest = team.credit_drawn * params["credit_rate_annual"] * params["round_months"] / 12
-    stock = stock_estimate(team, params, d)
+    stock = stock_estimate(team, params, d, world, rnd)
+    auto = purchase_plan(d.get("7.1"))[0] is None
     spend = spend_of(d, research)
     projects = projects_of(team, d)
     fixed = fixed_costs(params)
     out = due_out + fixed + interest + stock + spend + projects
     has = team.cash + due_in
     return {"cash": team.cash, "receipts_due": due_in, "bills_due": due_out,
-            "fixed": fixed, "interest": interest, "stock": stock, "spend": spend,
+            "fixed": fixed, "interest": interest, "stock": stock, "stock_auto": auto,
+            "stock_units": (automatic_order(team, params, d, world, rnd)[0] if auto else None),
+            "spend": spend,
             "projects": projects,
             "outgoings": out, "need": max(0.0, out - has),
             "owed": team.credit_drawn,
@@ -125,7 +154,7 @@ def fund(team, world, params, d, ctx) -> None:
     """
     tid = team.team_id
     research = ctx.get("research_cost", {}).get(tid, 0.0)
-    n = need(team, world.round, params, d, research)
+    n = need(team, world.round, params, d, research, world)
     approved = approved_of(n, d, getattr(world, "loans", False))
     # Projects are committed first: the form refuses a month they do not fit.
     available = check(n, approved)["available"] - n["projects"]

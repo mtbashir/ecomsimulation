@@ -298,7 +298,9 @@ its cash cannot be submitted. Interest is charged only on what the month actuall
       this month). You can borrow up to PKR {{ '{:,.0f}'.format(loan.headroom) }} more.</p>
       <table class="loan-sum"><tbody>
         <tr><td>Bills from suppliers due this month</td><td class="num">{{ '{:,.0f}'.format(loan.bills_due) }}</td></tr>
-        <tr><td>Stock you are ordering this month</td><td class="num">{{ '{:,.0f}'.format(loan.stock) }}</td></tr>
+        <tr><td>{% if loan.stock_auto %}Stock we order for you this month{% if loan.stock_units %}
+          ({{ '{:,.0f}'.format(loan.stock_units) }} units: Stock to purchase is blank){% endif %}{% else %}Stock you are ordering this month{% endif %}</td>
+          <td class="num">{{ '{:,.0f}'.format(loan.stock) }}</td></tr>
         <tr><td>Marketing, site, CRM, QA and research</td><td class="num">{{ '{:,.0f}'.format(loan.spend) }}</td></tr>
         <tr><td>Fixed costs and interest</td><td class="num">{{ '{:,.0f}'.format(loan.fixed + loan.interest) }}</td></tr>
         <tr><td>less cash in hand</td><td class="num">&minus;{{ '{:,.0f}'.format(loan.cash) }}</td></tr>
@@ -411,6 +413,12 @@ its cash cannot be submitted. Interest is charged only on what the month actuall
            placeholder="{% set ph = carried.get(s.code) if keeps and carried.get(s.code) is number else s.default_when_disabled %}{{ '{:,.0f}'.format(ph) if ph is not none else 'leave blank and we order for you' }}">
   {% endif %}
 
+  {% if s.code == '7.1' and loan and loan.stock_auto and loan.stock_units %}
+  <div class="hint"><b>Left blank, we order for you:</b> about
+    {{ '{:,.0f}'.format(loan.stock_units) }} units this month, about PKR
+    {{ '{:,.0f}'.format(loan.stock) }}, to keep your cover target. It lands next month,
+    and the working capital loan below counts it.</div>
+  {% endif %}
   {% if funnel and s.code in ('7.1', '7.5') %}
   <div class="hint"><b>Now:</b> {{ '{:,.0f}'.format(funnel.units_in_stock) }} units in
     stock &divide; {{ '{:,.0f}'.format(funnel.weekly_units) }} sold a week =

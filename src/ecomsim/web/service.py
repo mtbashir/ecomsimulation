@@ -2158,7 +2158,7 @@ def _month_need(con, team_id: str, round_: int, current: dict,
     d = Resolver(preset=g["preset"], round_=round_).resolve(merged)
     research = sum(float(params.study(c)["price"]) for c in (d.get("12.1") or [])
                    if any(s["code"] == c for s in params.studies))
-    n = loans.need(team, round_, params, d, research)
+    n = loans.need(team, round_, params, d, research, world)
     n["rate"] = params["credit_rate_annual"]
     n["ceiling"] = params["credit_ceiling"]
     return n, d, db.loans(con, round_)
@@ -2205,6 +2205,10 @@ def cash_refusal(bal: dict) -> str:
     way = (f"Apply for a bigger working capital loan (you can borrow up to {pkr(bal['headroom'])} "
            f"in all) or cut spending by {pkr(over)}." if bal["loans"] and head > 0 else
            f"Cut spending by {pkr(over)}.")
+    if bal.get("stock_auto") and bal.get("stock", 0) > 0:
+        way += (f" Stock to purchase is blank, so we order for you: about "
+                f"{bal.get('stock_units') or 0:,.0f} units, {pkr(bal['stock'])}. Enter a "
+                f"smaller order there if you would rather borrow less.")
     return (f"Not enough cash: this month's stock, marketing and other spending come to "
             f"{pkr(bal['planned'])}, but only {pkr(max(bal['available'], 0.0))} is available "
             f"after the supplier bills and running costs due this month. {way}")

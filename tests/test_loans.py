@@ -191,3 +191,52 @@ def test_the_admin_card_switches_a_running_game(game):
     assert "Working Capital Loans" in page and "Loans as a Decision from Month" in page
     admin.post("/admin/loans", data={"month": "2"})
     assert db.loans_from(con) == 2
+
+
+# --- An order left to the engine is counted ---------------------------------------------
+
+def test_a_blank_stock_order_is_counted_as_the_order_we_place(game):
+    """Left blank, Stock to purchase means we order for you. The loan box used
+    to read that as last month's order: after a month with no order it showed
+    nothing, suggested too small a loan, and the month's order was cut again."""
+    con, _, _ = game
+    _run(con, 1, {"team_01": {"7.1": 0.0}})          # nothing bought in month 1
+    advice = service.loan_advice(con, "team_01", 2, {})
+    assert advice["stock_auto"] and advice["stock"] > 0 and advice["stock_units"] > 0
+    world = _run(con, 2, {"team_01": {"12.6": advice["suggest"]}})
+    h = world.teams["team_01"].history[-1]
+    assert h["loan"]["stock_cut"] == 0
+    assert h["purchase"]["bought"] == pytest.approx(advice["stock_units"], rel=0.02)
+    assert h["cash_flow"]["purchases_ordered"] == pytest.approx(advice["stock"], rel=0.05)
+
+
+def test_a_blank_stock_order_the_loan_cannot_pay_for_is_refused(game):
+    con, _, pw = game
+    _run(con, 1, {"team_01": {"7.1": 0.0}})
+    db.set_game(con, open_round=2)
+    app = create_app(con.execute("PRAGMA database_list").fetchone()[2])
+    app.config["TESTING"] = True
+    team = app.test_client()
+    team.post("/login", data={"username": "team_01", "password": pw["team_01"]})
+    team.post("/brief")
+    spend = {"3.1": "4000000"}            # with this, the order we place does not fit
+    r = team.post("/submit", data={**spend, "12.6": "1"}, follow_redirects=True)
+    assert b"Not enough cash" in r.data and b"we order for you" in r.data
+    assert db.submission(con, 2, "team_01") is None
+    suggest = service.loan_advice(con, "team_01", 2, {"3.1": 4_000_000.0})["suggest"]
+    assert suggest > 0
+    team.post("/submit", data={**spend, "12.6": f"{suggest:.0f}"}, follow_redirects=True)
+    assert db.submission(con, 2, "team_01") is not None
+
+
+def test_the_loan_box_names_the_order_we_place(game):
+    con, path, pw = game
+    db.set_game(con, open_round=1)
+    app = create_app(path)
+    app.config["TESTING"] = True
+    team = app.test_client()
+    team.post("/login", data={"username": "team_01", "password": pw["team_01"]})
+    team.post("/brief")
+    page = team.get("/submit").data.decode()
+    assert "Stock we order for you this month" in page
+    assert "Left blank, we order for you:" in page

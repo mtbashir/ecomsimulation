@@ -155,7 +155,7 @@ def test_keep_tick_records_last_months_setting_as_a_decision(live):
     assert "Keep last month" in page and "decisions taken this month" in page
     # the form never tells a team how many decisions earn full marks
     assert "full decision marks" not in page and "counts as a decision" not in page
-    c.post("/submit", data={"keep_3.1": "1"}, follow_redirects=True)
+    c.post("/submit", data={"keep_3.1": "1", "12.6": "20000000"}, follow_redirects=True)
     assert db.submission(con, 3, "team_01")["3.1"] == pytest.approx(300_000.0)
 
 

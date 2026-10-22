@@ -325,7 +325,7 @@ def test_rollback_keeps_submissions_so_a_round_can_be_rerun(game):
     for rnd in (1, 2):
         admin.post("/admin/open", data={"round": rnd})
         _client(app, "team_01", pw["team_01"]).post(
-            "/submit", data={"3.1": "700000"}, follow_redirects=True)
+            "/submit", data={"3.1": "700000", "12.6": "20000000"}, follow_redirects=True)
         admin.post("/admin/run", follow_redirects=True)
     assert db.game(con)["round"] == 2
 

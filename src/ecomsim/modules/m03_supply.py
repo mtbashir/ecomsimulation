@@ -158,13 +158,22 @@ def _publish_forecast(team, world, params, ctx) -> None:
     AI module (11.2) narrows this error rather than shortening lead time,
     which is the honest modelling of what forecasting does.
     """
+    forecast, sd = demand_forecast(team, params, world.run_id, world.round)
+    ctx.setdefault("demand_forecast", {})[team.team_id] = forecast
+    ctx.setdefault("forecast_sd", {})[team.team_id] = sd
+
+
+def demand_forecast(team, params, run_id, round_: int) -> tuple[float, float]:
+    """(orders forecast for month `round_`, its error sd): what M3 orders from.
+
+    Deterministic for the month, so the decisions form can show a team the
+    order the engine will place for it before the month runs."""
     sd = params["forecast_error_sd"]
     if "forecasting" in team.capabilities:
         sd *= 1 - params["forecast_ai_error_reduction"]
     truth = _expected_orders(team, params)
-    noise = rng.normal(world.run_id, world.round, team.team_id, "forecast", 0.0, sd)
-    ctx.setdefault("demand_forecast", {})[team.team_id] = max(0.0, truth * (1 + noise))
-    ctx.setdefault("forecast_sd", {})[team.team_id] = sd
+    noise = rng.normal(run_id, round_, team.team_id, "forecast", 0.0, sd)
+    return max(0.0, truth * (1 + noise)), sd
 
 
 def _learn_lead_time(team, events) -> None:
@@ -200,6 +209,20 @@ def _place_orders(team, world, params, ctx, d, supplier, events, round_days) -> 
                        lines=lines)
         return
 
+    units = automatic_units(team, params, d, supplier, ctx["demand_forecast"][team.team_id])
+    if units <= 0:
+        return
+    _commit_po(team, world, params, ctx, supplier, events, units, round_days)
+
+
+def automatic_units(team, params, d, supplier, expected_orders: float) -> float:
+    """The units the engine orders when 7.1 is left blank: order up to cycle +
+    pipeline + safety cover. Zero or less means no order this month.
+
+    The same arithmetic before the month runs and during it: the position is
+    stock on the shelf, failed deliveries on their way back and everything on
+    order, which is what the shelf plus open orders hold once arrivals land.
+    """
     safety_weeks = float(d.get("7.5", 2.0) or 2.0)
     round_weeks = 4.33 * params["round_months"]
     # Plan against the lead time the team BELIEVES, not the one the event is
@@ -215,11 +238,11 @@ def _place_orders(team, world, params, ctx, d, supplier, events, round_days) -> 
     # months of COGS, which this business cannot fund.
     target_weeks = round_weeks / 2 + lead_weeks + safety_weeks
 
-    expected_orders = ctx["demand_forecast"][team.team_id]
     units_needed_per_week = expected_orders * params["units_per_order"] / round_weeks * (
         round_weeks / 4.33) / params["round_months"]
 
-    on_hand = sum(team.inventory.values())
+    on_hand = (sum(team.inventory.values())
+               + sum((getattr(team, "_pending_rto_units", None) or {}).values()))
     on_order = sum(sum(po["units"].values()) for po in team.open_pos)
     gap = target_weeks * units_needed_per_week - (on_hand + on_order)
 
@@ -227,10 +250,7 @@ def _place_orders(team, world, params, ctx, d, supplier, events, round_days) -> 
     # position dips below target produces a large order every other round and
     # none in between, whipsawing cover and cash for no reason a team chose.
     consumption = units_needed_per_week * 4.33 * params["round_months"]
-    units = consumption + GAP_DAMPING * gap
-    if units <= 0:
-        return
-    _commit_po(team, world, params, ctx, supplier, events, units, round_days)
+    return consumption + GAP_DAMPING * gap
 
 
 def purchase_plan(value) -> tuple[float | None, dict[str, float] | None]:
@@ -267,18 +287,9 @@ def _commit_po(team, world, params, ctx, supplier, events, units, round_days,
 
     arrives = _arrival(team, world, params, supplier, events, round_days, "leadtime")
 
-    # Split by what the team's own customers bought last month, filling the
-    # lines that ran short first - not by the catalogue, which would restock
-    # a store selling twice the usual hair oil with the usual hair oil.
-    alloc = ({c: u * units / asked for c, u in lines.items()} if lines
-             else mix.allocate(team, params, units))
-    skus = list(alloc)
     d = ctx["resolved"][team.team_id]
-    cost = sum(
-        alloc[c] * float(params.sku(c)["unit_cost"]) * float(supplier["cost_index"])
-        * landed_index(team, c, d) * fx_multiplier(team, c, events, d)
-        for c in skus
-    ) * purchase_scale(world, params)
+    alloc, cost = priced_order(team, params, d, supplier, units, lines, asked, events,
+                               purchase_scale(world, params))
 
     # Loan rules: an order the team cannot fund is cut to what it can, and one
     # that cannot reach the supplier's minimum is not placed (ecomsim.loans).
@@ -299,6 +310,24 @@ def _commit_po(team, world, params, ctx, supplier, events, units, round_days,
     })
     ctx.setdefault("po_cost", {})[team.team_id] = \
         ctx.get("po_cost", {}).get(team.team_id, 0.0) + cost
+
+
+def priced_order(team, params, d, supplier, units: float, lines=None, asked=None,
+                 events=None, scale: float = 1.0) -> tuple[dict, float]:
+    """(units by product, cost) of an order for `units` - already at the
+    supplier's minimum - split and priced the way M3 places it."""
+    # Split by what the team's own customers bought last month, filling the
+    # lines that ran short first - not by the catalogue, which would restock
+    # a store selling twice the usual hair oil with the usual hair oil.
+    alloc = ({c: u * units / asked for c, u in lines.items()} if lines
+             else mix.allocate(team, params, units))
+    events = events or {}
+    cost = sum(
+        alloc[c] * float(params.sku(c)["unit_cost"]) * float(supplier["cost_index"])
+        * landed_index(team, c, d) * fx_multiplier(team, c, events, d)
+        for c in alloc
+    ) * scale
+    return alloc, cost
 
 
 def purchase_scale(world, params) -> float:
