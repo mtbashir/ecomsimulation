@@ -210,23 +210,39 @@ def test_a_blank_stock_order_is_counted_as_the_order_we_place(game):
     assert h["cash_flow"]["purchases_ordered"] == pytest.approx(advice["stock"], rel=0.05)
 
 
-def test_a_blank_stock_order_the_loan_cannot_pay_for_is_refused(game):
-    con, _, pw = game
+def test_a_blank_stock_order_buys_what_the_month_can_pay_for(game):
+    """We order for you as far as cash and loan go: the month is never refused
+    for it (a cover target can be more than the bank will lend), the team is
+    told what will be bought, and the engine buys exactly that."""
+    con, path, pw = game
     _run(con, 1, {"team_01": {"7.1": 0.0}})
     db.set_game(con, open_round=2)
-    app = create_app(con.execute("PRAGMA database_list").fetchone()[2])
+    app = create_app(path)
     app.config["TESTING"] = True
     team = app.test_client()
     team.post("/login", data={"username": "team_01", "password": pw["team_01"]})
     team.post("/brief")
-    spend = {"3.1": "4000000"}            # with this, the order we place does not fit
-    r = team.post("/submit", data={**spend, "12.6": "1"}, follow_redirects=True)
-    assert b"Not enough cash" in r.data and b"we order for you" in r.data
-    assert db.submission(con, 2, "team_01") is None
-    suggest = service.loan_advice(con, "team_01", 2, {"3.1": 4_000_000.0})["suggest"]
-    assert suggest > 0
-    team.post("/submit", data={**spend, "12.6": f"{suggest:.0f}"}, follow_redirects=True)
+    spend = {"3.1": 4_000_000.0}             # leaves part of the order unpaid for
+    bal = service.cash_balance(con, "team_01", 2, spend)
+    assert bal["fits"] and bal["auto_short"] > 0 and 0 < bal["auto_units"] < bal["stock_units"]
+    r = team.post("/submit", data={"3.1": "4000000"}, follow_redirects=True)
     assert db.submission(con, 2, "team_01") is not None
+    assert b"we order for you" in r.data and b"we will buy about" in r.data
+    world = _run(con, 2, {})
+    h = world.teams["team_01"].history[-1]
+    assert h["purchase"]["bought"] == pytest.approx(bal["auto_units"], rel=0.05)
+
+
+def test_a_cover_target_past_the_credit_limit_still_saves(game):
+    con, _, _ = game
+    _run(con, 1, {"team_01": {"7.1": 0.0}})
+    world = db.load_world(con)
+    world.teams["team_01"].credit_drawn = 23_500_000      # almost nothing left to borrow
+    db.save_round(con, 1, world, "x")
+    bal = service.cash_balance(con, "team_01", 2, {"3.1": 4_000_000.0, "12.6": 500_000.0})
+    assert bal["fits"] and bal["auto_short"] > 0
+    note = service.auto_order_note(bal)
+    assert note and "we order for you" in note
 
 
 def test_the_loan_box_names_the_order_we_place(game):

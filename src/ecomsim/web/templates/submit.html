@@ -26,6 +26,13 @@
   &minus; supplier bills due {{ '{:,.0f}'.format(cash.bills_due) }}
   &minus; running costs and interest {{ '{:,.0f}'.format(cash.fixed + cash.interest) }}.
   Stock, marketing, the other budgets, research and projects must fit in what is available.
+  {% if cash.stock_auto and cash.auto_short >= 1 %}<b>Stock to purchase is blank: your
+  cover target needs about {{ '{:,.0f}'.format(cash.stock_units or 0) }} units (PKR
+  {{ '{:,.0f}'.format(cash.stock) }}), and this month can pay for {% if cash.auto_none %}only
+  about {{ '{:,.0f}'.format(cash.auto_units) }}, below {{ cash.supplier }}'s minimum order of
+  {{ '{:,.0f}'.format(cash.moq) }}, so no stock will be ordered{% else %}about
+  {{ '{:,.0f}'.format(cash.auto_units) }} of them (PKR {{ '{:,.0f}'.format(cash.auto_funded) }}){% endif %}.
+  Approve more working capital loan, or enter your own stock order.</b>{% endif %}
   {% if not cash.fits %}<b>Over by PKR {{ '{:,.0f}'.format(-cash.left if cash.available > 0 else cash.planned) }}:
   {{ 'apply for a bigger loan or ' if cash.loans and cash.approved < cash.headroom else '' }}cut spending, or this month cannot be submitted.</b>{% endif %}</span>
 </div>
@@ -311,6 +318,11 @@ its cash cannot be submitted. Interest is charged only on what the month actuall
       <button type="button" class="ghost" style="margin-top:8px"
               onclick="var i=this.closest('.t-body').querySelector('input[name=&quot;12.6&quot;]');i.value='{{ '{:,.0f}'.format(loan.suggest) }}';i.dispatchEvent(new Event('input',{bubbles:true}))">
         Approve PKR {{ '{:,.0f}'.format(loan.suggest) }}</button>
+      {% endif %}
+      {% if loan.stock_auto and loan.need > loan.headroom %}
+      <p class="hint" style="margin:8px 0 0"><b>Your cover target needs more than you can
+      borrow.</b> Left blank, we buy as much of it as the loan allows; or enter your own stock
+      order under Stock to purchase.</p>
       {% endif %}
       <p class="hint" style="margin:8px 0 0">An estimate from your decisions as saved: change
       your stock order or marketing and save to see it move. What you approve is a limit:

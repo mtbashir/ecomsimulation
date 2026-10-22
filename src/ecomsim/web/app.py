@@ -839,6 +839,9 @@ def register_routes(app: Flask) -> None:
                                f"r{rnd}: {len(values)} decisions")
                     flash(f"Submitted for round {rnd}. You may revise until the "
                           f"instructor closes it.", "ok")
+                    note = service.auto_order_note(bal)
+                    if note:
+                        flash(note, "error")
                     return redirect(url_for("home"))
 
         by_group: dict[str, list] = {}

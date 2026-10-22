@@ -111,6 +111,8 @@ def need(team, rnd: int, params, d, research: float = 0.0, world=None) -> dict:
     interest = team.credit_drawn * params["credit_rate_annual"] * params["round_months"] / 12
     stock = stock_estimate(team, params, d, world, rnd)
     auto = purchase_plan(d.get("7.1"))[0] is None
+    supplier = next((s for s in params.suppliers if s["code"] == str(d.get("7.2") or "B")),
+                    params.suppliers[0])
     spend = spend_of(d, research)
     projects = projects_of(team, d)
     fixed = fixed_costs(params)
@@ -119,6 +121,7 @@ def need(team, rnd: int, params, d, research: float = 0.0, world=None) -> dict:
     return {"cash": team.cash, "receipts_due": due_in, "bills_due": due_out,
             "fixed": fixed, "interest": interest, "stock": stock, "stock_auto": auto,
             "stock_units": (automatic_order(team, params, d, world, rnd)[0] if auto else None),
+            "moq": float(supplier["moq_units"]), "supplier": supplier["name"],
             "spend": spend,
             "projects": projects,
             "outgoings": out, "need": max(0.0, out - has),
@@ -136,13 +139,28 @@ def approved_of(n, d, on_loans: bool) -> float:
 
 def check(n, approved: float) -> dict:
     """The month's cash balance: what is available to spend, what the team's
-    decisions spend, and what is left - negative when they do not fit."""
+    decisions spend, and what is left - negative when they do not fit.
+
+    An order left to the engine ("we order for you") is not a fixed sum: it
+    buys toward the cover target as far as the month can pay (`fund` caps it),
+    so it never stops a month being submitted. What it cannot buy is reported
+    instead: `auto_funded` of the order is paid for, `auto_short` is not, and
+    `auto_units` is how many units that buys.
+    """
     available = (n["cash"] + n["receipts_due"] + approved
                  - n["bills_due"] - n["fixed"] - n["interest"])
-    planned = n["stock"] + n["spend"] + n["projects"]
+    auto = n["stock"] if n.get("stock_auto") else 0.0
+    firm = n["stock"] + n["spend"] + n["projects"] - auto
+    funded = min(auto, max(0.0, available - firm))
+    planned = firm + funded
+    units = (n.get("stock_units") or 0.0) * funded / auto if auto > 0 else 0.0
     return {"available": available, "planned": planned,
             "left": available - planned, "approved": approved,
-            "fits": planned <= max(available, 0.0) + 1.0}
+            "fits": firm <= max(available, 0.0) + 1.0,
+            "auto_funded": funded, "auto_short": auto - funded, "auto_units": units,
+            # an order the month can pay for only below the supplier's minimum
+            # is not placed at all (m03_supply._commit_po)
+            "auto_none": auto > 0 and funded < auto - 1.0 and units < n.get("moq", 0.0)}
 
 
 def fund(team, world, params, d, ctx) -> None:

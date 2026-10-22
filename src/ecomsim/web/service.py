@@ -2197,6 +2197,28 @@ def cash_balance(con, team_id: str, round_: int, current: dict,
     return {**n, **loans.check(n, loans.approved_of(n, d, on_loans)), "loans": on_loans}
 
 
+def auto_order_note(bal: dict) -> str | None:
+    """What a blank stock order will buy when the cash and loan cannot pay for
+    all of it - said after a save, so the month is never cut by surprise."""
+    if not bal or not bal.get("stock_auto") or bal.get("auto_short", 0) < 1:
+        return None
+    pkr = lambda v: f"PKR {v:,.0f}"
+    more = min(bal["auto_short"], max(0.0, bal["headroom"] - bal["approved"]))
+    head = (f"Stock to purchase is blank, so we order for you: your cover target needs about "
+            f"{bal['stock_units'] or 0:,.0f} units ({pkr(bal['stock'])}). ")
+    if bal.get("auto_none"):
+        body = (f"With the cash and loan available we could buy only about {bal['auto_units']:,.0f} "
+                f"units, below {bal['supplier']}'s minimum order of {bal['moq']:,.0f}, so no "
+                f"stock will be ordered this month. ")
+    else:
+        body = (f"With the cash and loan available we will buy about {bal['auto_units']:,.0f} "
+                f"units ({pkr(bal['auto_funded'])}). ")
+    way = (f"Approve {pkr(more)} more working capital loan to buy more, or enter your own "
+           f"stock order." if more >= 1 and bal.get("loans") else "Enter your own stock order "
+           f"to choose what is bought.")
+    return head + body + way
+
+
 def cash_refusal(bal: dict) -> str:
     """Why a month that spends more than its cash cannot be saved, and the way out."""
     pkr = lambda v: f"PKR {v:,.0f}"
@@ -2205,10 +2227,7 @@ def cash_refusal(bal: dict) -> str:
     way = (f"Apply for a bigger working capital loan (you can borrow up to {pkr(bal['headroom'])} "
            f"in all) or cut spending by {pkr(over)}." if bal["loans"] and head > 0 else
            f"Cut spending by {pkr(over)}.")
-    if bal.get("stock_auto") and bal.get("stock", 0) > 0:
-        way += (f" Stock to purchase is blank, so we order for you: about "
-                f"{bal.get('stock_units') or 0:,.0f} units, {pkr(bal['stock'])}. Enter a "
-                f"smaller order there if you would rather borrow less.")
+
     return (f"Not enough cash: this month's stock, marketing and other spending come to "
             f"{pkr(bal['planned'])}, but only {pkr(max(bal['available'], 0.0))} is available "
             f"after the supplier bills and running costs due this month. {way}")
