@@ -36,6 +36,16 @@ switches; `docs/01-decision-list.md` is the decision list as built.
 
 The engine version moves to 2.3.0 for the engine changes since 2.2.0 below.
 
+### 2026-10-25 — questions from the course in the docs
+
+- `docs/00-game-world.md` explains, step by step, how the market's orders are
+  created each month (market size, segments, attractiveness, repeat demand,
+  traffic and stock), with the Fall-2026 figures; the season index now lists all
+  twelve months. `docs/07` M1 and M7 gain the calibration scale and the AI
+  competitors.
+- Each relevant doc ends with *Questions from the course*: the instructor's
+  questions and their answers. `docs/18-questions.md` indexes them.
+
 ### 2026-10-25 — research and campaigns no longer go stale in a draft
 
 - A draft the cash had refused kept its own copy of the team's market research

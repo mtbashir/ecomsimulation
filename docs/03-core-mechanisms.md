@@ -232,3 +232,56 @@ A team that treats research as an overhead to be cut will make the private-label
 bet blind, enter Q-Com in the wrong city, and never see its perception gap until
 ratings collapse in Round 7. That chain is the sim's spine, and it should be
 drawn on one slide in the final debrief.
+
+---
+
+## Questions from the course
+
+Asked by the instructor while running the Fall-2026 cohort; the index of every
+question is `18-questions.md`.
+
+### How is a team's loan approved? *(2026-10-22)*
+
+The amount a team enters in *Working capital loan* (12.6) **is** the approval;
+there is no instructor step. It is not carried: a team approves again each
+month, and blank means no new borrowing. The month draws on it only as bills
+need it, up to the PKR 24M limit, and spare cash repays it (mechanism 5).
+
+### A team approved a loan this month, so why are its sales still low? *(2026-10-22)*
+
+Stock lands the month after it is ordered at the earliest. A loan approved this
+month pays for this month's order, which sells next month. If last month's order
+was cut because no loan was approved, there is little or nothing on the shelf
+this month whatever is approved now; that month's report says so ("Not enough
+was approved to pay for the month, so we cut your stock order by PKR ...").
+
+### If *Stock to purchase* is left blank, does the loan count the order the engine places? *(2026-10-22)*
+
+Yes, since 2026-10-22. The loan box and the cash check price the order the
+engine will place - units and cost - and the order is elastic: it buys as far
+as cash and the approved loan go, never blocks a save, and the form says how
+many units it will buy (or that it falls below the supplier's minimum).
+
+### What can a team in administration still do, and does returning stock get it out? *(2026-10-22)*
+
+It keeps selling the stock it holds, and its running and per-order costs are
+paid automatically. It cannot raise marketing, CRM, website or quality spend
+above half of the month before, start AI builds or buy research, and the cash
+check refuses spending its cash cannot cover. Without marketing its customers
+drift away gradually rather than at once: organic, returning and marketplace
+visitors keep coming while brand equity decays.
+
+Returning stock (7.6) brings back half its cost in cash, but a team leaves
+administration only when cash is back above zero with the loan under half the
+limit; when the hole is bigger than everything the stock is worth, no return
+can do that. Returning stock the team cannot sell is still worth it: it stops
+the holding cost (2.1% of value a month) and the ageing write-down (10% a month
+of the value beyond six months of cover). See also `08-scoring.md`, *Insolvency*.
+
+### What was dynamic pricing (11.3) supposed to do? *(2026-10-22)*
+
+It was meant to raise gross margin by 1.5-3 points, with a risk to the rating
+if pricing was aggressive: the costliest AI build (PKR 3.8M, three months, PKR
+300k a month, 70% chance of working). The engine drew the margin lift when a
+build succeeded and stored it, but no module ever read it, so it did nothing.
+It was withdrawn and every team that bought it refunded (mechanism 3).

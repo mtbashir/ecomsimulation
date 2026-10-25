@@ -120,3 +120,22 @@ The work is bounded: `src/ecomsim/web/db.py` is raw SQLite, so it needs a
 placeholder change (`?` to `%s`), `BLOB` to `BYTEA`, and a connection pool.
 Roughly half a day. Nothing above it changes — the service layer and the engine
 never touch SQL.
+
+---
+
+## Questions from the course
+
+Asked by the instructor while running the Fall-2026 cohort; the index of every
+question is `18-questions.md`.
+
+### How do I add the admin password as an environment variable? *(2026-10-22)*
+
+On Render: the service's **Environment** page, variable
+`ECOMSIM_ADMIN_PASSWORD`. It is read only at first boot, when the game is
+created; after that any password, the admin's included, is changed on the
+Teams page. For a Claude cloud
+session that should sign in to check the game: the environment's settings
+(environment menu in the session's title bar, then **Edit**), the same variable
+name; a new session picks it up, and a session may still decline to read a
+secret it was not asked to use. Never paste passwords into a chat, and change
+any password that has been shared.

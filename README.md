@@ -76,6 +76,7 @@ all passing) and `calibrate.py` (the baseline holds).
 | [`docs/15-course-map.md`](docs/15-course-map.md) | The LUMS course outline mapped onto the simulation, session by session |
 | [`docs/16-lecture-decks.md`](docs/16-lecture-decks.md) | Rules for the lecture decks and where each deck's generator lives |
 | [`docs/17-instructor-guide.md`](docs/17-instructor-guide.md) | Running a live cohort: a month step by step, report detail, rollback, rule cards |
+| [`docs/18-questions.md`](docs/18-questions.md) | Every question asked while running the course, and the doc that answers it |
 
 ## Design principles
 

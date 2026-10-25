@@ -102,6 +102,17 @@ At `ROUND_MONTHS > 3`, `season[t] → 1.0`.
 
 Category is expressed in **PKR of demand**, converted to order potential in M7.
 
+**As built.** `category = (N × baseline_team_revenue ÷ team_share_total) ×
+(1 + g)^(t−1) × season[t] × category_scale`. `category_scale` is fixed at set-up
+(`bootstrap._category_scale`) so a default team's share of the contested pool
+is `baseline orders × 0.78 × potential_headroom (0.66)` against a fixed
+reference field of AI competitors, whatever N: per-team economics do not move
+with class size, while competitors added beyond the reference still cost share.
+Six teams and two AI competitors give a scale of 0.449. The season index has
+twelve values (`00-game-world.md`); `seasonality_amplitude` scales its
+deviation from 1.0. A plain-language walk through M1, M7 and M8 is in
+`00-game-world.md`, *How the market's orders are created*.
+
 ---
 
 ## M2 — Events
@@ -389,6 +400,14 @@ Potential demand:
 ```
 potential[i] = Σ_s category_orders[t] × segment_share[s] × share[i,s]
 ```
+
+**As built.** `share[i,s]` also carries the team's founding focus on segment
+`s` (`_team_focus`, from D0.3), and the AI competitors enter the denominator
+with their own utilities (price leader 0.46, premium/service 0.50, tilted by
+`incumbent_aggression`). `β` is damped to 1.4 at three teams or fewer and raised
+to 2.6 at twelve or more. Repeat demand from the team's own cohorts (M12) is
+added to `potential[i]` after the logit, uncontested; marketplace cohorts are
+left out, since they buy through the marketplace (M8).
 
 ---
 

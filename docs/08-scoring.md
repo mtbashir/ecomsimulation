@@ -418,3 +418,49 @@ So the closing session asks it directly:
 
 Every well-designed incentive system creates that gap somewhere. Finding it is
 the most transferable thing in the entire course.
+
+---
+
+## Questions from the course
+
+Asked by the instructor while running the Fall-2026 cohort; the index of every
+question is `18-questions.md`.
+
+### In month 1, where does the Growth (P2) score come from? *(2026-10-14)*
+
+Growth has three measures (*The published scorecard*), and in month 1 two of
+them have nothing to compare with:
+
+- **Net revenue, last month against first** is month 1 against month 1 = 1.00x,
+  the 50-mark anchor: 4.0 of 8 points, the same for every team.
+- **Market share gained** is 0.0pp, also the 50-mark anchor: 3.5 of 7 points.
+- **Orders against a baseline business** compares the team's orders with a
+  4,000-order baseline (PKR 12M ÷ PKR 3,000): -28% earns 0, -6% half, +22% all
+  of its 5 points.
+
+So month-1 Growth is 7.5 plus the order points, and in month 1 teams differ on
+Growth only through their orders. From month 2 the first two start to move.
+The *month on its own* score measures growth against the month before; month 1
+has none, so its revenue and share growth are level for everyone.
+
+### Does a team with a very large overdraft pay for it in its profitability score? *(2026-10-22)*
+
+Not as the scorecard stands:
+
+1. Interest is charged on the loan drawn (22% a year), and the loan stops at the
+   PKR 24M limit. Cash below zero beyond that carries no interest.
+2. Profitability scores three margins that sit above interest: gross margin,
+   contribution before marketing and EBITDA margin. Interest reaches only the
+   net margin, which is in Cash & capital.
+3. A negative margin earns nothing, so a loss of billions scores the same zero
+   on EBITDA margin as a loss of one rupee, while gross margin and contribution,
+   earned on what the team does sell, still score.
+4. An insolvent team scores zero on Cash & capital for the rest of the game.
+
+Two changes were put to the instructor and are **not built**: (1) penalty
+interest on cash below zero, and an insolvent team scoring zero on
+Profitability as well as Cash & capital; (2) the same score rule, with the bank
+restructuring the hole into a term loan at a penalty rate so the team can trade
+again. Tested on the month-6 numbers, "a negative margin costs points" would
+also have cut a team whose losses had a different cause, which is why the
+insolvency rule is the targeted one.

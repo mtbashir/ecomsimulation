@@ -131,3 +131,56 @@ all back for a full refund the next month; it can be cancelled until then.
 | A team says its change did not save | The Submissions table shows *changes not submitted* when a draft was refused; the form tells the team why (usually spending beyond cash plus the loan) |
 | The app is down mid-class | `/healthz` says whether the database answers. Download the decisions CSV from the console and run `py run.py round --decisions <file>` offline |
 | Signed out after a deploy | `ECOMSIM_SECRET` is not set (`14-deployment.md`) |
+
+---
+
+## Questions from the course
+
+Asked by the instructor while running the Fall-2026 cohort; the index of every
+question is `18-questions.md`.
+
+### Can teams change their decisions after submitting? *(2026-10-22)*
+
+Yes, as often as they like until the month is closed or run. Every change saves
+as it is made, and the last save that fitted the month's cash is what runs.
+
+### A team says it changed a decision but the change is not showing. *(2026-10-22)*
+
+The change did not fit the month's cash, so it was kept as a draft: the form
+reopens with it and says why, and the Submissions table shows *changes not
+submitted*. The last version that fitted stands until the team approves a
+bigger loan or cuts spending. Before 2026-10-22 such saves were refused without
+being kept, which is how a team's change could vanish.
+
+### If I roll back a month, do teams have to enter their decisions again? *(2026-10-22)*
+
+No. A rollback keeps every submission and draft and closes submissions; see
+*Rolling back* above.
+
+### Can I give teams cash before a month so their stock is better for that month? *(2026-10-22)*
+
+Not with cash. Stock lands the month after it is ordered at the earliest, so a
+month sells only what was on the shelf at its start plus what was ordered the
+month before. The only way to change a month's stock is to re-run the month
+before it: roll back, open it, let the teams fix their orders and loans, run it.
+The dynamic-pricing refund, for example, was paid at the end of the re-run month
+6, so it was in teams' cash going into month 7.
+
+### Why does the form show a study commissioned that the team cancelled? *(2026-10-25)*
+
+A draft kept its own copy of the study after the team cancelled it on the
+research desk, and put it back into every later save. Fixed on 2026-10-25
+(`CHANGELOG.md`): the form now takes research and campaigns as their own pages
+saved them. A team still showing the old warning presses Submit once.
+
+### Why does a team come out at the bottom of the preview again? *(2026-10-22)*
+
+Start from its debrief card and its last report:
+
+1. **Stock.** A collapse in sales with *stock-out* as the constraint usually
+   means last month's order was cut for want of an approved loan (the report
+   names the cut), or the team is returning the stock it would have sold (7.6).
+2. **Cash.** A month that did not fit was cut at the start of the month: stock
+   first, then marketing.
+3. **Technology.** Builds paid for and failed show in *Technology projects*.
+4. **Draft.** *Changes not submitted* means the month will run on an older save.
