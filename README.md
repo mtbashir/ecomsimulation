@@ -1,11 +1,13 @@
 # E-Commerce Simulation
 
-An advanced, competitive, multi-round e-commerce business simulation calibrated
-to the Pakistani market. Teams run a D2C brand for 10 simulated months, making
-interconnected decisions across strategy, marketing, pricing, supply chain,
-fulfilment, payments, service and finance.
+A competitive, multi-round e-commerce business simulation calibrated to the
+Pakistani market. Teams found a D2C brand in a setup round, then run it for
+twelve simulated months, making interconnected decisions across range and
+pricing, marketing, channels, stock and suppliers, fulfilment, payments,
+service, technology and finance.
 
-Built for the LUMS *E-Commerce in Practice* course.
+Built for the LUMS *E-Commerce in Practice* course, and in use with the
+Fall-2026 cohort.
 
 ## Why this exists
 
@@ -13,24 +15,67 @@ No commercial simulation models Pakistani e-commerce reality: ~60% cash-on-deliv
 share, high RTO rates, marketplace commission structures, PKR-denominated CAC.
 A sim where COD is a rounding error actively mis-teaches this market.
 
-## Specification
+## What it is today
+
+**Engine 2.3.0** · rules v2 · 38 decisions · 18 modules · deterministic and
+replayable. What changed, and when: [`CHANGELOG.md`](CHANGELOG.md).
+
+**Team portal.** The founding form with a pro-forma preview; a decisions form
+that saves every change as it is made, shows the month's cash and the working
+capital loan it needs, and refuses a month that spends past it; a monthly report
+for every month played (funnel and stock, P&L, sales and stock by product,
+campaigns, technology projects, scorecard); rankings once the instructor
+publishes them; the research desk, campaign screen, handbook by decision,
+marketing guide and *How You Are Scored*.
+
+**Instructor console.** Open, preview, run and roll back months; a debrief card
+per team; the leaderboard from month 1 and results by round; market size by
+product and segment; every team's choices side by side; which report sections
+teams see each month; memo verdicts; per-game rule switches; results as Excel
+workbooks; a scoring playbook for coaching. See
+[`docs/17-instructor-guide.md`](docs/17-instructor-guide.md).
+
+**Quality gates.** `pytest` (491 tests, including checks that the generated
+documentation matches the engine), `validate.py` (thirteen balance invariants,
+all passing) and `calibrate.py` (the baseline holds).
+
+| Invariant (engine 2.3.0, 200 games) | | |
+|---|---|---|
+| I1 No dominant strategy | PASS | best/median 1.24x |
+| I2 No death spiral | PASS | none insolvent before month 6 |
+| I3 Discounting is a trap | PASS | below balanced in 100% of shared games |
+| I4 Margin viable | PASS | baseline contribution 8.6% |
+| I5 Cash binding, survivable | PASS | 90% draw credit, 0% of viable strategies insolvent |
+| I6 Share conserves | PASS | |
+| I7 Research pays | PASS | selective +0.4 over none, heavy far behind |
+| I8 Determinism · I9 Monotonicity · I10 No free lunch | PASS | |
+| I11 Scorecard discrimination | PASS | spread 48; sandbagger and harvester 16-17 behind balanced |
+| I12 Event neutrality | PASS | mean delta 6.7, rank rho 0.95 |
+| I13 Targeting pays, not alone | PASS | sharp +4.2, careless -2.3; sharp targeting does not rescue discounting |
+
+## Documentation
 
 | Doc | Contents |
 |---|---|
+| [`CHANGELOG.md`](CHANGELOG.md) | Every change since the specification and web app were published, with commits and which games each applies to |
 | [`docs/00-game-world.md`](docs/00-game-world.md) | Premise, market size, starting position, seasonality, customer segments |
-| [`docs/01-decision-list.md`](docs/01-decision-list.md) | 56 decision fields across 12 groups, progressive unlock schedule, memo rubric |
+| [`docs/01-decision-list.md`](docs/01-decision-list.md) | **The decision list as built** - 38 decisions, generated from the engine - and the original 56-field design |
 | [`docs/02-market-research-menu.md`](docs/02-market-research-menu.md) | 20 purchasable studies with prices, lags, error bands and bias rules |
-| [`docs/03-core-mechanisms.md`](docs/03-core-mechanisms.md) | Perception vs reality, projects with lead time and failure risk, the second market |
-| [`docs/05-start-mode.md`](docs/05-start-mode.md) | Round 0 founding round vs starting as a going concern, the 14 founding decisions, pro-forma preview and balance constraints |
-| [`docs/07-engine-chain.md`](docs/07-engine-chain.md) | **The round calculation.** 18 modules with formulas, ordering and dependencies; the calibration test that gates all other work |
-| [`docs/08-scoring.md`](docs/08-scoring.md) | Six pillars, criterion-referenced anchors, round weighting, anti-gaming design, insolvency and instructor reweighting bands |
-| [`docs/09-event-library.md`](docs/09-event-library.md) | 24 events in three types - scheduled, conditional (earned) and stochastic - plus bounds on the AI dynamic-event layer |
-| [`docs/10-kpi-dictionary.md`](docs/10-kpi-dictionary.md) | Every metric with formula, module, visibility and scoring; the definitional decisions that settle disputes; dashboard layout |
-| [`docs/11-validation-harness.md`](docs/11-validation-harness.md) | Five test tiers, 20 strategy archetypes, twelve balance invariants, failure diagnosis and CI gating |
-| [`docs/12-solo-delivery-plan.md`](docs/12-solo-delivery-plan.md) | **The active plan.** Burst-based delivery for a single person; what is in and out of scope; how to open and close a Claude session |
-| [`docs/13-calibration-log.md`](docs/13-calibration-log.md) | Domain judgements about parameter values. Cannot be reconstructed - record them as they are made |
-| [`docs/06-build-sequencing.md`](docs/06-build-sequencing.md) | Why the engine is built once at Advanced depth while presets ship incrementally; Path A vs Path B cost comparison |
-| [`docs/04-configurability.md`](docs/04-configurability.md) | Team count 2–16, the 92-decision registry and presets, instructor unlock timing, round length and horizon, parameter safe ranges and validation invariants |
+| [`docs/03-core-mechanisms.md`](docs/03-core-mechanisms.md) | Perception vs reality, projects, working capital and the loan, the cost of stock, channels beyond the own site |
+| [`docs/04-configurability.md`](docs/04-configurability.md) | Team count, the registry and presets, decision windows, **per-game rules**, instructor controls, round length, parameter bands |
+| [`docs/05-start-mode.md`](docs/05-start-mode.md) | The founding round vs starting as a going concern, the founding decisions, the launch order |
+| [`docs/06-build-sequencing.md`](docs/06-build-sequencing.md) | Why the engine is built once at full depth while presets ship as configuration |
+| [`docs/07-engine-chain.md`](docs/07-engine-chain.md) | **The round calculation.** 18 modules with formulas and ordering, with *As built* notes where the engine has moved on |
+| [`docs/08-scoring.md`](docs/08-scoring.md) | Six pillars, the published scorecard (generated from the engine), rules v2, insolvency, rankings |
+| [`docs/09-event-library.md`](docs/09-event-library.md) | Scheduled, conditional and stochastic events |
+| [`docs/10-kpi-dictionary.md`](docs/10-kpi-dictionary.md) | Every metric with formula, module, visibility and scoring |
+| [`docs/11-validation-harness.md`](docs/11-validation-harness.md) | Test tiers, 20 strategy archetypes, the thirteen invariants, failure diagnosis |
+| [`docs/12-solo-delivery-plan.md`](docs/12-solo-delivery-plan.md) | The burst-based plan the build followed |
+| [`docs/13-calibration-log.md`](docs/13-calibration-log.md) | Domain judgements behind parameter values - record them as they are made |
+| [`docs/14-deployment.md`](docs/14-deployment.md) | Render, the persistent disk, settings, running a class |
+| [`docs/15-course-map.md`](docs/15-course-map.md) | The LUMS course outline mapped onto the simulation, session by session |
+| [`docs/16-lecture-decks.md`](docs/16-lecture-decks.md) | Rules for the lecture decks and where each deck's generator lives |
+| [`docs/17-instructor-guide.md`](docs/17-instructor-guide.md) | Running a live cohort: a month step by step, report detail, rollback, rule cards |
 
 ## Design principles
 
@@ -46,21 +91,14 @@ A sim where COD is a rounding error actively mis-teaches this market.
 5. **Balanced scorecard, published upfront.** Profitability 25 / Growth 20 /
    Customer value 20 / Operational efficiency 15 / Cash 10 / Decision quality 10.
 6. **Configurable, within validated bounds.** Team count, decision set, unlock
-   timing, round length and every economic parameter are instructor-editable —
-   but parameters carry green/amber/red bands and any change outside default
-   triggers a 200-strategy validation run against seven balance invariants.
+   timing, round length and every economic parameter are instructor-editable,
+   but parameters carry green/amber/red bands and a change outside default
+   needs a validation run against the balance invariants.
+7. **A rule never re-marks a month already played.** Rules that change how a
+   month is played are switched per game and follow the month; a class is
+   never scored on a rule it was not told about.
 
-## Current status
-
-**Web app built.** Team portal and instructor console, on top of the finished
-engine. A cohort can be run entirely in a browser.
-
-| | |
-|---|---|
-| **Next** | **Harden for a live class, then burst 6 (course materials)** |
-| Tests | 110 passing, 0 xfail |
-| Invariants | 11/12 — only I11 open, and narrow |
-| Suites | `pytest -q` · `python calibrate.py` · `python validate.py --games 160` |
+## Running it
 
 ### Hosting it
 
@@ -68,25 +106,21 @@ engine. A cohort can be run entirely in a browser.
 
 One click, then set `ECOMSIM_ADMIN_PASSWORD` when it asks. The blueprint does
 the rest: Python runtime, gunicorn, a 1 GB persistent disk, a generated session
-secret, and a health check.
-
-Set `ECOMSIM_ADMIN_PASSWORD`, deploy, then collect the team passwords from the
-Teams page — they are shown once. Custom domain and HTTPS are a CNAME away. See
-`docs/14-deployment.md`, including why Supabase is not the right fit.
+secret, and a health check. Collect the team passwords from the Teams page -
+they are shown once. See `docs/14-deployment.md`. The live service redeploys on
+every push to the default branch.
 
 ### Running it locally
 
 ```
+py -m pip install -e ".[web]"
 py serve.py init --teams 8 --name "E-Commerce in Practice"   # prints passwords once
 py serve.py                                                   # start it
 ```
 
-Teams sign in and submit; you open rounds, choose which decisions are visible,
-set the number of AI competitors, adjust economics within validated bands, run
-the round and read the console. Everything is one SQLite file.
+Everything is one SQLite file, `game.db`.
 
-
-### Running a cohort
+### Running a cohort from files
 
 ```
 py run.py new --teams 8 --out game     # start a game
@@ -96,152 +130,66 @@ py run.py round --game game            # reports + console + results.csv
 py run.py preview --game game          # Round 0 pro-forma
 ```
 
-`py` on Windows, `python3` on macOS/Linux. Files in, HTML out — no server, and
+`py` on Windows, `python3` on macOS/Linux. Files in, HTML out - no server, and
 students never touch the engine. See `QUICKSTART.md`, including how to open the
 shipped demo with no Python at all.
 
-### Resolved — profitability is reachable
+### Checking it
 
-Starting capital 25M → 12M with a 24M working-capital facility, and fixed costs
-cut to ~1.35M. A smaller balance means a smaller burn still exhausts capital
-over twelve rounds, so fixed costs can sit below the best reachable
-contribution. **Coasting still ends at zero; good play now turns a profit —
-3 of 20 archetypes, against 0 before.** See `docs/13-calibration-log.md`.
+```
+py -m pip install -e ".[dev]"
+py -m pytest -q                  # the test suite
+py validate.py                   # the thirteen balance invariants
+py calibrate.py                  # the baseline holds at default decisions
+py tools/doc_tables.py --check   # the generated docs match the engine
+```
 
-### I11, the one open invariant
+## Changing the rules
 
-Spread is 31 against a 35 target, and `harvester` ranks #8 against a
-bottom-40% requirement. The diagnosis is known: stripping costs now maxes the
-P1 EBITDA anchor that making profitability reachable created.
-
-**Recommendation: leave it and run a cohort.** Students will find exploits that
-twenty scripted archetypes never will, and a real cohort informs scorecard
-tuning far better than another synthetic round.
-
-### Invariant status
-
-| | | |
-|---|---|---|
-| I1 No dominant strategy | PASS | best/median 1.34x |
-| I2 No death spiral | PASS | none before R6 |
-| I3 Discounting is a trap | PASS | 100% of shared games |
-| I4 Margin viable | PASS | baseline CM 7.2% |
-| I5 Cash binding, survivable | PASS | 96% draw credit, 3% of viable insolvent |
-| I6 Share conserves | PASS | |
-| I7 Research pays | PASS | selective 50.6 > heavy 50.2 > zero 49.6 |
-| I8 Determinism | PASS | |
-| I9 Monotonicity | PASS | 6/6 levers |
-| I10 No free lunch | PASS | 8/8 levers |
-| **I11 Discrimination** | **FAIL** | spread 31; sandbagger #12, harvester #8 |
-| I12 Event neutrality | PASS | rank rho 0.99 |
-
-### Fixed during burst 3
-
-Seven scoring and engine defects, all surfaced by the must-fail archetypes —
-see `docs/13-calibration-log.md` for each.
-
-- **Growth measured against the team's own Round 1**, so sandbagging inflated
-  it by suppressing the denominator (#1 → #11 once fixed)
-- **LTV:CAC read ~0.25 for everyone** — acquisition charged twice and the first
-  order omitted. Now 1.67–2.71, discounter 0.23
-- **LTV:CAC used terminal CAC**, paying for the harvest it exists to punish
-- **P4 anchors never updated** after burst 2 rebased couriers; 15 dead points
-- **Inventory turns hardcoded to 50**
-- **Administration capped spend at the prior round** — no constraint at all
-- **No strategy could reach EBITDA breakeven**; P1/P5 anchors re-based to the
-  reachable frontier
-
-`credit_ceiling` 15M → 25M: coasting stays fatal, but a team with a plan can
-fund it. Viable-strategy insolvency fell 22% → 1%.
-
-### Fixed during burst 2
-
-- **AOV now derives from the SKU basket**, so gross margin follows from what is
-  in the cart rather than from two parameters that disagreed
-- **Courier failure and RTO were double-counted**; courier success now means
-  logistics only, RTO carries refusal
-- **Reorder policy** targets cycle + pipeline + safety stock and forecasts from
-  sellable demand, not raw potential; Round 0 seeds a PO in flight
-- **Per-team economics are N-invariant by construction** — the category is
-  sized from the actual logit at seeded state
-- **Binding-constraint diagnosis** reports the actual minimum, not the first
-  branch that matched
-- **`events_enabled` switch** — calibration and T2 run without events
-
-### Fixed during burst 1
-
-- **Reorder oscillation** — M3 forecast from realised orders, so a stock-out
-  suppressed the next order and perpetuated itself. Now forecasts from potential
-  demand. Guarded by `test_no_reorder_oscillation`.
-- **Cohort seed inconsistency** — 31,000 active customers generated more repeat
-  demand than total orders, silently producing 100% repeat share and zero CAC.
-  Base and frequencies corrected; the engine now warns rather than hiding it.
-
-**Opening a session with Claude:** *"Read the repo, check README status, we are
-on burst N."* Claude has no memory between conversations — this repo is the
-entire handover. Closing procedure is in `docs/12-solo-delivery-plan.md`.
-
-The 33.5-week programme in `docs/06` assumed a team. `docs/12` is the active
-plan.
-
-## Build approach
-
-Specification phase. Engine, team console and instructor console not yet started.
-
-**Build rule:** the engine is built once at Advanced (56-decision) depth.
-Presets ship incrementally as configuration over that engine — never as
-separate engines. See `docs/06-build-sequencing.md`.
-
-Default configuration: **12 monthly rounds**, 8 teams, Advanced (56-decision)
-preset, `founding` start mode (Round 0 setup + 12 operating rounds).
-
-Delivery is `Google Form → decisions.csv → python run.py → report_<team>.html`,
-not a web application. The simulation is unaffected; only the interface is
-simpler (`docs/12`). See `docs/04-configurability.md` for the alternatives and the reasoning
-behind the monthly-round default.
-
-Planned sequence: calibrate the economic model in a spreadsheet and run two
-cohorts manually before building the platform. The model is the product; the
-software is the delivery mechanism.
-
-## Specification status
-
-Complete. Twelve documents covering world, decisions, mechanisms,
-configurability, start mode, build sequencing, engine, scoring, events, metrics
-and validation.
+1. Change the engine or `params/`, with a test.
+2. A change to how a month is played that would re-mark a game already under
+   way goes behind a per-game switch (`docs/04-configurability.md`, *Per-game
+   rules*), on from month 1 for new games.
+3. Run the test suite and `validate.py`.
+4. Update the docs: `py tools/doc_tables.py` rewrites the decision list and the
+   scorecard tables; the mechanism, engine-chain, KPI and course-map docs by
+   hand; add the change to `CHANGELOG.md`.
+5. Move `ENGINE_VERSION` in `src/ecomsim/version.py` for any change to how a
+   month is simulated or scored.
+6. Push between months, not while one is being run: the push is the deploy.
 
 ## Code
 
 ```
-params/          Every economic constant. Nothing is hardcoded in the engine.
-  parameters.csv   ~90 parameters with green and hard bands
-  channels.csv     CPM, CTR, creative sensitivity, and cohort churn by channel
-  segments.csv     Hidden segment weights (sold, noisily, as MR-06)
-  couriers.csv  suppliers.csv  studies.csv
+params/            Every economic constant; nothing is hardcoded in the engine
+  parameters.csv     ~160 parameters with green and hard bands
+  channels.csv segments.csv audiences.csv skus.csv suppliers.csv
+  couriers.csv platforms.csv studies.csv
 src/ecomsim/
-  params.py        Loader, band classification, joint-constraint checks
-  rng.py           Deterministic purpose-keyed randomness (invariant I8)
-  state.py         The state vector, including the per-cohort customer ledger
-  decisions.py     Decision registry and the default_when_disabled resolver
-  engine.py        Round orchestrator over the module pipeline
-  modules/         The 18 round modules in execution order
-tests/           T0 registry integrity, determinism, and the T2 baseline gate
-run.py           CLI runner
+  decisions.py       The decision registry and resolver
+  engine.py          Round orchestrator over the module pipeline; carry-forward
+  modules/           The 18 round modules, M0 resolve to M17 score
+  loans.py           Working capital: the month's need, the cash check, funding, settlement
+  marketplace.py     The marketplace channel (4.1)
+  mix.py             Product mix and the product P&L
+  targeting.py       Campaign setup (3.10) and channel intent
+  assortment.py      Range changes (1.3)
+  founding.py        The founding round
+  scoring.py         The published scorecard, final and monthly scores, ranks
+  report.py console.py debrief.py coach.py workbook.py charts.py funnel.py
+                     What teams and the instructor read
+  backfill.py        Rebuilds stock and cash detail for early months
+  version.py         Engine version and rule sets
+  web/               Flask app: db.py (schema, per-game switches), service.py,
+                     app.py, handbook.py, briefing.py, templates/
+tools/             doc_tables.py (generated docs), kpi_definitions_pdf.py, deck/
+tests/             Registry, determinism, baseline, mechanisms, web, docs
+run.py serve.py demo.py calibrate.py validate.py wsgi.py
 ```
 
-Implemented: M1 market, M5 perception, M6 traffic, M7 share, M8 conversion -
-the demand chain, where the architecture has to be right. The remaining
-thirteen modules are stubs carrying their contract and spec reference.
+## Working on it with Claude
 
-```bash
-pip install -e ".[dev]"
-pytest -q
-python run.py --teams 8 --set saturation_exponent=0.55
-```
-
-## First engineering task
-
-`docs/07-engine-chain.md` closes with a calibration test: at default decisions
-with 8 teams and no events, the engine must reproduce the Round 0 baseline to
-within 2% and hold it stable for 12 rounds. Nothing else should be built until
-that test passes.
+Claude has no memory between conversations - this repository is the entire
+handover. Open a session with: *"Read the README, the CHANGELOG and
+docs/17-instructor-guide.md."* Lecture decks follow `docs/16-lecture-decks.md`
+(see `CLAUDE.md`).

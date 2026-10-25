@@ -67,8 +67,10 @@ It prints two addresses. Teams on the same wifi use the first; you use either.
 
 | Who | Does what |
 |---|---|
-| **You** (`admin`) | Open a round · choose which decisions are open · set AI competitors and economics · run the round · read the console |
-| **Teams** | Sign in, submit decisions for the open round, read their own report |
+| **You** (`admin`) | Open a round · choose which decisions are open · set AI competitors and economics · preview, then run the round · read the console · choose what teams see in their report |
+| **Teams** | Sign in, set decisions for the open round (saved as they type; Submit saves the lot), read every month's report and, once published, the rankings |
+
+`docs/17-instructor-guide.md` walks through a month from the instructor's side.
 
 Everything lives in `game.db`. Back it up by copying that file.
 
@@ -97,9 +99,10 @@ that submits nothing keeps its previous round's decisions.
 
 ```
 py -m pip install -e ".[dev]"     # once, for the test suite
-py -m pytest -q                   # 96 tests, about a second
+py -m pytest -q                   # 491 tests, about three minutes
 py calibrate.py                   # baseline holds? ~2 minutes
-py validate.py --games 160        # balanced? ~4 minutes
+py validate.py                    # the thirteen invariants, about a minute
+py tools/doc_tables.py --check    # the generated docs match the engine
 ```
 
 Run `validate.py` after changing anything in `params/`. It reports which
@@ -116,6 +119,7 @@ range it runs but warns and marks the configuration unvalidated.
 
 | | |
 |---|---|
+| What changed, and when | `CHANGELOG.md` |
 | What it simulates | `docs/00-game-world.md`, `docs/01-decision-list.md` |
 | How a round is computed | `docs/07-engine-chain.md` |
 | How teams are scored | `docs/08-scoring.md` |

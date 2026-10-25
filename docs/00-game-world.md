@@ -29,7 +29,7 @@ At Round 5 a **second market** opens (Quick Commerce). See `03-core-mechanisms.m
 
 | Metric | Value |
 |---|---|
-| Cash | PKR 12,000,000 |
+| Cash | PKR 13,000,000 (PKR 12,000,000 in games begun before 2026-10-18), plus a PKR 24M working capital facility at 22% |
 | Revenue (Round 0) | PKR 12,000,000 |
 | Orders | 4,000 |
 | AOV | PKR 3,000 |

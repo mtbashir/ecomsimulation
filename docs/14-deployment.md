@@ -2,6 +2,14 @@
 
 Target: **`sim.consulyticsai.com`**, on Render, SQLite on a persistent disk.
 
+**As deployed (October 2026):** the Fall-2026 cohort runs on the Render service
+at `ecomsim.onrender.com`, built from this repository's default branch. Render
+redeploys on every push, so a commit reaches the live game within minutes: push
+engine or scoring changes between months, never while a month is being run, and
+check `/healthz` and the admin footer (engine version and build) afterwards.
+Saved months are not re-simulated by a deploy, but reports, consoles and scores
+read them through the deployed code (`17-instructor-guide.md`).
+
 ## Why not Supabase
 
 Supabase is Postgres, auth and storage for apps where the browser talks to the
@@ -86,6 +94,8 @@ docker run -p 8000:8000 -v ecomsim-data:/var/data \
 | `ECOMSIM_BEHIND_PROXY` | Trusts the host's forwarded headers and marks cookies secure |
 | `ECOMSIM_ADMIN_PASSWORD` | First boot only. Change it in the app afterwards |
 | `ECOMSIM_TEAMS` / `ROUNDS` / `PRESET` / `NAME` | Read once, at first boot |
+| `ECOMSIM_TEAM_WORKBOOKS` | `1` opens the Excel results workbook to teams for every month at once; otherwise the instructor opens it month by month from the report grid |
+| `RENDER_GIT_COMMIT` | Set by Render; shown as the build in the admin footer |
 
 ## Running a class on it
 
@@ -93,12 +103,15 @@ docker run -p 8000:8000 -v ecomsim-data:/var/data \
 |---|---|
 | Concurrency | One gunicorn worker, eight threads. A class of ten is nowhere near it |
 | Backup | Copy `game.db` from the disk, or roll back a round in the app |
+| Before running a month | **Preview** runs it on an in-memory copy and shows the console; nothing is saved |
 | Next cohort | **Games → Start a new game.** The running game is copied, complete, to `archive/` beside `game.db` and stays readable (standings, reports, consoles, decision CSVs, the database itself) under Past games. Nothing is deleted |
 | Health | `/healthz` returns 200 only if the database answers |
 | **If it fails mid-class** | Download the decisions CSV from the console and run `py run.py round --decisions <file>` offline. That path is tested and kept working |
 
 Roll back and re-run is safer than it sounds: rounds are replayed from stored
-submissions, so fixing a parameter and re-running a round costs nothing.
+submissions, so fixing a parameter and re-running a round costs nothing. A
+rollback keeps every submission and draft and leaves submissions closed; the
+re-run uses the code deployed at the time.
 
 ## Moving to Postgres
 

@@ -59,9 +59,9 @@ delivering the ownership and founding lessons it lacks.
 
 | Item | Value |
 |---|---|
-| Founding capital | PKR 12,000,000 |
+| Founding capital | PKR 13,000,000 (games set up from 2026-10-18; a game begun earlier keeps PKR 12,000,000) |
 | Monthly payroll budget | PKR 1,400,000 |
-| Available SKU catalogue | 40 (filtered by category choice) |
+| Available SKU catalogue | 20 products in five categories (as built; the design had 40) |
 | Time to launch | Round 0 is setup; no revenue |
 
 ### Opening position of a founded team
@@ -88,13 +88,13 @@ it (`game.launch_order = 0`); a new game opens with the launch order.
 | # | Decision | Type | Effect |
 |---|---|---|---|
 | D0.1 | Brand name & positioning statement | TEXT | Ownership. Lightly graded |
-| D0.2 | Category focus — pick 2 of 5 | MULTI | Skincare / Haircare / Home care / Personal hygiene / Baby care. Sets available catalogue, margin profile, return rate, repeat profile |
+| D0.2 | Category focus — pick 2 of 5 | MULTI | Skincare / Haircare / Home care / Personal hygiene / Baby care. **As built (2026-10-15):** not asked for - it is read off the opening range (D0.6) as the two categories the range leans on most, and it does not filter the catalogue or set margins and returns |
 | D0.3 | Target segment priority — rank | RANK | Sets initial brand perception tilt and which segment acquires cheapest |
 | D0.4 | Positioning tier | SELECT | Value / Mainstream / Premium. Sets price band, margin, expected rating, CAC |
 | D0.5 | Business model | SELECT | Own-site D2C / Marketplace-first / Hybrid. Sets starting traffic mix and commission exposure |
 | D0.6 | Opening assortment | MULTI | 12–18 SKUs from the filtered catalogue |
 | D0.7 | Sourcing strategy | SELECT | Local / Import / Mixed. Cost, lead time, FX exposure |
-| D0.8 | Capital allocation | CURR ×4 | Inventory / marketing / technology / reserve. Must sum to PKR 12M |
+| D0.8 | Capital allocation | CURR ×4 | Inventory / marketing / technology / reserve. Must sum to the founding capital (PKR 13M; PKR 12M in games begun before 2026-10-18) |
 | D0.9 | Technology stack | SELECT | Basic (PKR 800k, UX ceiling 0.55) / Standard (2.5M, ceiling 0.75) / Custom (6M, ceiling 0.92, +2 rounds to launch) |
 | D0.10 | Fulfilment model | SELECT | 3PL (variable, no capex) / Own warehouse (PKR 5M capex, lower variable) |
 | D0.11 | Payment setup | SELECT ×2 | COD on/off; gateway A/B/C |

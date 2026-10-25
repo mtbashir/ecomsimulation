@@ -920,3 +920,24 @@ With no team listed the engine's output is identical to before. I1-I13 pass;
 marketplace_first, which paid commission and sponsored-listing spend for
 nothing, moves from 43.9 to 57.4 - viable, not dominant (balanced 64.0) - and
 every other archetype moves 0.2 points or less.
+
+## 2026-10-03 to 2026-10-22 — values set with the live-cohort rules
+
+Recorded from the commits that set them (`CHANGELOG.md` has each change). Each
+was checked against the balance suite when it was made; engine 2.3.0 passes all
+thirteen invariants on 200 games (`README.md` has the figures).
+
+| Parameter | Value | Why |
+|---|---|---|
+| `ux_invest_half` | PKR 300,000 | Website spend (5.1) closes half the gap to the tech stack's UX ceiling at this spend; less closes less, with diminishing returns |
+| `bundle_price_sensitivity` / `bundle_overprice_sensitivity` / `bundle_convenience_appeal` / `bundle_appeal_cap` | 11 / 6 / 0.1 / 1.6 | The saving sells the pack: a few convenience buyers at no saving, nothing above three singles, a ceiling at about 14% off. Three-pack sweep, average monthly contribution: none 663k, at three singles 681k, 5% off 728k, 10% off 687k, 15% off 601k, 30% off 249k |
+| `freeship_free_cr_lift` / `freeship_free_aov_drop` / `freeship_cr_penalty` | 4% / 3% / 0.40 | Free delivery is a trade-off. Month-1 test: free on all about flat, PKR 4,500 bar +19% contribution, PKR 6,000 -31%, PKR 10,000 -55%; the PKR 2,500 default is unchanged |
+| `price_elasticity_fair` / `wtp_penalty` | -1.8 / 0.2 | Like-for-like games: no floor under the price response, and a pull-away past each segment's willingness to pay; tuned so every strategic direction stays viable and discounting on the marketplace still hands over margin |
+| `packaging_cost_branded` / `packaging_cost_premium` / `tpl_cost_per_order` | PKR 25 / 70 / 30 an order | The costs the decisions already promised (8.5, 8.2) but the engine never charged |
+| `affiliate_reach_revenue` / `affiliate_cannibalisation` | PKR 3M / 30% | Partners work as if paid this revenue times the rate, with paid media's diminishing returns; three in ten of their visitors would have come anyway. Affiliate cohort churn about 20% a month |
+| `supplier_return_fee` | 50% | What the supplier keeps on stock sent back (7.6) as a restocking fee; the other half is refunded in cash that month |
+| `starting_cash` | PKR 13M | With spending capped at the cash available, the default opening month needed about PKR 0.7M of credit before a team could submit |
+
+The working capital loan keeps `credit_ceiling` (PKR 24M) and
+`credit_rate_annual` (22%); what is new is the rule - approved by the team,
+drawn as bills need it, repaid from cash above one month of fixed costs.

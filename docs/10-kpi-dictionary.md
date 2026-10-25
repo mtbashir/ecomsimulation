@@ -55,7 +55,8 @@ be settled, so each is decided once, here.
 | `orders` | Orders | Realised orders | M8 | free | — |
 | `order_growth` | Order growth | `orders[t]/orders[t−1] − 1` | M8 | free | **P2 · 5** |
 | `revenue_multiple` | Revenue multiple | `revenue_net[T]/revenue_net[1]` | M17 | free | **P2 · 8** |
-| `sessions` | Sessions | Σ paid + organic + marketplace | M6 | free | — |
+| `sessions` | Sessions | Σ paid + organic + returning + affiliate (marketplace shoppers are counted separately) | M6 | free | — |
+| `sessions_split` | Where visits came from | Paid (the campaign clicks), organic and direct, returning customers, marketplace; a founded team's month 1 has no returning visitors | M6 | free | — |
 | `conversion_rate` | Conversion rate | `orders ÷ sessions` | M8 | free | — |
 | `aov_net` | AOV | Net of discount | M9 | free | — |
 | `market_share` | Market share | `revenue_net ÷ Σ all` | M7 | **paid** MR-03 | **P2 · 7** |
@@ -82,7 +83,8 @@ be settled, so each is decided once, here.
 | Code | Metric | Formula | Module | Vis | Scored |
 |---|---|---|---|---|---|
 | `gross_margin_pct` | Gross margin % | `gross_profit ÷ revenue_net` | M14 | free | **P1 · 5** |
-| `contribution_margin_pct` | Contribution margin % | See definitional decisions | M14 | free | **P1 · 12** |
+| `contribution_pre_marketing_pct` | Contribution before marketing % | Contribution margin with marketing added back | M14 | free | **P1 · 12** |
+| `contribution_margin_pct` | Contribution margin % | See definitional decisions | M14 | free | — |
 | `ebitda_margin_pct` | EBITDA margin % | `ebitda ÷ revenue_net` | M14 | free | **P1 · 8** |
 | `discount_rate` | Effective discount | `1 − net_price ÷ list_price` | M9 | free | — |
 | `workbook` | Results workbook | Every month as Excel: P&L with each subtotal a formula, every report KPI rebuilt as a formula where it can be, sales and stock by product, cash flow, campaigns, segments (`ecomsim.workbook`; instructor console, one per team or all as a zip; teams only when `ECOMSIM_TEAM_WORKBOOKS=1`) | M17 records | instructor | — |
@@ -94,9 +96,11 @@ be settled, so each is decided once, here.
 
 | Code | Metric | Formula | Module | Vis | Scored |
 |---|---|---|---|---|---|
-| `instock_rate` | In-stock rate | Revenue-weighted | M3 | free | **P4 · 4** |
+| `instock_rate` | In-stock rate | Revenue-weighted | M3 | free | — |
+| `service_level` | Service level | Orders served ÷ orders asked for | M8 | free | **P4 · 2** |
+| `weeks_of_cover` | Weeks of cover | Closing stock ÷ (units sold this month ÷ 4.33) | M3 | free | — |
 | `stockout_lost_orders` | Lost to stock-out | `potential − stock_capacity` | M8 | free | — |
-| `delivery_success` | Delivery success | `delivered ÷ orders` | M10 | free | **P4 · 4** |
+| `delivery_success` | Delivery success | `delivered ÷ orders` | M10 | free | **P4 · 6** |
 | `sla_attainment` | SLA attainment | Orders delivered in promise | M10 | free | — |
 | `rto_rate` | RTO rate | **Of COD orders** | M10 | free | — |
 | `return_rate` | Return rate | Units returned ÷ delivered | M11 | free | — |
@@ -111,13 +115,13 @@ be settled, so each is decided once, here.
 
 | Code | Metric | Formula | Module | Vis | Scored |
 |---|---|---|---|---|---|
-| `active_customers` | Active base | Ordered in last 3 rounds | M12 | free | **P3 · 4** |
+| `active_customers` | Active base | Ordered in last 3 rounds | M12 | free | **P3 · 6** |
 | `new_customers` | New customers | `new_orders ÷ first_order_units` | M12 | free | — |
 | `repeat_order_share` | Repeat order share | `repeat_orders ÷ orders` | M12 | free | **P3 · 5** |
 | `repeat_customer_rate` | Repeat customer rate | Customers with ≥2 orders ÷ base | M12 | free | — |
 | `churn_rate` | Churn | Weighted across cohorts | M12 | free | — |
 | `ltv_contribution` | LTV | Cohort ledger, 24-month, contribution basis | M12 | free | — |
-| `ltv_cac_ratio` | LTV : CAC | `ltv_contribution ÷ cac_blended` | M17 | free | **P3 · 8** |
+| `ltv_cac_ratio` | LTV : CAC | `ltv_contribution ÷` lifetime CAC (all marketing ÷ all new customers) | M17 | free | **P3 · 6** |
 | `cohort_retention` | Cohort curves | Per acquisition cohort | M12 | **paid** MR-10 | — |
 | `cohort_by_channel` | Retention by channel | The churn table in M12 | M12 | **paid** MR-10 | — |
 | `rating` | Average rating | 0–5 | M13 | free | — |
@@ -132,8 +136,8 @@ be settled, so each is decided once, here.
 | `cash_balance` | Cash | Closing | M15 | free | — |
 | `runway_rounds` | Runway | `cash ÷ max(1, −operating_cf)` | M15 | free | **P5 · 5** |
 | `free_cash_flow` | FCF | Operating CF − capex | M15 | free | — |
-| `cumulative_fcf` | Cumulative FCF | Σ FCF | M15 | free | **P5 · 3** |
-| `cash_conversion_cycle` | CCC (days) | `DIO + DSO − DPO` | M15 | free | **P5 · 2** |
+| `free_cash` | Cash the business generated | (cash − starting cash) − (credit drawn − opening credit) | M17 | free | **P5 · 3** |
+| `net_margin_pct` | Net profit margin | `net_profit ÷ revenue_net` (stands in for the cash conversion cycle, not tracked) | M14 | free | **P5 · 2** |
 | `working_capital` | Working capital | Inventory + receivables − payables | M15 | free | — |
 | `credit_drawn` | Credit drawn | Against ceiling | M15 | free | — |
 | `net_profit` | Net profit | Bottom line | M14 | free | — |
@@ -161,10 +165,37 @@ the sim.**
 
 | Code | Metric | Module | Vis | Scored |
 |---|---|---|---|---|
-| `memo_score` | Rubric score, per round | M17 | free | **P6 · 4** |
-| `prediction_accuracy` | Forecast accuracy, retrospective | M17 | free (from t+3) | **P6 · 3** |
-| `plan_variance` | Round 0 plan vs outcome | M17 | free (final) | **P6 · 3** |
+| `decisions_taken` | Decisions taken ÷ (¾ × decisions open), capped at 1 (rules v2) | M17 | instructor (teams see it described) | **P6 · 8** |
+| `memo` | A board memo the instructor has not rejected (rules v2) | M17 | instructor | **P6 · 2** |
+| `memo_score`, `prediction_accuracy`, `plan_variance` | As designed; not built | — | — | — |
 | `research_spend` | Research purchased | M14 | free | — |
+
+## Added since the specification (October 2026)
+
+| Code | Metric | Formula / source | Module | Vis | Scored |
+|---|---|---|---|---|---|
+| `stock_by_product` | Stock by product | Opening + received + back from failed deliveries − sold − returned to supplier = closing; weeks of cover; on order and when it lands; stock value at landed cost | M3 / M17 | free | — |
+| `campaigns` | Campaign results | Per campaign: spend, impressions, clicks, CTR, CPC, orders, CVR, ROAS, CAC, with the reason it worked or did not (`ecomsim.targeting`) | M6 / M8 | free | — |
+| `mp_sessions`, `mp_orders` | Marketplace visits and orders | Share of the marketplace pool by listing rank; orders at 1.5× own-site conversion | M6 / M8 | free | — |
+| `listing_rank` | Listing rank | Half price, half rating; 1.00 is the best a listing can score | M6 | free | — |
+| `marketplace_commission` | Marketplace commission | 14.5% of marketplace order revenue | M14 | free | — |
+| `holding_cost` | Stock holding cost | 2.1% of stock value a month | M14 | free | — |
+| `ageing` | Write-down of ageing stock | 10% a month of the value of cover beyond 6 months | M14 | free | — |
+| `restocking` | Restocking fee on stock returned | What the supplier keeps on 7.6 (50%) and 1.3 (20%) returns | M14 | free | — |
+| `supplier_refund` | Refund for stock returned | Cash back for stock sent to the supplier, its own cash line | M15 | free | — |
+| `tech_refund` | Refund for a withdrawn lever | Build and running costs of dynamic pricing (11.3) paid back once | M15 | free | — |
+| `loan_needed`, `loan_approved` | The month's loan | What the month needs (bills, stock, spending, fixed costs less cash and receipts) and what the team approved (12.6) | loans | free | — |
+| `stock_cut`, `spend_cut` | Spending cut to fit | What M0 cut from the stock order and from other spending when cash plus the loan fell short | M0 | free | — |
+| `unplanned_borrowing` | Borrowing not approved | Bills already owed that cash and the approved loan could not cover, paid by the bank up to the limit | M15 | free | — |
+| `credit_repaid` | Loan repaid | Spare cash above a month of fixed costs, plus extra repayment (12.7) | M15 | free | — |
+| `tech_projects` | Technology projects | Every build: started, paid, building / live / failed / withdrawn (`service.project_timeline`) | app | free | — |
+| `month_score` | The month on its own | The published scorecard applied to one month, growth against the month before (`scoring.month_score`) | M17 | free once rankings are published | — |
+
+Every figure on the team report is also in the Excel workbook, rebuilt as a
+formula where it can be (`workbook` above), and the KPI definitions PDF
+(`tools/kpi_definitions_pdf.py`) gives students the same formulas.
+
+---
 
 ## Instructor-only
 
@@ -177,6 +208,9 @@ the sim.**
 | `research_roi` | Each team's research spend vs score | Post-run debrief evidence |
 | `event_warning_hits` | Who was forewarned and acted | Debrief evidence |
 | `rng_seed`, `config_hash` | Replay keys | Dispute resolution |
+| `market_size` | Orders by product and segment | Every store's orders asked for, served plus lost to stock-outs, with each segment's share (console) |
+| `debrief` | What each team decided and what it did | Console cards: results with ranks, strategy summary, what worked / to raise, points by pillar against the best |
+| `strategy_grid` | Every team's choices side by side | Admin *Strategy* page: founding choices and each month's decisions, with changes on last month |
 
 ---
 

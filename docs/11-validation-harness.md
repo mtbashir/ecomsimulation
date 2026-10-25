@@ -121,10 +121,11 @@ the response surface rather than testing a single point.
 
 ---
 
-## The twelve invariants
+## The thirteen invariants
 
 I1–I7 are the seven named in `04-configurability.md`. I8–I12 are additions the
-suite needs to be trustworthy.
+suite needs to be trustworthy; I13 arrived with campaign targeting (3.10).
+`python validate.py` runs them all; engine 2.3.0 passes all thirteen.
 
 ### I1 · No dominant strategy
 ```
@@ -244,6 +245,18 @@ AND rank correlation (events_on, events_off) > 0.6
 Events should reshuffle the middle of the table, not determine it. If rank
 correlation falls below 0.6, outcomes are event luck rather than decision
 quality, and `EVENT_SEVERITY` is too high.
+
+### I13 · Targeting pays, not alone
+```
+paired games, same strategy and opponents, differing only in how ad budgets are aimed:
+score(sharp) > score(broad) > score(careless)
+AND 3 <= score(sharp) - score(careless) <= 9
+AND score(discounter + sharp) < score(balanced + broad)
+```
+Aiming campaigns well (3.10) must be worth a few points, and aiming them badly
+must cost a few, but sharp targeting must never rescue a strategy that is wrong
+underneath. If it fails, look at `targeting_traffic_slope` and
+`targeting_cvr_slope`, then the caps.
 
 ---
 

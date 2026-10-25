@@ -63,6 +63,13 @@ meaningful debrief across more than ~16 decision sets in a class session.
 
 ## 2. The decision registry
 
+**As built (October 2026):** the registry holds **38 decisions**
+(`ecomsim/decisions.py`, listed in full in `01-decision-list.md`). Enabled per
+preset: foundation 20, standard 33, advanced 37, expert 37 - the expert
+extensions below were never built, and dynamic pricing (11.3) is in no preset
+since its withdrawal. The live course runs *advanced*. The rest of this section
+is the original design.
+
 **56 is a curated preset, not the complete set.** The registry defines **92
 decisions**; the instructor activates a subset.
 
@@ -147,6 +154,50 @@ Constraint: unlocking a decision mid-run **cannot** retroactively change prior
 rounds. The engine is deterministic and replayable; changing an unlock round
 invalidates the replay from that round forward, and the instructor console
 must warn before allowing it.
+
+**As built.** The admin *Decisions* page sets a window per decision per month
+(open or closed); the windows reach the engine, so a lever closed for a month
+runs its default even if a team saved a value earlier (2026-10-13). A window
+applies to months not yet run. `lock_round` exists in the resolver with no admin
+control yet; `visible_when_locked` was not built (a closed lever has no tile).
+
+### Per-game rules
+
+Rules added during the first live cohort are switched per game, so a class
+already under way is never re-marked by a rule it was not told about. A new
+game (or *New game* on the Games page) starts on all of them from month 1; a
+game already trading when a rule arrived keeps the old behaviour until the
+instructor picks a month not yet run from the rule's card on the admin
+Overview (the card disappears once the rule is in force). The rule follows the
+month, not the moment it was switched, so a rollback that re-runs an earlier
+month re-runs it on the rules that month had.
+
+| Rule | Column on `game` | What it changes | Switchable mid-game |
+|---|---|---|---|
+| Rules v2 scoring | `rules_from` | Profitability against the best team; earned decision quality; levers that keep (`08`) | Set once, from the next month |
+| Launch order | `launch_order` | A founded team opens with its own range's launch order, not the going-concern pipeline (`05`) | New games only |
+| Range changes (1.3) | `range_changes` | Add or drop products from month 3 | New games only |
+| Purchase cost on the cost-of-goods scale | `scaled_purchases` | Orders costed with `cogs_scale`, as cost of goods is | New games only |
+| Like-for-like pricing | `fair_pricing_from` | Price index on the same products; no floor on the price response; willingness-to-pay penalty | Price model card |
+| Working capital loans | `loans_from` | 12.6 / 12.7 instead of the automatic credit line | Working capital loans card |
+| Full costs | `costs_from` | Packaging, 3PL and quality positioning cost what they say | Full costs card |
+| Working affiliates | `affiliates_from` | Partners bring visitors; commission only on tracked sales | Working affiliates card |
+| Returns to the supplier (7.6) | `returns_from` | Teams send stock back for 50% of its cost | Returns to the supplier card |
+| Starting capital | `capital` | PKR 13M for new games; a game that began on PKR 12M keeps it | New games only |
+
+### Other instructor controls
+
+| Control | Where | What it does |
+|---|---|---|
+| Open, close, run a month | Admin Overview | Teams submit while a month is open; nothing is processed until it is run |
+| Preview | Beside Run | Runs the next month on an in-memory copy and shows its console; nothing is saved (2026-10-15) |
+| Roll back | Admin Overview | Back to the end of any month run; results after it are discarded, every submission and draft is kept, and submissions are closed |
+| What teams see | Admin Overview grid | Per month: sales by product, who bought each product, stock by product, paid media by campaign, rankings (from month 4 by default) and the Excel workbook (off by default) |
+| Memo verdicts | Console and preview debrief cards | Marks a board memo as not matching the month's decisions (costs its 2 decision-quality points) |
+| Off-range stock | Admin Overview | Sends every team's stock of products outside its range back for a full refund next month |
+| Economics | Admin *Economics* | Parameter overrides within the bands in section 5 |
+| Strategy grid | Admin *Strategy* | Every team's founding choices and month decisions side by side |
+| `ECOMSIM_TEAM_WORKBOOKS=1` | Environment | Opens the Excel workbook to teams for every month at once |
 
 ---
 

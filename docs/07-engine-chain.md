@@ -3,6 +3,11 @@
 The round calculation, module by module. This is the document the economic model
 is built from.
 
+The formulas below are the specification. Where the engine as built differs, or
+a lever was added after the specification, an **As built** note under the module
+says what the code does and when it changed (engine 2.3.0, October 2026). The
+parameter values quoted are the defaults in `params/parameters.csv`.
+
 ## Architecture
 
 The round is **a sequence of independent modules, each reading and writing a
@@ -67,6 +72,22 @@ Validate before proceeding: capital allocations sum correctly, percentages in
 range, courier mix sums to 100%, PO quantities respect MOQ. Invalid submissions
 fall back to the prior round's decisions with a flag raised to the instructor.
 
+**As built.**
+- *Carry forward (rules v2):* before M0, `engine.carry` merges the month's
+  submission over the team's standing decisions, so a lever left alone keeps
+  last month's setting and the 1.1 price grid carries line by line. Not carried:
+  12.1, 12.5, a typed 7.1, 1.3, 7.6, 11.1-11.5, 12.6, 12.7 (`NOT_CARRIED`).
+- *Instructor windows:* the admin's decision windows reach the resolver: a lever
+  closed for the month runs its default whatever a team saved.
+- *Administration:* a team in administration has marketing (3.1-3.9), website
+  (5.1), CRM (6.1) and QA (7.4) capped at half the month before, AI builds off
+  and research cleared (`_administration`).
+- *Funding (every game):* `loans.fund` fits the month's spending to cash plus the
+  approved loan (12.6; on the automatic line, what is left on it). Short, it cuts
+  the stock order first, then marketing and other discretionary spend, and
+  records the cuts for the report. A blank stock order is elastic: it is priced
+  from the order-up-to quantity M3 will place and buys what is left.
+
 ---
 
 ## M1 — Market & seasonality
@@ -129,6 +150,29 @@ instock_ratio = Σ_sku (opening[sku] > 0 ? weight[sku] : 0) / Σ_sku weight[sku]
 
 weighted by each SKU's share of prior-round revenue.
 
+**As built.**
+- *Arrival:* `arrives = round + max(1, ceil(lead_days × max(0.4, noise) / 30))`,
+  `lead_days = supplier.lead_time_days × lead_time_multiplier × event mult`,
+  noise drawn with sd `lead_time_noise_sd` (0.15). Stock never lands in the
+  month it is ordered.
+- *Order of work:* land arrivals → RTO units back on the shelf → stock of
+  products dropped from the range (1.3), returns to the supplier (7.6) and the
+  instructor's off-range returns go back → this month's purchase order → the
+  first order for any product added to the range (1.3).
+- *Purchase order:* a typed 7.1 is a total split by last month's demand per
+  product (topping up lines that ran short) or a per-product plan; a split below
+  the supplier MOQ is scaled up. A blank 7.1 orders up to
+  `forecast × (round_weeks/2 + believed lead weeks + safety weeks 7.5)` less
+  stock on hand and on order (`automatic_units`), from `demand_forecast`
+  (deterministic per month; sd `forecast_error_sd` 0.16, cut 40% by AI
+  forecasting), as far as M0's funding allows; below MOQ nothing is ordered.
+- *Cost:* `priced_order` charges each line at landed cost × supplier cost index;
+  games set up from 2026-10-11 also apply `cogs_scale` (`purchase_scale`), so
+  cash and cost of goods agree.
+- *Returns:* 7.6 refunds `(1 - supplier_return_fee)` = 50% of landed cost in cash
+  this month (M15) and books the fee below the line (M14); a dropped product's
+  stock (1.3) goes back less `range_restocking_fee` (20%).
+
 ---
 
 ## M4 — Capability resolution
@@ -149,6 +193,14 @@ benefit ×= max(0.55, 1 - 0.07 × (t - project.first_available_round))
 
 An AI module built at first availability delivers 100%; the same module built
 six rounds later delivers ~60%.
+
+**As built.** Projects are the G11 modules only (`PROJECTS`). A completed build
+that works adds the capability and its running cost; one that fails is dropped
+and not refunded. `WITHDRAWN = {"dyn_pricing"}` removes dynamic pricing from
+every team's projects and capabilities at the start of M4 and blocks new builds;
+the app refunds what was paid (`service.withdrawn_refunds`, paid by M15 as
+`tech_refund`). Effects read downstream: forecasting in M3, AI creative in M5,
+recommendations in M9, AI customer service in M13.
 
 ---
 
@@ -182,6 +234,11 @@ AQ  = 0.55·tier_score + 0.25·qa_score + 0.20·supplier_quality
 AV  = clamp(1 - net_price / segment_wtp, 0, 1)
 ADR = courier_success × sla_attainment
 ```
+
+**As built - website (5.1), applied in M13 after conversion, so the gain lands
+next month:** `ux += (ux_ceiling - ux) × spend / (spend + ux_invest_half)`, with
+`ux_invest_half` = PKR 300,000 and the ceiling set by the founding tech stack
+(2026-10-03).
 
 ### Perceived scores — converge at 25% per round
 
@@ -246,6 +303,20 @@ sessions_paid[c,t] = k[c,t] × adstock[c,t]^σ          σ = 0.60
 go near-linear and "spend everything on the cheapest channel" dominates every
 other decision in the sim.
 
+**As built - channel intent and campaigns.** Campaign setup (3.10) splits each
+budget into up to three targeted campaigns (`ecomsim/targeting.py`). Paid orders
+are shared between channels by buying intent (`channels.csv` `intent_cvr`:
+Google Search 1.8, Meta 1.0, TikTok 0.6), totals unchanged, so CVR and CAC
+differ by channel.
+
+**As built - affiliates (3.6), in working-affiliate games (`world.affiliates`):**
+```
+affiliate_sessions = k_affiliate × (rate × affiliate_reach_revenue / 1000)^σ
+organic           -= affiliate_cannibalisation × affiliate_sessions      (0.30)
+```
+with `affiliate_reach_revenue` = PKR 3M; M12 stamps the tracked share of new
+customers as an affiliate cohort and M14 pays commission only on their sales.
+
 ### Organic and direct
 
 ```
@@ -299,6 +370,14 @@ U[i,s] = w_price[s]·(1 - price_index[i])
 `price_index[i] = net_price[i] / market_avg_net_price`, clamped to [0.5, 2.0].
 Segment weights `w_*[s]` from `00-game-world.md`, hidden unless MR-06 purchased.
 
+**As built - like-for-like pricing (`world.fair_pricing`, games from
+2026-10-15 and any game from the month the instructor picks).** The price index
+compares each team's shelf with the same products at catalogue price, then
+divides by the market's average of that ratio, so a team selling dearer products
+is not mistaken for a dear team. Past a segment's willingness to pay it pulls
+away: `U -= wtp_penalty × max(0, price_index - wtp_index[s])`, `wtp_penalty` 0.2
+(Value Seekers 0.85 punish a premium price; Premium/Gifting shrugs).
+
 Logit share:
 ```
 share[i,s] = exp(β · U[i,s]) / Σ_j exp(β · U[j,s])       β = SHARE_SENSITIVITY = 2.0
@@ -333,6 +412,16 @@ CR[i] = CR_base × M_price × M_ux × M_rating × M_stock × M_pay × M_deliv ×
 
 `M_rating` uses **prior round's** rating. Ratings never affect the round in
 which they are earned.
+
+**As built.**
+- In like-for-like games `M_price = price_index^price_elasticity_fair` (-1.8)
+  with no 0.5 floor, so pricing high keeps costing buyers.
+- `M_ship`, the free-delivery threshold (2.4): free delivery on everything
+  ×(1 + 0.04); a bar up to half a basket above a typical order 1.0; beyond that
+  `1 - 0.40 × (excess in baskets)`, floor 0.70 (`freeship_*` parameters).
+- Marketplace orders (4.1) are converted from the marketplace pool at
+  `mp_cr_mult` (1.5) × the own-site rate from the same stock, and
+  `mp_cannibalisation` (10%) of own-site orders move across.
 
 ### Realisation — the two-sided constraint
 
@@ -377,6 +466,11 @@ AOV[i] = AOV_base × (1 + 0.08·bundle_penetration)
 `freeship_effect = 1 + 0.12 × clamp((threshold - AOV_base)/AOV_base, 0, 0.5)` —
 a threshold slightly above natural basket lifts AOV; far above kills conversion
 (already handled in `M_price`).
+
+**As built (2026-10-07).** Free delivery on everything shrinks the basket 3%
+(`freeship_free_aov_drop`); a bar above the typical basket lifts AOV as above,
+and the items added to reach it carry their cost of goods, as pack units do.
+The conversion side is `M_ship` in M8.
 
 ```
 gross_revenue[i] = orders[i] × AOV[i]
@@ -538,6 +632,23 @@ Gross revenue
 to reason about COD, and it is the number most of them have never had to look
 at directly.
 
+**As built - lines added since the specification:**
+
+| Line | Where | Rule |
+|---|---|---|
+| Stock holding cost | Overheads | `inventory_holding_rate` (2.1%) of stock value a month |
+| Write-down of ageing stock | Overheads | 10% a month of the value of cover beyond `inventory_obsolescence_rounds` (6) months |
+| Restocking fee on stock returned | Overheads | What the supplier keeps on 7.6 (50%) and 1.3 (20%) returns |
+| Packaging above a plain box | Cost to serve | Full-cost games: PKR 25 branded, PKR 70 premium a shipped order |
+| 3PL handling | Cost to serve | Full-cost games: PKR 30 an order through the 3PL (8.2) |
+| Sourcing to your quality positioning | Cost of goods | Full-cost games: claiming a tier (1.5) other than the one sourced costs or saves the sourcing difference |
+| Affiliate commission | Marketing | Rate (3.6) on partner-tracked sales only, in working-affiliate games |
+| Marketplace commission | Cost to serve | 14.5% on marketplace orders only |
+| Interest on credit drawn | Below EBITDA | `credit_drawn × credit_rate_annual (22%) / 12` |
+
+Every subtotal and margin is recorded per product too (M17), and adds up to
+the P&L.
+
 ---
 
 ## M15 — Cash & working capital
@@ -569,6 +680,21 @@ Credit line draws automatically if `cash < 0` and headroom exists, at a penalty
 rate. Below zero with no headroom: insolvency, instructor alerted, team
 continues under administration with all discretionary spend capped.
 
+**As built.**
+- *Loan rules (`world.loans`, new games from month 1; the Fall-2026 game from
+  month 5):* `loans.settle` draws on the approved loan (12.6) only as bills need
+  it; bills already owed are paid regardless and the bank covers any gap up to
+  `credit_ceiling` (PKR 24M), reported as unplanned borrowing; cash above one
+  month of fixed costs repays the loan, plus any extra repayment (12.7).
+- *Automatic line (older games until switched):* `cash < 0` draws headroom
+  automatically, as specified, at the same 22%.
+- *Refunds:* cash from stock returned to the supplier (7.6, 1.3, off-range) and
+  from a withdrawn lever (`tech_refund`) are their own cash lines, kept out of
+  receipts and operating cash flow.
+- *Insolvency:* cash still below zero after settlement sets `in_administration`
+  (M0 caps spending next month); it clears when cash is back above zero with
+  the loan under half the limit. P5 scores 0 for the rest of the run.
+
 ---
 
 ## M16 — Research report generation
@@ -591,9 +717,16 @@ Lag-1 studies are queued and delivered with round `t+1` results, stamped with
 
 ## M17 — Scoring & persist
 
-Scorecard per `08-scoring.md` (to be written). Persist the full state vector,
-the resolved decisions, the RNG seed and the config hash. That quadruple is
-what makes the round replayable, and replay is what settles disputes.
+Scorecard per `08-scoring.md`. Persist the full state vector, the resolved
+decisions, the RNG seed and the config hash. That quadruple is what makes the
+round replayable, and replay is what settles disputes.
+
+**As built.** Each month's record carries the rules it ran under (`rules`), its
+decision tally for decision quality (open, taken, memo), the product P&L, stock
+moves, the month's cash flow line by line, and who bought each product, so the
+report, the Excel workbook and the console all read the same numbers. The web
+app saves the world at every month end (`round_log`), which is what rollback,
+preview and the rebuilt early-month detail (`ecomsim/backfill.py`) read.
 
 ---
 

@@ -50,8 +50,9 @@ class DecisionSpec:
 ALL = frozenset({"foundation", "standard", "advanced", "expert"})
 
 
-# Abbreviated registry. Full 56 in docs/01-decision-list.md; the remaining rows
-# follow this shape exactly and are added as each module is implemented.
+# The registry as built. docs/01-decision-list.md carries it as a table written
+# by tools/doc_tables.py (tests/test_docs.py fails when they disagree), with
+# the original 56-field design beside it.
 #
 # Every row carries its own help text. The form is generated from this table,
 # so a lever that reads badly on screen is fixed here, once, and not in a
@@ -65,8 +66,7 @@ REGISTRY: dict[str, DecisionSpec] = {
             help="What you charge for each product, and where each one is "
                  "sourced from. Cost follows the sourcing choice, so the margin "
                  "on every line moves with it. Which products you sell was "
-                 "settled at founding - changing the range mid-run is not "
-                 "modelled, so this is price and sourcing only.",
+                 "settled at founding, so this grid is price and sourcing only.",
             catalogue="skus"),
         DecisionSpec(
             "1.5", "G1", "Product quality positioning", "select", None, ALL,
@@ -172,9 +172,11 @@ REGISTRY: dict[str, DecisionSpec] = {
             "3.6", "G3", "Affiliate & influencer commission", "pct", 0.0,
             frozenset({"standard", "advanced", "expert"}), unlock_round=2,
             unit="% of revenue they refer",
-            help="What you pay partners on sales they bring you. Costs nothing "
-                 "when nothing sells, but a high rate eats the margin on every "
-                 "referred order.",
+            help="What you pay partners on the sales they bring you. A higher "
+                 "rate gets partners to send more visitors, with diminishing "
+                 "returns; some would have come anyway, and their customers leave "
+                 "faster. Costs nothing when nothing sells, but a high rate eats "
+                 "the margin on every referred order.",
             guide="Typical 5-12%"),
 
         # --- Channel ---------------------------------------------------------

@@ -11,7 +11,7 @@ import os
 import subprocess
 from pathlib import Path
 
-ENGINE_VERSION = "2.2.0"
+ENGINE_VERSION = "2.3.0"
 
 RULES = {
     1: "Rules v1: fixed thresholds on every measure; decision quality held at 5 of 10; "

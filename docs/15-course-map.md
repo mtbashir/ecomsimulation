@@ -69,17 +69,22 @@ anything.
 
 ## Session-by-session map
 
+The windows below are what the instructor opens on the admin *Decisions* page;
+the engine's own opening months are in `01-decision-list.md`. In new games,
+range changes (`1.3`) open from month 3 and the loan (`12.6`, `12.7`) and
+returns to the supplier (`7.6`) from month 1; the Fall-2026 game has no `1.3`.
+
 | # | Session topic | Sim round | Opens this session | What the team actually does |
 |---|---|---|---|---|
 | **1** | What is E-Commerce? | — | — | Teams formed, sim demonstrated, handbook issued. No decisions. |
-| **2** | Finding the Right Business Idea | **Round 0 — founding** | The whole founding form | Choose brand, two categories of five, segment priority, quality tier, D2C or marketplace, opening range and prices, sourcing per product, tech stack, fulfilment, payments, and the split of PKR 12m four ways. Write the board objective and targets. |
+| **2** | Finding the Right Business Idea | **Round 0 — founding** | The whole founding form | Choose brand, two categories of five, segment priority, quality tier, D2C or marketplace, opening range and prices, sourcing per product, tech stack, fulfilment, payments, and the split of the founding capital four ways (PKR 13m; PKR 12m in the Fall-2026 game). Write the board objective and targets. |
 | **3** | How Will You Make Money? | R1 debrief → submit R2 | `1.1` range, prices and sourcing · `1.5` positioning · `12.5` board memo | Re-price the shelf against the first month's actual gross margin. Read the P&L block of the report for the first time. |
 | **4** | Building Your Online Store | R2 → R3 | `5.1` website experience · `8.5` packaging · `9.3` payment gateway | Invest in the storefront and the unboxing, and pick the gateway. Conversion rate becomes a number they own. |
 | **5** | What to Sell & How to Price It | R3 → R4 | `1.2` bundles · `2.4` free-delivery threshold · per-product discounting in `1.1` | Build three-packs, set the free-delivery bar, discount line by line. The volume-weighted average discount is the lesson. |
-| **6** | Where Will You Sell? | R4 → R5 | `4.1` sell on Daraz | Marketplace on or off, and at what commission. Own-site margin against marketplace reach. |
+| **6** | Where Will You Sell? | R4 → R5 | `4.1` sell on Daraz · `12.6` working capital loan · `12.7` extra repayment (Fall-2026: loans from month 5) | Marketplace on or off, and at what commission. Own-site margin against marketplace reach. From this month the team approves its own loan: an unapproved month has its stock order cut. |
 | **7** | How Will You Get Customers? | R5 → R6 | `3.1` Meta · `3.2` Google · `3.4` TikTok · `3.10` campaign setup · `3.6` affiliate & influencer · `3.8` creative · `3.9` brand-building | The budget they have been paying by default for five months is finally theirs. Channel CAC and channel churn differ; the cohort ledger remembers where each customer came from. Brand-building is the contrast: it buys no orders this month, decays if you stop, and carries most of the organic traffic that makes every later performance rupee cheaper. Campaign setup splits each ad budget into up to three campaigns aimed by product, age, gender, city tier, interests, language and format; the monthly report shows CTR, CPC, CVR, ROAS and CAC per campaign and says why each worked or did not. Open `3.10` in the same window as the budgets. |
 | **8** | Getting Customers to Come Back | R6 → R7 | `6.1` CRM & retention · `10.1` CS team size · `10.4` returns policy | Retention spend against acquisition spend. A deal-driven cohort churns at more than twice an organic one, and by now they have one. |
-| **9** | How Will You Deliver the Order? | R7 → R8 | `7.1` stock · `7.2` supplier · `7.4` QA · `7.5` safety stock · `8.2` 3PL share · `8.3` courier mix · `9.1` COD · `9.2` prepaid discount | The Pakistan session. COD share, RTO, courier success against stated SLA, lead time and the cash tied up in it. |
+| **9** | How Will You Deliver the Order? | R7 → R8 | `7.1` stock · `7.2` supplier · `7.4` QA · `7.5` safety stock · `7.6` return stock to supplier · `8.2` 3PL share · `8.3` courier mix · `9.1` COD · `9.2` prepaid discount | The Pakistan session. COD share, RTO, courier success against stated SLA, lead time and the cash tied up in it. |
 | **10** | Is Your Business Working? | R8 → R9 | Nothing new — `12.1` research is the session | No new levers. The whole session is the report, the research desk and the twenty studies. Which numbers can be trusted, which are biased, and what the platforms over-report. |
 | **11** | How Can AI Help? | R9 → R10 | `11.1` recommendations · `11.2` AI forecasting · `11.4` AI customer service · `11.5` AI creative (`11.3` dynamic pricing withdrawn) | Four AI levers with real costs and real ceilings. AI creative raises the floor and caps the ceiling; AI forecasting narrows the error band rather than shortening lead time. |
 | **12** | How Do You Grow? | **R11 and R12 processed** | Decisions closed | Final scorecard, variance against the month-0 targets, presentations. |
