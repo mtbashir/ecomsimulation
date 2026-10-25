@@ -36,6 +36,18 @@ switches; `docs/01-decision-list.md` is the decision list as built.
 
 The engine version moves to 2.3.0 for the engine changes since 2.2.0 below.
 
+### 2026-10-25 — research and campaigns no longer go stale in a draft
+
+- A draft the cash had refused kept its own copy of the team's market research
+  (12.1) and campaigns (3.10), which are saved on the research desk and the
+  campaigns page. A study cancelled on the desk therefore still showed as
+  *1 study commissioned* on the form and was put back into every later save, so
+  a month the study alone had pushed past the cash could never be submitted
+  (MUSE, month 8). The form now takes research and campaigns as last saved by
+  their own pages; when either page saves, a pending draft is checked again and
+  submitted if it now fits. Saving the form also keeps *broad* campaigns, which
+  it used to drop. *Applies to:* all games.
+
 ### 2026-10-22 — technology builds, dynamic pricing withdrawn, autosave
 
 - **Failed builds are visible.** A build that did not work left no trace, so a

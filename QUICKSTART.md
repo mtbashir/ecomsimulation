@@ -99,7 +99,7 @@ that submits nothing keeps its previous round's decisions.
 
 ```
 py -m pip install -e ".[dev]"     # once, for the test suite
-py -m pytest -q                   # 491 tests, about three minutes
+py -m pytest -q                   # 494 tests, about three minutes
 py calibrate.py                   # baseline holds? ~2 minutes
 py validate.py                    # the thirteen invariants, about a minute
 py tools/doc_tables.py --check    # the generated docs match the engine

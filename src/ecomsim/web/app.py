@@ -23,6 +23,20 @@ from ..decisions import REGISTRY
 from ..params import BandViolation
 from . import briefing, compare, db, service, titlecase
 
+# Saved by their own pages - market research (12.1) on the research desk,
+# campaign setup (3.10) on the campaigns page - straight into the submission.
+# The decision form has no field for them: it carries the saved value, and a
+# draft's copy is stale the moment either page saves.
+ELSEWHERE = ("12.1", targeting.DECISION)
+
+
+def with_saved_elsewhere(decisions: dict, saved: dict) -> dict:
+    """A draft's decisions with research and campaigns as last saved."""
+    out = {k: v for k, v in decisions.items() if k not in ELSEWHERE}
+    out.update({c: saved[c] for c in ELSEWHERE if c in saved})
+    return out
+
+
 # Round 0, in the order a founder actually decides things: who you are, who
 # you sell to, what you sell, where it comes from, what you build it on, then
 # what it costs and what you are promising. The engine does not care about the
@@ -527,6 +541,7 @@ def register_routes(app: Flask) -> None:
                 g.db, tid, draft=typed)), 400
         current[targeting.DECISION] = value
         db.submit(g.db, rnd, tid, current, session["user"])
+        _settle_draft(rnd, tid)
         with g.db:
             db.log(g.db, session["user"], "campaigns",
                    f"r{rnd}: {service.campaign_summary(value)}")
@@ -534,6 +549,35 @@ def register_routes(app: Flask) -> None:
               f"{service.campaign_summary(value)}. They run until you change them.",
               "ok")
         return redirect(url_for("campaigns"))
+
+    def _cash_check(rnd, tid, values, standing, specs):
+        """The month's cash balance, and why it refuses the month if it does.
+        A team that cannot apply for a loan this month (the window is held
+        shut) is not refused for want of one."""
+        bal = service.cash_balance(g.db, tid, rnd, values, standing)
+        can_borrow = any(s.code == "12.6" for s in specs)
+        if bal and not bal["fits"] and (can_borrow or not bal["loans"]):
+            return bal, service.cash_refusal(bal)
+        return bal, None
+
+    def _settle_draft(rnd, tid):
+        """Check a draft the cash refused again, after the research desk or the
+        campaigns page saved: with the studies or campaigns now saved it may
+        fit, and is then submitted, as the form's next save would. Otherwise
+        the draft keeps them too, with the refusal brought up to date."""
+        pending = db.draft(g.db, rnd, tid)
+        if not pending:
+            return
+        values = with_saved_elsewhere(pending["decisions"],
+                                      db.submission(g.db, rnd, tid) or {})
+        standing = service.standing_values(g.db, tid, rnd)
+        _, refusal = _cash_check(rnd, tid, values, standing,
+                                 service.form_decisions(g.db, rnd))
+        if refusal:
+            db.save_draft(g.db, rnd, tid, values, refusal)
+        else:
+            db.submit(g.db, rnd, tid, values, session["user"])
+            db.clear_draft(g.db, rnd, tid)
 
     @app.post("/research/commission")
     @login_required("team")
@@ -570,6 +614,7 @@ def register_routes(app: Flask) -> None:
         else:
             current.pop("12.1", None)
         db.submit(g.db, rnd, tid, current, session["user"])
+        _settle_draft(rnd, tid)
         with g.db:
             db.log(g.db, session["user"], "commission",
                    f"r{rnd}: {len(wanted)} studies")
@@ -713,18 +758,20 @@ def register_routes(app: Flask) -> None:
         specs = service.form_decisions(g.db, rnd)
         # 12.1 keeps its tile - it is a decision, and the red bar has to say
         # whether it was taken - but the tile is a link to the research desk,
-        # so the form carries no field for it and must not be able to clear it.
-        ELSEWHERE = {"12.1", targeting.DECISION}
+        # so the form carries no field for it and must not be able to clear it
+        # (ELSEWHERE).
         # Positioning comes before pricing: what you claim to be decides what
         # your prices are allowed to say.
         specs.sort(key=lambda s: (int(s.group[1:]), s.code != "1.5",
                                   tuple(int(p) for p in s.code.split("."))))
-        current = db.submission(g.db, rnd, tid) or {}
+        saved = db.submission(g.db, rnd, tid) or {}
+        current = saved
         # Changes that could not be submitted (the month did not fit its cash)
-        # are kept as a draft: the form reopens with them, not the older save.
+        # are kept as a draft: the form reopens with them, not the older save -
+        # except research and campaigns, which their own pages save.
         pending = db.draft(g.db, rnd, tid)
         if pending:
-            current = pending["decisions"]
+            current = with_saved_elsewhere(pending["decisions"], saved)
         previous = db.submission(g.db, rnd - 1, tid) or {}
         # Rules v2: what each lever runs on if left alone (last month's
         # setting). Empty before v2, when a blank lever runs on its default.
@@ -825,7 +872,8 @@ def register_routes(app: Flask) -> None:
                     flash(e, "error")
             else:
                 for code in ELSEWHERE:
-                    if current.get(code):
+                    # Kept even when empty: broad campaigns ([]) is a setting.
+                    if code in current:
                         values[code] = current[code]
                 # A ticked "keep" records last month's setting as this month's
                 # decision - it runs the same either way, but it counts.
@@ -835,12 +883,8 @@ def register_routes(app: Flask) -> None:
                         values[spec.code] = standing[spec.code]
                 # Spending never runs past the cash: stock, marketing and the
                 # other budgets must fit cash plus the loan applied for.
-                bal = service.cash_balance(g.db, tid, rnd, values, standing)
-                # A team that cannot apply for a loan this month (the window
-                # is held shut) is not refused for want of one.
-                can_borrow = any(s.code == "12.6" for s in specs)
-                if bal and not bal["fits"] and (can_borrow or not bal["loans"]):
-                    refusal = service.cash_refusal(bal)
+                bal, refusal = _cash_check(rnd, tid, values, standing, specs)
+                if refusal:
                     db.save_draft(g.db, rnd, tid, values, refusal)
                     if autosave:
                         return jsonify(saved=False, draft=True,

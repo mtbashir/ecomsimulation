@@ -306,3 +306,67 @@ def test_the_submit_button_still_saves_and_says_so(game):
     r = c.post("/submit", data={"3.1": "400000"}, follow_redirects=True)
     assert b"Submitted for round 1" in r.data
     assert db.submission(con, 1, "team_01")["3.1"] == 400_000
+
+
+# --- Research and campaigns are saved by their own pages --------------------------------
+
+def _study_tight_spend(con):
+    """A Meta budget that fits the month's cash on its own but not with MR-16
+    (PKR 22,000) on top: the case where a study alone blocks the month."""
+    standing = service.standing_values(con, "team_01", 1)
+    base = {"12.1": ["MR-16"], "3.1": 468_000}
+    # A blank stock order is elastic and takes whatever is left, so the test
+    # is on the firm spending alone: 10,000 over with the study, 12,000 under without.
+    bal = service.cash_balance(con, "team_01", 1, base, standing)
+    spend = 468_000 + bal["available"] - bal["spend"] + 10_000
+    assert not service.cash_balance(con, "team_01", 1, {**base, "3.1": spend}, standing)["fits"]
+    assert service.cash_balance(con, "team_01", 1, {"3.1": spend}, standing)["fits"]
+    return spend
+
+
+def test_a_study_cancelled_on_the_research_desk_does_not_live_on_in_a_draft(game):
+    """MUSE, month 8 of the Fall-2026 game: a draft refused for want of cash kept
+    the study the team had since cancelled, showed it as commissioned, and put it
+    back into every later save - so the team's changes could never fit."""
+    con, path, pw = game
+    _, c = _team_client(con, path, pw, 1)
+    c.post("/research/commission", data={"study": ["MR-16"]})
+    assert db.submission(con, 1, "team_01")["12.1"] == ["MR-16"]
+    spend = _study_tight_spend(con)
+    r = c.post("/submit", data={"3.1": str(spend), "_autosave": "1"}).get_json()
+    assert r["saved"] is False and r["draft"], "the study does not fit"
+    assert db.draft(con, 1, "team_01")["decisions"]["12.1"] == ["MR-16"]
+    assert "1 study commissioned" in c.get("/submit").get_data(as_text=True)
+
+    c.post("/research/commission", data={})              # un-tick it on the desk
+    saved = db.submission(con, 1, "team_01")
+    assert "12.1" not in saved
+    assert db.draft(con, 1, "team_01") is None, "without the study the draft fits"
+    assert saved["3.1"] == spend, "and the team's change is submitted"
+    page = c.get("/submit").get_data(as_text=True)
+    assert "nothing commissioned" in page and "1 study commissioned" not in page
+
+
+def test_the_form_shows_research_as_saved_while_a_draft_is_pending(game):
+    con, path, pw = game
+    _, c = _team_client(con, path, pw, 1)
+    c.post("/research/commission", data={"study": ["MR-16"]})
+    c.post("/submit", data={"7.1": "500000", "_autosave": "1"})   # far past the cash
+    c.post("/research/commission", data={})
+    pending = db.draft(con, 1, "team_01")
+    assert pending is not None and "12.1" not in pending["decisions"], "still too dear"
+    page = c.get("/submit").get_data(as_text=True)
+    assert "nothing commissioned" in page and 'value="500,000"' in page
+    c.post("/submit", data={"7.1": "5000", "_autosave": "1"})
+    assert "12.1" not in db.submission(con, 1, "team_01")
+
+
+def test_saving_the_form_keeps_broad_campaigns(game):
+    """Broad ([]) is a setting the campaigns page saves; the form used to drop it,
+    so the month inherited last month's campaigns instead."""
+    con, path, pw = game
+    _, c = _team_client(con, path, pw, 1)
+    db.submit(con, 1, "team_01", {"3.10": []}, "team_01")
+    c.post("/submit", data={"3.1": "400000", "_autosave": "1"})
+    saved = db.submission(con, 1, "team_01")
+    assert saved["3.10"] == [] and saved["3.1"] == 400_000
