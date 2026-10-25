@@ -39,7 +39,8 @@ M7 (demand and share) and M8 (orders realised). Every month, in this order:
    size: 4,000 baseline orders × 78% net × `potential_headroom` 0.66, about 2,060
    new-customer orders a month at default play. For the Fall-2026 game (six
    teams, two AI competitors) the scale is 0.449, so the contested market is
-   about PKR 50.5M in month 1, PKR 85M in month 7 and PKR 52.9M in month 8.
+   about PKR 50.5M in month 1, PKR 85M in month 7 and PKR 52.9M in month 8,
+   before any event that month moves it.
 2. **Turn rupees into orders (M7).** Divide by the market's average order value
    last month (PKR 3,000 at the start): about 16,800 contested orders in month 1
    of the Fall-2026 game.
@@ -68,6 +69,101 @@ M7 (demand and share) and M8 (orders realised). Every month, in this order:
 
 The console's *Market size* grid shows the result: every store's orders asked
 for - served plus lost to stock-outs - by product and segment.
+
+### The market is one pool of orders, not of products
+
+The pool built in steps 1-3 is **one number of orders for the whole beauty and
+personal-care market**. It is not split by product, nor by product category
+(skincare, haircare, homecare, hygiene, baby): there is no separate demand for
+serum, or for homecare. The only split is by **customer segment**. An order is a
+customer choosing a store; what goes in the basket is decided afterwards, by
+the store it chose.
+
+Products and categories still matter, in two places only:
+
+- **How many orders a store wins** (step 4). The range enters the store's
+  attractiveness through its *range fit* - how many products it carries (a
+  third of the fit) and how well its quality tier matches what each segment will
+  pay (two thirds) - and through its prices and in-stock rate. Which categories
+  the products belong to does not enter at all: the founding *category focus* is
+  only a label read off the range, while the founding *segment* focus does tilt
+  the draw from the segments chosen.
+- **What each order contains** (below). The basket is the store's own product
+  mix, so the range decides the average order value, the margin and the stock
+  each line needs - not the number of orders.
+
+Two consequences worth teaching:
+
+1. **No team can own a category's demand.** A store that sells only homecare
+   wins orders the same way as one that sells skincare: by being the store the
+   segments prefer. Its range changes what those customers buy from it, and so
+   its revenue and margin per order.
+2. **Discounting one product mostly moves the basket.** It lowers the store's
+   price index a little, so it wins slightly more orders, but its main effect is
+   to pull units toward that line and away from the others (example below).
+
+This is a simplification of a real market, where categories have shoppers of
+their own and a store can be strong in one and absent from another. It keeps
+the competition on the store as a whole - proposition, price, service, stock -
+which is what the scorecard measures.
+
+### How an order reaches a team, and what goes in it - a worked example
+
+An engine run: month 1, six identical going-concern teams on default decisions,
+two AI competitors; `python tools/order_example.py` reproduces it, and
+`tests/test_docs.py` fails if the engine stops giving these numbers. They are
+the simulation's, not market data.
+
+**Stage 1 - the order goes to a store (M7, M8).**
+
+| Step | What happens | team_01 |
+|---|---|---|
+| Market | PKR 50.1M after this month's events ÷ PKR 3,000 average order | 16,698 contested orders in the whole market |
+| Segments | Split by segment share | Value Seekers 5,677 · Urban Convenience 4,342 · Quality Loyalists 3,006 · Deal Hunters 2,505 · Premium/Gifting 1,169 |
+| Share | Each segment shared by attractiveness between six teams and two AI competitors | Wins 667 · 555 · 395 · 273 · 153 = **2,043** (12.2% of the market; the AI competitors take 26.6%) |
+| Repeat | Its own returning customers, uncontested | + **1,197** = demand of **3,240** orders |
+| Realised | Smallest of demand 3,240, traffic × conversion 3,564, stock 8,157 orders' worth | **3,240 orders** (demand is what binds) |
+
+**Stage 2 - the order is filled with products (M9).** Each order carries 2.424
+units on average, so 3,240 orders are 7,853 units. Each product's share of
+those units is:
+
+```
+share[p] = catalogue weight × customer pull × price pull     (renormalised over the range)
+           + units pushed by product campaigns (3.10)        (at most 60% of the basket)
+           + extra units from packs on it (1.2)
+```
+
+then each line sells what its stock allows; a line that runs out sells what it
+had and the order ships without the rest, so the order still counts but its
+basket is smaller (the report's *demand missed*).
+
+| Product | Catalogue weight | Customer pull | Price pull | Share of units | Units |
+|---|---|---|---|---|---|
+| Facewash 100ml | 10.7% | 1.00 | 1.00 | 10.7% | 841 |
+| Moisturiser 200ml | 9.5% | 1.00 | 1.00 | 9.5% | 748 |
+| Serum 30ml | 7.1% | 1.00 | 1.00 | 7.1% | 561 |
+| Hair Oil 200ml | 6.0% | 1.00 | 1.00 | 6.0% | 467 |
+| ... 10 more lines | | | | | |
+
+With six identical stores every pull is 1.00 and each sells exactly the
+catalogue mix - the neutral case the calibration rests on.
+
+**The same month, team_01 discounting Serum 15%.** Serum's price falls against
+the rest of the range, so its *price pull* rises to 1.10 and every other line's
+falls to 0.98-0.99: Serum goes from 7.1% to 7.8% of units, **561 to 619 units
+(+10%)**, while each other line loses 0.1-0.5%. The store's price index dips, so
+it wins 14 more contested orders (2,043 to 2,057) and its orders rise from 3,240
+to 3,254 (+0.4%). Most of the discount moved units between lines; little of it
+created orders.
+
+**Customer pull, when stores differ.** Each product has a main and a second buyer
+segment (`params/audiences.csv`), tilted by tier: Serum's are Quality Loyalists
+and Premium/Gifting, Hair Oil's Value Seekers and Deal Hunters. A store whose
+orders lean premium - Quality Loyalists 35% and Premium/Gifting 13%, against
+24% and 8% for the stores on average - gets a customer pull of **1.33 on Serum
+and 0.77 on Hair Oil**: a third more serum and a quarter less hair oil than the
+catalogue mix, before price or campaigns. Who a store wins decides what it sells.
 
 ## Team starting position (identical for all teams)
 
@@ -136,3 +232,20 @@ customer segment, shared between the teams and the AI competitors by
 attractiveness, topped up with each team's own repeat demand, and finally
 limited by each team's traffic, conversion and stock. The formulas are in
 `07-engine-chain.md` (M1, M7, M8).
+
+### Is the total market's demand linked to any product or category? *(2026-10-25)*
+
+No. It is one pool of orders for the whole market, split only by customer
+segment; no product or product category has demand of its own. Products enter
+twice: the range shapes how attractive a store is (range fit, prices, stock),
+and after a store wins an order its own product mix decides what is in it. See
+*The market is one pool of orders, not of products*.
+
+### How is an order assigned to a team, and to a product in a category? *(2026-10-25)*
+
+In two stages: the order goes to a store (segment by segment, by
+attractiveness, plus the store's repeat customers, limited by its traffic and
+stock), then it is filled with that store's products in proportion to catalogue
+weight, customer pull and price pull, plus campaigns and packs, as far as each
+line's stock goes. The product's category plays no part beyond the product
+itself. See the worked example above.

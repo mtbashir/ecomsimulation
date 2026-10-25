@@ -407,7 +407,10 @@ with their own utilities (price leader 0.46, premium/service 0.50, tilted by
 `incumbent_aggression`). `β` is damped to 1.4 at three teams or fewer and raised
 to 2.6 at twelve or more. Repeat demand from the team's own cohorts (M12) is
 added to `potential[i]` after the logit, uncontested; marketplace cohorts are
-left out, since they buy through the marketplace (M8).
+left out, since they buy through the marketplace (M8). The pool carries no product and
+no product category: products enter the share only through range fit, price
+index and in-stock rate, and an order's contents are decided in M9 by the
+store's own product mix (`00-game-world.md` has a worked example).
 
 ---
 

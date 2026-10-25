@@ -183,7 +183,7 @@ src/ecomsim/
   version.py         Engine version and rule sets
   web/               Flask app: db.py (schema, per-game switches), service.py,
                      app.py, handbook.py, briefing.py, templates/
-tools/             doc_tables.py (generated docs), kpi_definitions_pdf.py, deck/
+tools/             doc_tables.py (generated docs), order_example.py, kpi_definitions_pdf.py, deck/
 tests/             Registry, determinism, baseline, mechanisms, web, docs
 run.py serve.py demo.py calibrate.py validate.py wsgi.py
 ```

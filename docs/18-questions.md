@@ -21,6 +21,8 @@ where it is answered. Each answer sits in the doc it belongs to, under
 | 2026-10-22 | Does a team with a very large overdraft pay for it in its profitability score? | `08-scoring.md` |
 | 2026-10-22 | What can a team in administration still do, and does returning stock get it out? | `03-core-mechanisms.md` |
 | 2026-10-25 | Why does the form show a study commissioned that the team cancelled? | `17-instructor-guide.md` |
+| 2026-10-25 | Is the total market's demand linked to any product or category? | `00-game-world.md` - *The market is one pool of orders, not of products* |
+| 2026-10-25 | How is an order assigned to a team, and to a product in a category? (with an example) | `00-game-world.md` - *How an order reaches a team, and what goes in it* |
 
 The record of our conversations available when this index was written starts on
 2026-10-13; questions asked before then and not listed here are welcome additions.

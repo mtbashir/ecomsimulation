@@ -45,6 +45,10 @@ The engine version moves to 2.3.0 for the engine changes since 2.2.0 below.
   competitors.
 - Each relevant doc ends with *Questions from the course*: the instructor's
   questions and their answers. `docs/18-questions.md` indexes them.
+- `docs/00-game-world.md`: the market is one pool of orders, split only by
+  customer segment - not by product or product category - and a worked example,
+  from an engine run, of how an order reaches a team and is filled with its
+  products (`tools/order_example.py`, checked by `tests/test_docs.py`).
 
 ### 2026-10-25 — research and campaigns no longer go stale in a draft
 
