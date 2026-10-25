@@ -49,6 +49,10 @@ The engine version moves to 2.3.0 for the engine changes since 2.2.0 below.
   customer segment - not by product or product category - and a worked example,
   from an engine run, of how an order reaches a team and is filled with its
   products (`tools/order_example.py`, checked by `tests/test_docs.py`).
+- `docs/00-game-world.md`, *Stage 1 in detail*: how a team wins its orders in
+  each segment - the six scores, the segment weights, the over-price penalty,
+  the e^(2 × utility) share against every store and the AI competitors - with
+  every number for team_01 and a 10%-discount comparison.
 
 ### 2026-10-25 — research and campaigns no longer go stale in a draft
 

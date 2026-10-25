@@ -124,6 +124,79 @@ the simulation's, not market data.
 | Repeat | Its own returning customers, uncontested | + **1,197** = demand of **3,240** orders |
 | Realised | Smallest of demand 3,240, traffic × conversion 3,564, stock 8,157 orders' worth | **3,240 orders** (demand is what binds) |
 
+**Stage 1 in detail - how team_01 wins its 2,043 orders.** This is M7, run
+once a month after M0 (prices, range fit), M3 (stock) and M5 (perception,
+brand), so it reads this month's state. `python tools/order_example.py` prints
+every number below.
+
+*1. The store's six scores, each 0-1 and the same in every segment except range fit:*
+
+| Input | team_01 | Where it comes from |
+|---|---|---|
+| Price | price index 1.00, so the price score `1 - index` is 0 | M0: the store's net prices like for like against the market's average (the six teams and the two AI competitors); below 1 is cheaper than the market |
+| Perceived quality | 0.588 | M5: moves 25% a month toward 0.30 × creative quality + 0.25 × brand + 0.20 × customer rating + a fixed 0.125 (packaging reaches it through the rating) |
+| Perceived delivery | 0.649 | M5: moves 25% a month toward 0.45 + 0.30 × brand + 0.25 × customer rating; delivery success and service reach it through the rating |
+| In stock | 1.00 | M3: share of the range on the shelf at the start of the month, weighted by what the store's customers buy |
+| Brand | 0.417 | M5: brand equity, built by brand spend and decaying 8% a month |
+| Range fit | 0.564 to 0.889 by segment | M0: 0.35 × breadth (14 of 20 products = 0.70) + 0.65 × how close the range's quality tier (0.60 here) sits to what the segment will pay |
+
+*2. Each segment weighs the scores differently* (`params/segments.csv`, hidden
+from teams unless they buy MR-06), and a store priced above what a segment will
+pay loses `0.2 × (price index - willingness to pay)` in it (like-for-like games):
+
+| Segment | Price | Quality | Delivery | In stock | Brand | Range fit | Will pay |
+|---|---|---|---|---|---|---|---|
+| Value Seekers | 0.42 | 0.12 | 0.10 | 0.14 | 0.10 | 0.12 | 0.85 |
+| Urban Convenience | 0.22 | 0.18 | 0.28 | 0.14 | 0.10 | 0.08 | 1.00 |
+| Quality Loyalists | 0.10 | 0.34 | 0.16 | 0.12 | 0.18 | 0.10 | 1.25 |
+| Deal Hunters | 0.55 | 0.08 | 0.08 | 0.12 | 0.05 | 0.12 | 0.70 |
+| Premium/Gifting | 0.06 | 0.36 | 0.22 | 0.10 | 0.20 | 0.06 | 1.60 |
+
+*3. Attractiveness (utility) = Σ weight × score - over-price penalty.* Value
+Seekers: price 0.42 × 0 + quality 0.12 × 0.588 + delivery 0.10 × 0.649 + in
+stock 0.14 × 1.00 + brand 0.10 × 0.417 + fit 0.12 × 0.653 = 0.396, less
+0.2 × (1.00 - 0.85) = 0.030 for pricing above what Value Seekers pay, = **0.366**.
+
+*4. The segment's orders are shared in proportion to e^(2 × utility).* 2.0 is
+`share_sensitivity`. The AI competitors have a fixed utility in every segment
+(price leader 0.46, premium/service 0.50), so together they weigh
+e^0.92 + e^1.00 = 5.228.
+
+| Segment | Utility | e^(2U) team_01 | Five other teams | AI competitors | Share | Orders in the pool | Won |
+|---|---|---|---|---|---|---|---|
+| Value Seekers | 0.366 | 2.077 | 10.387 | 5.228 | 11.74% | 5,677 | 667 |
+| Urban Convenience | 0.529 | 2.878 | 14.392 | 5.228 | 12.79% | 4,342 | 555 |
+| Quality Loyalists | 0.588 | 3.241 | 16.203 | 5.228 | 13.14% | 3,006 | 395 |
+| Deal Hunters | 0.248 | 1.641 | 8.203 | 5.228 | 10.89% | 2,505 | 273 |
+| Premium/Gifting | 0.580 | 3.187 | 15.937 | 5.228 | 13.09% | 1,169 | 153 |
+| **All** | | | | | **12.2%** | **16,698** | **2,043** |
+
+Share = e^(2U) of the store ÷ (the same for every store, the AI competitors
+included). Value Seekers: 2.077 ÷ (2.077 + 10.387 + 5.228) = 11.74%, and
+5,677 × 11.74% = 667.
+
+*Reading it.* team_01 is weakest with Value Seekers and Deal Hunters (utility
+0.37 and 0.25), who weigh price most and are charged for a mainstream price, and
+strongest with Quality Loyalists and Premium/Gifting (0.59 and 0.58), who weigh
+quality and delivery. The AI competitors' fixed 0.46 and 0.50 beat it in the two
+price segments and lose to it in the other three, which is why each of them
+ends with more orders than any one team (2,133 and 2,310). A utility 0.1 higher
+multiplies a store's weight by e^0.2 = 1.22, worth about a fifth more share in
+that segment (a little less, because its own weight is in the denominator).
+
+*What moves it - the same month with team_01 at 10% off everything.* Its price
+index falls to 0.91 (every other store's rises to 1.01, since the market average
+includes team_01), the over-price penalty shrinks, and utility rises most where
+price weighs most: Value Seekers 0.366 to 0.420 (667 to 741 orders), Deal
+Hunters 0.248 to 0.314 (273 to 310), Quality Loyalists 0.588 to 0.597 (395 to
+402). Contested orders rise from 2,043 to 2,185 (+7%) for 10% off every order.
+
+*In a founded game* (the Fall-2026 cohort) one more factor applies: the segments
+a team chose to target at founding multiply its weight in them by
+`1 + 0.35 × (2 × range fit - 1)`, and every other segment by 0.825
+(`segment_focus_coef`, `segment_focus_spill`). With fewer than four teams the
+sensitivity is damped to 1.4; with twelve or more it is raised to 2.6.
+
 **Stage 2 - the order is filled with products (M9).** Each order carries 2.424
 units on average, so 3,240 orders are 7,853 units. Each product's share of
 those units is:
@@ -249,3 +322,12 @@ stock), then it is filled with that store's products in proportion to catalogue
 weight, customer pull and price pull, plus campaigns and packs, as far as each
 line's stock goes. The product's category plays no part beyond the product
 itself. See the worked example above.
+
+### How does a team win its orders in each segment, in detail? *(2026-10-25)*
+
+Segment by segment: the store's six scores (price, perceived quality, perceived
+delivery, in stock, brand, range fit) are weighted by what the segment cares
+about, less a penalty for pricing above what it will pay; the segment's orders
+are then shared in proportion to e^(2 × that attractiveness) across every store
+and the AI competitors. See *Stage 1 in detail* above, with every number for
+team_01 and a 10%-discount comparison.

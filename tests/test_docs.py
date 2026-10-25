@@ -62,3 +62,21 @@ def test_the_order_example_in_docs_00_is_what_the_engine_gives():
                ctx2["sku_sales"][t]["SKU-03"]["want"]]
     for value in figures:
         assert f"{value:,.0f}" in doc, f"{value:,.0f} is no longer in docs/00's example"
+
+
+def test_the_attractiveness_working_in_docs_00_is_what_the_engine_gives():
+    spec = importlib.util.spec_from_file_location(
+        "order_example", ROOT / "tools" / "order_example.py")
+    ex = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ex)
+    doc = (ROOT / "docs" / "00-game-world.md").read_text(encoding="utf-8")
+    first = ex.month({})
+    rows = ex.attractiveness(*first)
+    assert round(sum(r["won"] for r in rows)) == round(
+        first[1]["potential"]["team_01"] - first[1]["repeat_demand"]["team_01"])
+    for r in rows:
+        line = (f"| {r['segment']} | {r['utility']:.3f} | {r['weight']:.3f} | {r['rivals']:.3f} | "
+                f"{r['ai']:.3f} | {r['share']:.2%} | {r['pool']:,.0f} | {r['won']:,.0f} |")
+        assert line in doc, f"docs/00 no longer shows: {line}"
+    off = ex.attractiveness(*ex.month({"team_01": {"2.2": 0.10}}))
+    assert f"{sum(r['won'] for r in off):,.0f}" in doc
