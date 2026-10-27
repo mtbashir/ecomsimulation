@@ -13,7 +13,8 @@ sys.path.insert(0, "src")
 from ecomsim import bootstrap, params as P
 from ecomsim.engine import run_round
 
-PARAMS = P.load({"n_teams": 6, "events_enabled": 0})
+# PKR 12M: the capital the Fall-2026 game began on (new games start on 13M).
+PARAMS = P.load({"n_teams": 6, "events_enabled": 0, "starting_cash": 12_000_000})
 
 
 def opening(months):

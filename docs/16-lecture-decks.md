@@ -58,7 +58,7 @@ the instructor's standing rules. Apply them to every new deck and every edit.
   `python tools/deck/build_pptx.py <deck folder> <out.pptx> <logo.png>`
   (the deck folder holds `project/deck.json` and `project/slides/`).
 
-- `s2_slides.py`, `s2_cases.py`, `s3_slides.py`, `s4_slides.py`, `s5_slides.py`, `s6_slides.py`, `s7_slides.py`, `s8_slides.py`, `s9_slides.py` — the generators that wrote the
+- `s2_slides.py`, `s2_cases.py`, `s3_slides.py`, `s4_slides.py`, `s5_slides.py`, `s6_slides.py`, `s7_slides.py`, `s8_slides.py`, `s9_slides.py`, `s10_slides.py` — the generators that wrote the
   Session 2 and 3 slides (helpers: section, card, band, grid, case slides,
   dividers, waterfall, pinned tables). Run with the deck folder as argument.
 - Page snapshots (from Session 6): `s6_slides.py` draws each one as a browser
@@ -68,7 +68,12 @@ the instructor's standing rules. Apply them to every new deck and every edit.
 - Simulation numbers on Part 2 slides come from running the engine (one
   baseline round with default decisions), never from memory or the logs.
   Sessions 7 and 8: `python tools/deck/s7_s8_tests.py` prints every line of
-  their test tables; Session 9: `python tools/deck/s9_tests.py`.
+  their test tables; Session 9: `python tools/deck/s9_tests.py`; Session 10:
+  `python tools/deck/s10_tests.py`. Both pin the Fall-2026 game's PKR 12M of
+  starting capital (new games start on 13M).
+- `s9_s10_slides.py` writes Sessions 9 and 10 as one deck (Session 10's slide
+  ids carry an `s10-` prefix). `fit.py` mis-measures the cover layout: fit the
+  slides, then copy both covers back from an unfitted build.
 
 ## The decks
 
@@ -81,3 +86,4 @@ the instructor's standing rules. Apply them to every new deck and every edit.
 - Session 7 — https://claude.ai/artifact/KpatG5RZ6o4cGTzTP1bzxw
 - Session 8 — https://claude.ai/artifact/8J2hyQmTcYpZCYkZtjcGgL
 - Session 9 — https://claude.ai/artifact/Tg4mvToRefBpjVSgLRoRJT
+- Sessions 9 and 10, one deck — https://claude.ai/artifact/QvHmh1sPHgENKFJ2Rko2Hj

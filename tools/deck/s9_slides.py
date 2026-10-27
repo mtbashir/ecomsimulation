@@ -303,7 +303,7 @@ Payment: DHL Pakistan. Refusals: seller-tool vendors (Simpaisa, 2026) &mdash; in
 
 S["sim-stock"] = sec("sim-stock", "#ffffff", "In the simulation", "How stock and suppliers work in the simulation",
   grid([
-    ("Stock (7.1, 7.5)", "Leave it blank and it orders for you", "The engine buys to your safety cover (default 3 weeks). Holding costs 2.1% of stock value a month; cover past 6 months is written down 10% a month.", "#ed0000"),
+    ("Stock (7.1, 7.5)", "Leave it blank and it orders for you", "It buys to your safety cover (default 3 weeks), as far as cash allows. Holding costs 2.1% of stock value a month; cover past 6 months is written down 10% a month.", "#ed0000"),
     ("Suppliers (7.2)", "A, B or C", "A: 12% cheaper, 21 days, minimum 5,000 units. B: baseline, 14 days, 2,000. C: 9% dearer, 7 days, 500. Paid 45 days after ordering.", "#eb6834"),
     ("Quality (7.4)", "Inspection before it ships", "Quality assurance cuts returns and lifts ratings, best from about Rs 250k a month.", "#2a78d6"),
     ("Returns (7.6)", "Back to the supplier", "Name the units product by product; the supplier keeps half the cost; half comes back in cash.", "#1baf7a"),
@@ -311,7 +311,7 @@ S["sim-stock"] = sec("sim-stock", "#ffffff", "In the simulation", "How stock and
   + "\n" + band(5, 780, 100, "<b>The default since month 1:</b> automatic orders to 3 weeks of cover, supplier B, QA Rs 80k a month.", size=28),
   """One rule per click. The rules are the simulation's.
 
-Stock: with 7.1 blank, the engine orders to cover the forecast plus the safety cover in 7.5. A number in 7.1 is a total split by what sold; product by product is allowed. Stock bought is paid on 45-day supplier terms.
+Stock: with 7.1 blank, the engine orders to cover the forecast plus the safety cover in 7.5, as far as cash and the approved loan go; since 22 October the form shows the units it will buy before the month runs. A number in 7.1 is a total split by what sold; product by product is allowed. Stock bought is paid on 45-day supplier terms.
 
 Suppliers: cost index 0.88 / 1.00 / 1.09; lead time 21 / 14 / 7 days; minimum order 5,000 / 2,000 / 500 units; quality index 0.86 / 0.92 / 0.95. In the full game a supply shock in month 5 hits suppliers A and B (not C).
 
