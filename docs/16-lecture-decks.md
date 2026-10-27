@@ -58,7 +58,7 @@ the instructor's standing rules. Apply them to every new deck and every edit.
   `python tools/deck/build_pptx.py <deck folder> <out.pptx> <logo.png>`
   (the deck folder holds `project/deck.json` and `project/slides/`).
 
-- `s2_slides.py`, `s2_cases.py`, `s3_slides.py`, `s4_slides.py`, `s5_slides.py`, `s6_slides.py`, `s7_slides.py`, `s8_slides.py`, `s9_slides.py`, `s10_slides.py` — the generators that wrote the
+- `s2_slides.py`, `s2_cases.py`, `s3_slides.py`, `s4_slides.py`, `s5_slides.py`, `s6_slides.py`, `s7_slides.py`, `s8_slides.py`, `s9_slides.py`, `s10_slides.py`, `s11_slides.py`, `s12_slides.py` — the generators that wrote the
   Session 2 and 3 slides (helpers: section, card, band, grid, case slides,
   dividers, waterfall, pinned tables). Run with the deck folder as argument.
 - Page snapshots (from Session 6): `s6_slides.py` draws each one as a browser
@@ -69,11 +69,18 @@ the instructor's standing rules. Apply them to every new deck and every edit.
   baseline round with default decisions), never from memory or the logs.
   Sessions 7 and 8: `python tools/deck/s7_s8_tests.py` prints every line of
   their test tables; Session 9: `python tools/deck/s9_tests.py`; Session 10:
-  `python tools/deck/s10_tests.py`. Both pin the Fall-2026 game's PKR 12M of
-  starting capital (new games start on 13M).
+  `python tools/deck/s10_tests.py`; Session 11: `python tools/deck/s11_tests.py`
+  (each AI build committed in month 3 and in month 10, twenty games each);
+  Session 12: `python tools/deck/s12_tests.py` (the round weights, a default
+  team's final score by measure, and months 11 and 12 changed). All four pin the
+  Fall-2026 game's PKR 12M of starting capital (new games start on 13M). Scores
+  in the Session 11 and 12 tests leave out decision quality: a test team earns
+  it for the decisions it submits while its twin submits none.
 - `s9_s10_slides.py` writes Sessions 9 and 10 as one deck (Session 10's slide
-  ids carry an `s10-` prefix). `fit.py` mis-measures the cover layout: fit the
-  slides, then copy both covers back from an unfitted build.
+  ids carry an `s10-` prefix); `s11_s12_slides.py` writes Sessions 11 and 12 as
+  one deck (`s11-` and `s12-` prefixes). `fit.py` mis-measures the cover layout
+  and the bar chart of round weights (`s12-sim-weights`): fit the slides, then
+  copy those back from an unfitted build.
 
 ## The decks
 
@@ -87,3 +94,4 @@ the instructor's standing rules. Apply them to every new deck and every edit.
 - Session 8 — https://claude.ai/artifact/8J2hyQmTcYpZCYkZtjcGgL
 - Session 9 — https://claude.ai/artifact/Tg4mvToRefBpjVSgLRoRJT
 - Sessions 9 and 10, one deck — https://claude.ai/artifact/QvHmh1sPHgENKFJ2Rko2Hj
+- Sessions 11 and 12, one deck — https://claude.ai/artifact/6wkdN1uxouhzmG5CcVdyAe
