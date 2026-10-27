@@ -99,7 +99,7 @@ all back for a full refund the next month; it can be cancelled until then.
 
 | Page | Use it for |
 |---|---|
-| Teams | Team names and passwords. Generated passwords are shown once; set new ones here |
+| Teams | Usernames and passwords. Generated passwords are shown once; set new ones here |
 | Strategy | Every team's founding choices and each month's decisions side by side, with changes on last month - the quickest way to see who is doing what |
 | Scoring playbook | The pillars, the levers that move each measure and the trade-offs, for coaching |
 | Configure → Decisions | Decision windows: open a lever early or hold it back, month by month (`15-course-map.md` has the recommended sequence) |
@@ -138,6 +138,17 @@ all back for a full refund the next month; it can be cancelled until then.
 
 Asked by the instructor while running the Fall-2026 cohort; the index of every
 question is `18-questions.md`.
+
+### Can every page name a team the same way, by team number and brand? *(2026-10-27)*
+
+Yes, from 2026-10-27. A team used to appear as its seat (team_01), the team
+name it typed, or its brand, depending on the page. Every page in the console
+and the team portal, and every report and workbook, now shows the team number
+and the brand together: *Team 1 · Tarz*. The number is fixed by the seat; the
+brand is the one chosen at founding, renamed on *How the game works* if a team
+changes it. The typed team name is no longer asked for or shown. A team that has
+not named a brand appears as *Team 1*. The usernames (team_01 …) are unchanged:
+they are only what a team signs in with.
 
 ### Can teams change their decisions after submitting? *(2026-10-22)*
 

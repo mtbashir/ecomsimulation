@@ -36,6 +36,22 @@ switches; `docs/01-decision-list.md` is the decision list as built.
 
 The engine version moves to 2.3.0 for the engine changes since 2.2.0 below.
 
+### 2026-10-27 — every page names a team by its number and its brand
+
+- A team was shown three ways: its seat (team_01), the free-text team name it
+  typed (often still "Team 1", or a nickname) and its brand. Every page now
+  uses one name, the team number and the brand: **Team 1 · Tarz**
+  (`ecomsim/naming.py`). That covers the instructor's console and leaderboard,
+  results by round, debrief cards, submissions, setup and activity tables, the
+  Strategy and Teams pages, past games, the team report, the Excel workbook
+  (now `Team_1_Tarz_month_8.xlsx`, and so in the zip), the team's sidebar, home
+  page, market share table, company page and rankings. A team with no brand is
+  "Team 1".
+- The free-text team name is no longer asked for on *How the game works* and
+  is shown nowhere; a team names its company and its brand. A brand renamed
+  there shows everywhere at once, past months included. Display only: no
+  result or score changes. *Applies to:* all games, live and past.
+
 ### 2026-10-25 — questions from the course in the docs
 
 - `docs/00-game-world.md` explains, step by step, how the market's orders are

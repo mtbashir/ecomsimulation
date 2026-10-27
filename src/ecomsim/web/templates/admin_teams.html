@@ -56,10 +56,10 @@
 you can hand them out, then cleared — after that they cannot be recovered, only
 replaced.</p>
 <table>
-<thead><tr><th>Team</th><th>Name</th><th>Password</th></tr></thead>
+<thead><tr><th>Username</th><th>Team</th><th>Password</th></tr></thead>
 <tbody>
 {% for t in pending %}
-<tr><td>{{ t['username'] }}</td><td>{{ t['display_name'] }}</td>
+<tr><td>{{ t['username'] }}</td><td>{{ team_names.get(t['team_id'], t['team_id']) }}</td>
 <td><code style="font-size:15px">{{ t['initial_password'] }}</code></td></tr>
 {% endfor %}
 </tbody></table>
@@ -74,15 +74,16 @@ replaced.</p>
 <h2 class="sec">Accounts</h2>
 <section>
 <p class="cap">Passwords are stored hashed, so they cannot be read back &mdash;
-only replaced. Teams name themselves; what you see here is what they chose.</p>
+only replaced. A team is shown everywhere by its number and the brand it
+chose.</p>
 <table>
-<thead><tr><th>Username</th><th>Team</th><th>Company</th><th>Role</th>
+<thead><tr><th>Username</th><th>Team</th><th>Role</th>
 <th style="width:300px">Set a new password</th>
 {% if not locked %}<th></th>{% endif %}</tr></thead>
 <tbody>
 {% for t in teams %}
-<tr><td class="id">{{ t['username'] }}</td><td>{{ t['display_name'] }}</td>
-<td class="note">{{ brands.get(t['team_id']) or '—' }}</td>
+<tr><td class="id">{{ t['username'] }}</td>
+<td>{{ team_names.get(t['team_id'], 'Instructor') if t['team_id'] else 'Instructor' }}</td>
 <td><span class="pill">{{ t['role'] }}</span></td>
 <td><form method="post" style="display:flex;gap:8px">
 <input type="hidden" name="username" value="{{ t['username'] }}">

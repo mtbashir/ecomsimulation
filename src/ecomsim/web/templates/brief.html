@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% block title %}How the game works{% endblock %}
 {% block body %}
 <div class="welcome">
-<p class="eyebrow">{{ session['name'] }}</p>
+<p class="eyebrow">{{ me_label }}</p>
 <h1>How the game works</h1>
 <p class="lede">You are taking over an e-commerce business in Pakistan and
 running it for {{ endowment.rounds }} trading months against everyone else in
@@ -10,16 +10,15 @@ this room. Read this once; it is here whenever you need it again.</p>
 
 <section id="setup" style="border-left:3px solid var(--brand)">
 <h2>Set up your team</h2>
-<p class="cap">Three names, because they do three different jobs. Your team is
-who is playing. Your company is the firm. Your brand is what the market sees
-&mdash; which is why the market share report is by brand, not by company.</p>
+<p class="cap">Your team is known everywhere by its number and its brand
+&mdash; {{ me_label }} &mdash; on the reports, the rankings and your
+instructor's console. Your company is the firm that owns the brand.</p>
 
 <form method="post" action="{{ url_for('setup') }}">
   <div class="row" style="margin-bottom:16px">
-    <div><label class="f" for="tn">Team name</label>
-      <p class="help">What your instructor sees on the roster.</p>
-      <input id="tn" name="team_name" type="text" value="{{ team_name }}"
-             maxlength="60" placeholder="Team 1"></div>
+    <div><label class="f">Team</label>
+      <p class="help">Your number is fixed; your brand name goes beside it.</p>
+      <p style="margin:8px 0 0"><b>{{ team_number }}</b></p></div>
     <div><label class="f" for="cn">Company name</label>
       <p class="help">The firm that owns the brand.</p>
       <input id="cn" name="company_name" type="text" value="{{ company_name }}"

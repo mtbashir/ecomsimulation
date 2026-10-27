@@ -12,8 +12,8 @@ import json
 
 from dataclasses import asdict
 
-from .. import (assortment, bootstrap, console, founding as founding_mod, params as P,
-               version,
+from .. import (assortment, bootstrap, console, founding as founding_mod, naming,
+               params as P, version,
                 report, scoring, targeting)
 from ..decisions import LOAN_DECISIONS, REGISTRY, RETURN_DECISION, Resolver
 from ..engine import run_round
@@ -35,6 +35,30 @@ def load_params(con):
     if db.capital(con):
         over.setdefault("starting_cash", db.capital(con))
     return P.load(over)
+
+
+def brands(con) -> dict[str, str]:
+    """Each team's brand as it stands now, from the founding record: the one it
+    chose, or renamed since. A team that never named one has none - never its
+    free-text team name, which no page shows."""
+    return {tid: naming.clean_brand((rec.get("config") or {}).get("brand_name"))
+            for tid, rec in db.foundings(con).items()}
+
+
+def team_labels(con, team_ids=None) -> dict[str, str]:
+    """"Team 3 · MUSE" for every team: how every page names a team."""
+    b = brands(con)
+    ids = team_ids if team_ids is not None else [r["team_id"] for r in db.accounts(con, "team")]
+    return {tid: naming.label(tid, b.get(tid)) for tid in ids}
+
+
+def name_teams(con, world) -> None:
+    """Put each team's current brand on a loaded world, so the reports, the
+    console and the workbooks name a team as every other page does. The world
+    blob keeps the brand it was built with; nothing stored is rewritten."""
+    b = brands(con)
+    for tid, team in world.teams.items():
+        team.brand_name = b.get(tid, "")
 
 
 def open_decisions(con, round_: int) -> list:
@@ -484,8 +508,7 @@ def apply_foundings(con, world, params) -> None:
              else founding_mod.Founding.default(params))
         if not founding_mod.validate(f, params):
             founding_mod.apply(f, team, params, launch_order=db.launch_order(con))
-        team.brand_name = (f.brand_name if record and f.brand_name != "Unnamed"
-                           else row["display_name"])
+        team.brand_name = naming.clean_brand(f.brand_name) if record else ""
 
 
 # Where the handbook lives. A decision tile cites a reference; this is what a
@@ -925,7 +948,7 @@ def off_range_stock(con) -> dict:
         return {"teams": [], "round": nxt, "scheduled": {}}
     params = load_params(con)
     base = next(sp for sp in params.suppliers if sp["code"] == "B")
-    names = {r["team_id"]: r["display_name"] for r in db.accounts(con, "team")}
+    names = team_labels(con, list(world.teams))
     teams = []
     for tid, team in sorted(world.teams.items()):
         rng = set(team.active_skus or [])
@@ -976,10 +999,7 @@ def first_world(con, params, g):
     if g["start_mode"] == "founding":
         apply_foundings(con, world, params)
     else:
-        for row in db.accounts(con, "team"):
-            team = world.teams.get(row["team_id"])
-            if team is not None:
-                team.brand_name = row["display_name"]
+        name_teams(con, world)
     return world
 
 
@@ -1464,14 +1484,11 @@ def standings(con, team_id: str) -> dict | None:
     if not bought:
         return {"bought": False}
 
-    brands = {tid: (rec.get("config") or {}).get("brand_name")
-              for tid, rec in db.foundings(con).items()}
+    names = team_labels(con, list(world.teams))
     rows = []
     for tid, team in world.teams.items():
         h = team.history[-1] if team.history else {}
-        brand = brands.get(tid)
-        rows.append({"team_id": tid,
-                     "name": brand if brand and brand != "Unnamed" else team.brand_name,
+        rows.append({"team_id": tid, "name": names[tid],
                      "share": h.get("market_share", 0.0),
                      "you": tid == team_id})
     rows.sort(key=lambda r: -r["share"])
@@ -1496,7 +1513,7 @@ def company_position(con, team_id: str) -> dict | None:
         h = team.history[-1] if team.history else {}
         return {
             "source": "trading",
-            "brand": team.brand_name,
+            "brand": team_labels(con, [team_id])[team_id],
             "cash": team.cash,
             "credit_drawn": team.credit_drawn,
             "inventory_units": sum(team.inventory.values()),
@@ -1523,7 +1540,7 @@ def company_position(con, team_id: str) -> dict | None:
     f = founding_from_dict(record["config"], params)
     return {
         "source": "founding",
-        "brand": f.brand_name,
+        "brand": naming.label(team_id, f.brand_name),
         "cash": params["starting_cash"],
         "categories": f.categories,
         "tier": f.tier,
@@ -1570,10 +1587,8 @@ def team_report(con, team_id: str, round_: int, download: str | None = None,
     team = world.teams[team_id]
     # The world blob keeps the brand it was built with. Reading the current one
     # here means a rename shows on every report without rewriting a result.
-    brand = (db.founding(con, team_id) or {}).get("config", {}).get("brand_name")
-    if brand and brand != "Unnamed":
-        team.brand_name = brand
-    card = (scoring.final_score(team, params, world.teams, db.memo_rejected(con))
+    name_teams(con, world)
+    card =(scoring.final_score(team, params, world.teams, db.memo_rejected(con))
             if round_ >= 2 else None)
     hidden = db.hidden_sections(con, round_)
     months = ([(m, month_url(m)) for m in range(1, (db.game(con)["round"] or 0) + 1)]
@@ -1598,8 +1613,7 @@ def rankings(con, upto: int | None = None) -> list[dict]:
         return []
     params = load_params(con)
     rejected = db.memo_rejected(con)
-    brands = {tid: (rec.get("config") or {}).get("brand_name")
-              for tid, rec in db.foundings(con).items()}
+    labels = team_labels(con)
     total = game["total_rounds"] or 12
     out, before = [], {}
     for month in range(1, upto + 1):
@@ -1610,11 +1624,10 @@ def rankings(con, upto: int | None = None) -> list[dict]:
         for tid, team in world.teams.items():
             if len(team.history) < month:
                 continue
-            brand = brands.get(tid)
             cum = scoring.final_score(team, params, world.teams, rejected)
             alone = scoring.month_score(team, params, world.teams, month, rejected)
             rows.append({"team_id": tid,
-                         "name": brand if brand and brand != "Unnamed" else team.brand_name,
+                         "name": labels.get(tid) or naming.of(team),
                          "score": cum["total"], "month_score": alone["total"],
                          "insolvent": cum["insolvent"]})
         cum = scoring.ranks({r["team_id"]: r["score"] for r in rows})
@@ -1643,9 +1656,8 @@ def team_workbook(con, team_id: str, round_: int,
     team = world.teams[team_id]
     if len(team.history) < round_ or round_ < 1:
         return None
-    brand = (db.founding(con, team_id) or {}).get("config", {}).get("brand_name")
-    name = (brand if brand and brand != "Unnamed" else None) or team.brand_name or team_id
-    hidden = ({m: db.hidden_sections(con, m) for m in range(1, round_ + 1)}
+    name = team_labels(con, [team_id])[team_id]
+    hidden =({m: db.hidden_sections(con, m) for m in range(1, round_ + 1)}
               if for_team else None)
     data = workbook.build(team, load_params(con), name, round_, hidden)
     slug = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_") or team_id
@@ -1658,6 +1670,7 @@ def instructor_console(con, round_: int, workbook_url=None,
     world = db.load_world(con, round_)
     if world is None:
         return None
+    name_teams(con, world)
     import tempfile
     from pathlib import Path
 
@@ -1696,8 +1709,8 @@ def all_workbooks(con, round_: int) -> bytes | None:
         for team_id in sorted(world.teams):
             made = team_workbook(con, team_id, round_, world)
             if made is not None:
-                data, filename = made
-                z.writestr(f"{team_id}_{filename}", data)
+                data, filename = made     # named "Team_3_MUSE_month_8.xlsx"
+                z.writestr(filename, data)
     return buf.getvalue()
 
 
@@ -2216,20 +2229,16 @@ def final_table(con) -> list[dict]:
     if world is None or not game["round"]:
         return []
     params = load_params(con)
-    brands = {tid: (rec.get("config") or {}).get("brand_name")
-              for tid, rec in db.foundings(con).items()}
-    names = {r["team_id"]: r["display_name"] for r in db.accounts(con, "team")}
+    names = team_labels(con, list(world.teams))
     rejected = db.memo_rejected(con)
     rows = []
     for tid, team in world.teams.items():
         h = team.history[-1] if team.history else {}
-        brand = brands.get(tid)
         score = (scoring.final_score(team, params, world.teams, rejected)
                  if len(team.history) >= 2 else None)
         rows.append({
-            "team_id": tid, "team": names.get(tid, tid),
-            "brand": brand if brand and brand != "Unnamed" else team.brand_name,
-            "score": score["total"] if score else None,
+            "team_id": tid, "team": names[tid],
+            "score":score["total"] if score else None,
             "insolvent": bool(score and score["insolvent"]),
             "revenue": _fmt(h.get("revenue_net"), "pkr"),
             "share": _fmt(h.get("market_share"), "pct"),

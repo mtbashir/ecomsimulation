@@ -136,25 +136,29 @@ def test_founding_is_folded_away_and_every_group_starts_closed(game):
     assert re.search(r'<details class="g" data-key="[^"]+" open', page) is None
 
 
-def test_headings_are_in_title_case_but_team_names_are_not(game):
+def test_headings_are_in_title_case_but_brands_are_not(game):
     app, path, admin = game
     con = db.connect(path)
-    db.rename_team(con, "team_03", "the innovators")
+    db.set_identity(con, "team_03", {"brand_name": "the innovators"})
     con.close()
     page = admin.get("/admin/strategy").get_data(as_text=True)
     assert "<h2>Founding Choices (Round 0)</h2>" in page
     assert "Who You Sell To" in page and "Who Chose What" in page
-    assert '<th class="nc">the innovators' in page
+    assert '<th class="nc">Team 3<small>the innovators</small>' in page
 
 
-def test_a_team_named_as_ai_goes_last(game):
+@pytest.mark.parametrize("how", ["brand", "account"])
+def test_a_team_named_as_ai_goes_last(game, how):
     _app, path, admin = game
     con = db.connect(path)
-    db.rename_team(con, "team_01", "AI Team")
+    if how == "brand":
+        db.set_identity(con, "team_01", {"brand_name": "AI Rivals"})
+    else:
+        db.rename_team(con, "team_01", "AI Team")
     con.close()
     page = admin.get("/admin/strategy").get_data(as_text=True)
     heads = re.findall(r'<th class="nc">([^<]+)', page)
-    assert heads[-1] == "AI Team" and len(heads) == 3
+    assert heads[-1] == "Team 1" and len(heads) == 3
 
 
 def test_the_range_table_shows_each_price_and_discount(game):

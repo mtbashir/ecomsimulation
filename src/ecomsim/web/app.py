@@ -16,7 +16,7 @@ from flask import (
     request, send_file, session, url_for,
 )
 
-from .. import founding, version
+from .. import founding, naming, version
 from .. import charts
 from .. import targeting
 from ..decisions import REGISTRY
@@ -335,17 +335,19 @@ def register_routes(app: Flask) -> None:
         theme = session.get("theme") or "consulytics"
         if "user" not in session:
             return {"nav_at": request.endpoint, "open_count": 0, "theme": theme}
+        # Every page names a team the same way: "Team 3 · MUSE" (ecomsim.naming).
+        names = service.team_labels(g.db)
         if session.get("role") != "team":
             return {"nav_at": request.endpoint, "open_count": 0, "theme": theme,
-                    "themes": db.THEMES}
+                    "themes": db.THEMES, "team_names": names}
         game = db.game(g.db)
         count = len(service.form_decisions(g.db, game["open_round"])) \
             if game["open_round"] else 0
-        record = db.founding(g.db, session["team_id"])
-        brand = (record or {}).get("config", {}).get("brand_name")
+        tid = session["team_id"]
         return {"nav_at": request.endpoint, "open_count": count, "theme": theme,
-                "themes": db.THEMES,
-                "brand": brand if brand and brand != "Unnamed" else None,
+                "themes": db.THEMES, "team_names": names,
+                "brand": service.brands(g.db).get(tid) or None,
+                "me_label": names.get(tid) or naming.label(tid),
                 "rankings_upto": db.rankings_published(g.db, game["round"] or 0)}
 
 
@@ -650,7 +652,7 @@ def register_routes(app: Flask) -> None:
             setting_up=(game["start_mode"] == "founding" and game["round"] == 0),
             first_time=(me is not None and me["briefing_seen_at"] is None),
             objectives=founding.OBJECTIVES,
-            team_name=me["display_name"] if me else "",
+            team_number=naming.number(session["team_id"]),
             company_name=config.get("company_name", ""),
             brand_name=brand if brand and brand != "Unnamed" else "",
             objective=config.get("objective", ""),
@@ -1161,13 +1163,15 @@ def register_routes(app: Flask) -> None:
     def admin_strategy():
         """Every team's choices side by side: options down, teams across."""
         game = db.game(g.db)
-        brands = {tid: (rec.get("config") or {}).get("brand_name")
-                  for tid, rec in db.foundings(g.db).items()}
-        heads = [{"team_id": a["team_id"], "name": a["display_name"],
-                  "brand": b if (b := brands.get(a["team_id"])) and b != "Unnamed"
-                  else ""} for a in db.accounts(g.db, "team")]
+        # Narrow columns: the team number over its brand, the same two names
+        # every page uses.
+        brands = service.brands(g.db)
+        heads = [{"team_id": a["team_id"], "name": naming.number(a["team_id"]),
+                  "brand": brands.get(a["team_id"], ""),
+                  "ai": _is_ai(a["display_name"]) or _is_ai(brands.get(a["team_id"]))}
+                 for a in db.accounts(g.db, "team")]
         # An AI-run team is the benchmark, not one of the class: it goes last.
-        heads.sort(key=lambda h: _is_ai(h["name"]) or _is_ai(h["brand"]))
+        heads.sort(key=lambda h: h["ai"])
         teams = [h["team_id"] for h in heads]
         last = game["open_round"] or game["round"]
         try:
@@ -1405,15 +1409,9 @@ def register_routes(app: Flask) -> None:
                     flash(f"Password for {username} changed.", "ok")
             return redirect(url_for("admin_teams"))
 
-        rows = db.accounts(g.db)
-        foundings = db.foundings(g.db)
-        for row in rows:
-            row = dict(row)
         return render_template(
-            "admin_teams.html", teams=rows, locked=locked,
-            team_count=len(db.accounts(g.db, "team")),
-            brands={tid: (rec.get("config") or {}).get("brand_name")
-                    for tid, rec in foundings.items()})
+            "admin_teams.html", teams=db.accounts(g.db), locked=locked,
+            team_count=len(db.accounts(g.db, "team")))
 
     @app.post("/theme")
     @login_required()
@@ -1431,14 +1429,12 @@ def register_routes(app: Flask) -> None:
     @app.post("/setup")
     @login_required("team")
     def setup():
-        """A team names itself, its company and its brand, and states its remit.
+        """A team names its company and its brand, and states its remit.
 
-        Three names because they do three jobs: the team is who is playing, the
-        company is the firm, and the brand is what the market sees - which is
-        why market share is reported by brand.
+        The team itself is its number: every page names it "Team 3 · <brand>"
+        (ecomsim.naming), so there is no free-text team name to set.
         """
         tid = session["team_id"]
-        team_name = (request.form.get("team_name") or "").strip()[:60]
         fields = {
             "company_name": (request.form.get("company_name") or "").strip()[:60],
             "brand_name": (request.form.get("brand_name") or "").strip()[:60],
@@ -1450,14 +1446,10 @@ def register_routes(app: Flask) -> None:
         if choice in db.THEMES:
             db.set_theme(g.db, session["user"], choice)
             session["theme"] = choice
-        if team_name:
-            db.rename_team(g.db, tid, team_name, session["user"])
-            session["name"] = team_name
         if any(fields.values()):
             db.set_identity(g.db, tid, fields, session["user"])
-        flash("Saved." if (team_name or any(fields.values()))
-              else "Nothing to change.",
-              "ok" if (team_name or any(fields.values())) else "error")
+        flash("Saved." if any(fields.values()) else "Nothing to change.",
+              "ok" if any(fields.values()) else "error")
         return redirect(url_for("brief"))
 
     @app.route("/admin/report/<team>/<int:round_>")
@@ -1580,6 +1572,7 @@ def register_routes(app: Flask) -> None:
             "admin_past_game.html", archive_id=archive_id, past=past,
             table=service.final_table(con),
             teams=db.accounts(con, "team"),
+            past_names=service.team_labels(con),
             audit=db.audit(con, 200),
             size=path.stat().st_size)
 

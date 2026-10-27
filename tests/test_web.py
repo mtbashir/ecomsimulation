@@ -108,8 +108,8 @@ def test_a_team_only_ever_sees_its_own_results(game):
     two = _client(app, "team_02", pw["team_02"])
     first = one.get("/results/1").data
     second = two.get("/results/1").data
-    assert b"team_01" in first and b"team_02" not in first
-    assert b"team_02" in second and b"team_01" not in second
+    assert b"Team 1" in first and b"Team 2" not in first
+    assert b"Team 2" in second and b"Team 1" not in second
 
 
 def test_passwords_are_stored_hashed(game):

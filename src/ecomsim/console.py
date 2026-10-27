@@ -11,7 +11,7 @@ from __future__ import annotations
 from html import escape
 from pathlib import Path
 
-from . import coach, debrief, scoring
+from . import coach, debrief, naming, scoring
 from .charts import CSS_TOKENS, rank_bars
 
 
@@ -234,9 +234,7 @@ def render(world, params, out_dir: str | Path, submissions: dict | None = None,
               for t in teams}
     ranked = sorted(teams, key=lambda t: -cards[t.team_id]["total"])
 
-    def name_of(t):
-        return (t.brand_name
-                or getattr(t.founding, "brand_name", None) or t.team_id)
+    name_of = naming.of      # "Team 3 · MUSE", as every page names a team
 
     # Leaderboard: the cumulative score, from Round 1. Whether the teams see it
     # is the instructor's call, made on the admin page.
@@ -280,8 +278,7 @@ def render(world, params, out_dir: str | Path, submissions: dict | None = None,
     downloads = ""
     if workbook_url:
         links = "".join(
-            f'<a class="wbk" href="{escape(workbook_url(t.team_id))}">{escape(name_of(t))}'
-            f'{"" if name_of(t) == t.team_id else f" <span class=tid>{t.team_id}</span>"}</a>'
+            f'<a class="wbk" href="{escape(workbook_url(t.team_id))}">{escape(name_of(t))}</a>'
             for t in ranked)
         every = (f'<a class="wbk all" href="{escape(workbooks_zip)}">All teams (.zip)</a>'
                  if workbooks_zip else "")

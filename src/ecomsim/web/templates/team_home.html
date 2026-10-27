@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block title %}{{ session['name'] }}{% endblock %}
+{% extends "base.html" %}{% block title %}{{ me_label }}{% endblock %}
 {% block body %}
 <div class="crumbs">Dashboard &middot;
   {% if setting_up %}Setup round{% else %}Month {{ game['round'] }} of

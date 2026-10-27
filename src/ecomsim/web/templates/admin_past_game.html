@@ -14,11 +14,11 @@
 {% if table %}
 <p class="note">After month {{ past['round'] }}. Ranked by final score{% if past['round'] < 2 %}
 (needs two months - ranked by revenue instead){% endif %}.</p>
-<table><thead><tr><th>#</th><th>Team</th><th>Brand</th><th class="num">Score</th>
+<table><thead><tr><th>#</th><th>Team</th><th class="num">Score</th>
 <th class="num">Net revenue</th><th class="num">Share</th><th class="num">Cash</th><th></th></tr></thead>
 <tbody>
 {% for r in table %}
-<tr><td class="num">{{ r.rank }}</td><td>{{ r.team }}</td><td>{{ r.brand }}</td>
+<tr><td class="num">{{ r.rank }}</td><td>{{ r.team }}</td>
 <td class="num">{{ '%.1f'|format(r.score) if r.score is not none else '—' }}
   {% if r.insolvent %}<span class="pill off">insolvent</span>{% endif %}</td>
 <td class="num">{{ r.revenue }}</td><td class="num">{{ r.share }}</td>
@@ -53,7 +53,7 @@
 <table><tbody>
 {% for a in audit %}
 <tr><td class="note">{{ a['at'][:16].replace('T',' ') }}</td>
-<td>{{ a['actor'] }}</td><td>{{ a['action'] }}</td>
+<td>{{ past_names.get(a['actor'], a['actor']) }}</td><td>{{ a['action'] }}</td>
 <td class="note">{{ a['detail'] }}</td></tr>
 {% endfor %}
 </tbody></table>

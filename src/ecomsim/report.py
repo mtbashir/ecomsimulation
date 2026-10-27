@@ -10,7 +10,7 @@ import math
 from html import escape
 from pathlib import Path
 
-from . import funnel, mix
+from . import funnel, mix, naming
 from .charts import CSS_TOKENS, sparkline
 
 # (label, key, format, up_is_good). The last field is not decoration: a rising
@@ -687,8 +687,7 @@ def render(team, round_: int, out_dir: str | Path, scorecard: dict | None = None
     record = team.history[round_ - 1]
     prior = team.history[round_ - 2] if round_ > 1 else None
     series = team.history[:round_]
-    name = (team.brand_name
-            or getattr(team.founding, "brand_name", None) or team.team_id)
+    name = naming.of(team)
 
     cards = []
     for title, headline_key, metrics in BLOCKS:
@@ -895,7 +894,7 @@ td.v.warn{{color:var(--warn)}}
 .verdict{{flex-direction:column;gap:12px}}.verdict .big{{margin-left:0;text-align:left}}}}
 </style></head><body class="viz"><div class="wrap">
 <h1>{escape(name)}</h1>
-<p class="sub">Month {round_} &middot; {team.team_id} &middot; where the month was won and lost
+<p class="sub">Month {round_} &middot; where the month was won and lost
 {f'<a class="xl" href="{escape(download)}">Download every month as Excel: P&amp;L, KPIs, products, stock, cash</a>' if download else ''}</p>
 {_months(months, round_)}
 <section class="verdict">

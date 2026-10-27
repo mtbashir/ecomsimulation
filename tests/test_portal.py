@@ -633,8 +633,9 @@ def test_adding_a_team_grows_the_market_it_trades_in(game):
     assert len(db.load_world(con).teams) == 6, "everyone on the roster trades"
 
 
-def test_a_team_names_itself_its_company_and_its_brand(game):
-    """Three names doing three jobs, and the mandate they are playing to."""
+def test_a_team_names_its_company_and_its_brand(game):
+    """The team is its number; it names its company and its brand, and states
+    the mandate it is playing to. A free-text team name is no longer taken."""
     app, pw, path = game
     con = db.connect(path)
     params = service.load_params(con)
@@ -648,11 +649,13 @@ def test_a_team_names_itself_its_company_and_its_brand(game):
                               "objective": "loyal_base"}, follow_redirects=True)
 
     config = db.founding(con, "team_01")["config"]
-    assert db.account(con, "team_01")["display_name"] == "The Cartel"
+    assert db.account(con, "team_01")["display_name"] != "The Cartel"
     assert config["company_name"] == "Sehat Holdings"
     assert config["brand_name"] == "Sehat"
     assert config["objective"] == "loyal_base"
-    assert "Sehat" in team.get("/").data.decode(), "the brand leads the sidebar"
+    home = team.get("/").data.decode()
+    assert "Team 1 · Sehat" in home, "number and brand lead the sidebar"
+    assert "The Cartel" not in home
 
 
 def test_an_objective_the_board_never_set_is_refused(game):

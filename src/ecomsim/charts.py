@@ -78,8 +78,12 @@ def rank_bars(rows: list[tuple[str, float]], fmt=lambda v: f"{v:,.1f}",
     if not rows:
         return ""
     height = row_h * len(rows) + 8
-    label_w, value_w = 132, 62
-    track = width - label_w - value_w
+    # Wide enough for the longest name ("Team 6 · Oye Hoye Mukhra"), about
+    # 6.6px a character at the 12px the labels are set in; the bars keep
+    # their length and the chart grows to fit.
+    label_w, value_w = max(132, int(6.6 * max(len(n) for n, _ in rows)) + 10), 62
+    track = max(width - 132 - value_w, 1)
+    width = label_w + track + value_w
     top = max(v for _, v in rows) or 1.0
     floor_ = min(0.0, min(v for _, v in rows))
     span = (top - floor_) or 1.0

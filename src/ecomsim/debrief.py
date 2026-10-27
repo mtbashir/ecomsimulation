@@ -553,7 +553,6 @@ def section(ranked, params, submissions: dict, open_codes: list[str], name_of,
                       + "".join(f"<li>{w}</li>" for w in watch) + "</ul></div>")
         cards.append(
             f'<div class="db {tag}"><h3>{i}. {escape(name_of(t))}'
-            f'{"" if name_of(t) == t.team_id else f" <span class=tid>{t.team_id}</span>"}'
             f'{" <span class=pill>top</span>" if tag == "top" else ""}'
             f'{" <span class=pill>bottom</span>" if tag == "bottom" else ""}'
             f'<span class="tid"> &middot; {escape(str(h.get("binding_constraint", "")).replace("_", " "))}</span>'
