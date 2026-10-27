@@ -67,7 +67,7 @@ be settled, so each is decided once, here.
 
 | Code | Metric | Formula | Module | Vis | Scored |
 |---|---|---|---|---|---|
-| `spend_total` | Marketing spend | Σ G3 decisions | M0 | free | — |
+| `spend_total` | Marketing spend | Meta, Google and TikTok ads (3.1, 3.2, 3.4) + creative production (3.8) + brand-building (3.9) + CRM (6.1); affiliate commission (3.6) is its own line below it | M14 | free | — |
 | `spend_by_channel` | Spend by channel | Per channel | M0 | free | — |
 | `cac_blended` | Blended CAC | `spend_total ÷ new_customers` | M12 | free | — |
 | `cac_paid` | Paid CAC | `paid_spend ÷ paid_new_customers` | M12 | free | — |
@@ -257,3 +257,36 @@ Six blocks, as in the original brief, plus perception.
 **Biased and paid metrics must be visually marked.** A team should be able to
 see at a glance that `roas_reported` carries an asterisk — and should have to
 decide whether to pay PKR 450,000 to find out what the asterisk means.
+
+---
+
+## Questions from the course
+
+Asked by the instructor while running the Fall-2026 cohort; the index of every
+question is `18-questions.md`.
+
+### Why is a team's marketing spend in the P&L more than its campaign total? *(2026-10-27)*
+
+Because the campaigns page splits only the three **ad budgets** - Meta (3.1),
+Google Search (3.2) and TikTok (3.4) - into campaigns. The P&L's *Marketing
+spend* line is every marketing decision: those three, plus **creative
+production** (3.8), **brand-building** (3.9) and **CRM & retention** (6.1).
+Affiliate and influencer commission (3.6, a rate on the revenue affiliates
+bring) is booked on its own line just below.
+
+Team 2 (Naqsh), month 9, from its decisions and its workbook:
+
+| | PKR |
+|---|---:|
+| Meta ads (3.1) | 700,000 |
+| Google Search ads (3.2) | 200,000 |
+| TikTok ads (3.4) | 300,000 |
+| **Campaign total (the three ad budgets)** | **1,200,000** |
+| Creative production (3.8) | 350,000 |
+| Brand-building (3.9) | 200,000 |
+| CRM & retention (6.1) | 250,000 |
+| **Marketing spend in the P&L** | **2,000,000** |
+| Affiliate and influencer commission (3.6 at 5%), separate line | 13,162 |
+
+Nothing is charged twice and nothing is missing: the extra PKR 800,000 is
+creative, brand and CRM, which no campaign carries.

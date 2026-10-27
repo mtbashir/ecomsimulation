@@ -25,6 +25,7 @@ where it is answered. Each answer sits in the doc it belongs to, under
 | 2026-10-25 | How is an order assigned to a team, and to a product in a category? (with an example) | `00-game-world.md` - *How an order reaches a team, and what goes in it* |
 | 2026-10-25 | How does a team win its orders in each segment, in detail? | `00-game-world.md` - *Stage 1 in detail* |
 | 2026-10-27 | Can every page in the console and the team portal name a team by team number and brand only? | `17-instructor-guide.md` |
+| 2026-10-27 | Why is a team's marketing spend in the P&L (PKR 2m) more than its campaign total (PKR 1.2m)? | `10-kpi-dictionary.md` |
 
 The record of our conversations available when this index was written starts on
 2026-10-13; questions asked before then and not listed here are welcome additions.
