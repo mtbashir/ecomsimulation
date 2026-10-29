@@ -1,7 +1,8 @@
-"""Session 11 - How Can AI Help? About 27 slides.
+"""Session 11 - How Can AI Help? About 60 slides in three parts.
 
 Run: python s11_slides.py <deck folder> [logo url]
-Part 2's numbers come from tools/deck/s11_tests.py. Slide ids carry an "s11-"
+Part 3's numbers come from tools/deck/s11_tests.py; Part 2, the toolkit,
+is in s11_toolkit.py. Slide ids carry an "s11-"
 prefix so the deck can sit beside Session 12's (tools/deck/s11_s12_slides.py).
 """
 import pathlib, sys, json
@@ -25,7 +26,7 @@ def num4(n, L, T, W, H, label, num, text):
 S = {}
 S["s11-cover"] = cover(11, "How Can AI Help?",
   "Recommendations, forecasting, customer service and creative &mdash; what each costs, how long it takes, and whether it pays back.",
-  """Two hours, about 27 slides: 3 min recap, 8 min opening exercise, Part 1 theory about 65 min (the business case 10, recommendations 12, forecasting 12, customer service 12, creative 12, build or buy 7), exercise 10, Part 2 simulation about 30 min, 3 min close.
+  """About 60 slides in three parts, best taught as two sessions. Session A, two hours: 3 min recap, 8 min opening exercise, Part 1 theory about 65 min (the business case 10, recommendations 12, forecasting 12, customer service 12, creative 12, build or buy 7), exercise 10, Part 3 simulation about 30 min, 3 min close. Session B, about 90 minutes: Part 2, the toolkit (Shopify 30, Meta ads 30, Google Search 25, the audit exercise 10).
 
 Month 9 has run; teams decide month 10. The four AI builds (11.1 recommendations, 11.2 forecasting, 11.4 customer service, 11.5 creative) are the session. In the Fall-2026 game they have been open since month 3, so some teams already own one; dynamic pricing (11.3) was withdrawn and refunded.
 
@@ -57,7 +58,7 @@ Questions 3 and 4 set up the customer-service case: wrong answers given confiden
 
 S["s11-part1"] = div("s11-part1", "Part 1 &middot; Theory", "Where AI earns<br>its keep",
   "The business case for an AI tool, then four jobs it does in an online shop &mdash; each with a Pakistani and a global case.",
-  """Part 1 follows the course outline: how AI helps an e-commerce business. Real-world practice only; the simulation is Part 2.""")
+  """Part 1 follows the course outline: how AI helps an e-commerce business. Real-world practice only; the toolkit is Part 2 and the simulation Part 3.""")
 
 S["s11-jobs"] = sec("s11-jobs", "#ffffff", "Four jobs AI does", "What AI does in an online shop",
   grid([
@@ -270,11 +271,11 @@ Push for one number per tool: basket size for recommendations, stock held and st
 
 Take two teams' answers and compare the arithmetic.""", top=500, h=180, cols=2)
 
-S["s11-part2"] = div("s11-part2", "Part 2 &middot; The simulation", "AI in the simulation",
+S["s11-part2"] = div("s11-part2", "Part 3 &middot; The simulation", "AI in the simulation",
   "Four builds: recommendations, forecasting, customer service and creative. Each costs money up front, takes time, may fail &mdash; and the game ends in month 12.",
-  """Part 2 is the simulation. Month 9 has run; teams decide month 10. In the Fall-2026 game the builds have been open since month 3: some teams own one, some saw one fail. Dynamic pricing (11.3) was withdrawn because it did nothing, and teams that paid for it were refunded.
+  """Part 3 is the simulation. Month 9 has run; teams decide month 10. In the Fall-2026 game the builds have been open since month 3: some teams own one, some saw one fail. Dynamic pricing (11.3) was withdrawn because it did nothing, and teams that paid for it were refunded.
 
-Every number in Part 2 is the simulation's assumption or a test run of it, not market data.""")
+Every number in Part 3 is the simulation's assumption or a test run of it, not market data.""")
 
 S["s11-category"] = sec("s11-category", "#f5f5f6", "The category online", "AI in Pakistani online retail today",
   grid([
@@ -411,7 +412,15 @@ SECTIONS = {
     "s11-case": {"description": "Part 1 · The business case for an AI tool, and recommendations, with cases", "start": "s11-part1"},
     "s11-ops": {"description": "Forecasting and customer service, with cases", "start": "s11-forecast"},
     "s11-create": {"description": "Creative, and build or buy", "start": "s11-creative"},
-    "s11-sim": {"description": "Part 2 · AI in the simulation", "start": "s11-part2"}}
+    "s11-sim": {"description": "Part 3 · AI in the simulation", "start": "s11-part2"}}
+
+# Part 2, the toolkit - Shopify, Meta ads and Google Search - between the theory
+# and the simulation, in its own sections so it can become a session of its own.
+exec((HERE / "s11_toolkit.py").read_text())
+_at = ORDER.index("s11-part2")
+ORDER = ORDER[:_at] + TOOLKIT_ORDER + ORDER[_at:]
+SECTIONS = ({k: v for k, v in SECTIONS.items() if k != "s11-sim"} | TOOLKIT_SECTIONS
+            | {"s11-sim": SECTIONS["s11-sim"]})
 
 if __name__ == "__main__":
     write(S, ORDER, "Session 11 — How Can AI Help?", SECTIONS)

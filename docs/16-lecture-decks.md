@@ -32,6 +32,10 @@ the instructor's standing rules. Apply them to every new deck and every edit.
    slide) is the simulation, framed on its actual category — personal care and
    home care in Pakistan — starting with one slide on how that category really
    works online before the simulation's own market.
+   *Exception:* Session 11 has three parts. Part 2, the toolkit, is
+   platform practice (Shopify, Meta ads, Google Search) between the theory
+   and the simulation, which becomes Part 3; it can be taught as a session of
+   its own (see *The decks*).
 7. The course map (`docs/15-course-map.md`) says which decisions open in which
    session; each session's simulation section covers exactly those.
 
@@ -81,6 +85,15 @@ the instructor's standing rules. Apply them to every new deck and every edit.
   one deck (`s11-` and `s12-` prefixes). `fit.py` mis-measures the cover layout
   and the bar chart of round weights (`s12-sim-weights`): fit the slides, then
   copy those back from an unfitted build.
+- `s11_toolkit.py` — Session 11's Part 2, the toolkit (33 slides, run from
+  `s11_slides.py`, which splices it in before the simulation): Shopify store
+  practice, Meta ads in the Andromeda era, Google Search (SEO, AI answers,
+  Google Ads and Shopping), an audit exercise, and one slide on where the
+  toolkit shows up in the simulation. Platform facts were checked against
+  Shopify, Meta and Google's own pages and the cited cases in October 2026;
+  these platforms change every quarter, so check them again before teaching.
+  Claims the platforms do not make themselves (for example Meta "Entity IDs"
+  or similarity thresholds) are labelled as practitioner talk, not fact.
 
 ## The decks
 
@@ -95,3 +108,8 @@ the instructor's standing rules. Apply them to every new deck and every edit.
 - Session 9 — https://claude.ai/artifact/Tg4mvToRefBpjVSgLRoRJT
 - Sessions 9 and 10, one deck — https://claude.ai/artifact/QvHmh1sPHgENKFJ2Rko2Hj
 - Sessions 11 and 12, one deck — https://claude.ai/artifact/6wkdN1uxouhzmG5CcVdyAe
+  (85 slides). Session 11 has 60: Part 1, how AI helps (business case,
+  recommendations, forecasting, service, creative, build or buy); Part 2, the
+  toolkit, in sections *Shopify*, *Meta*, *Google* and *Applied*; Part 3, AI in
+  the simulation. To teach it over two sessions, take Parts 1 and 3 in one and
+  Part 2 (about 90 minutes) in the other; the cover's notes give the plan.
