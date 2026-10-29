@@ -35,7 +35,8 @@ the instructor's standing rules. Apply them to every new deck and every edit.
    *Exception:* Session 11 has three parts. Part 2, the toolkit, is
    platform practice (Shopify, Meta ads, Google Search) between the theory
    and the simulation, which becomes Part 3; it can be taught as a session of
-   its own (see *The decks*).
+   its own (see *The decks*). The *Advanced Shopify* workshop has four
+   theory parts, then the simulation as Part 5.
 7. The course map (`docs/15-course-map.md`) says which decisions open in which
    session; each session's simulation section covers exactly those.
 
@@ -94,6 +95,18 @@ the instructor's standing rules. Apply them to every new deck and every edit.
   these platforms change every quarter, so check them again before teaching.
   Claims the platforms do not make themselves (for example Meta "Entity IDs"
   or similarity thresholds) are labelled as practitioner talk, not fact.
+- `shopify_slides.py` — *Advanced Shopify*, a workshop deck beside Session 11's
+  toolkit (39 slides, `shp-` ids), built from the instructor's note *Advanced
+  Shopify Website Tricks*: Part 1 sell more per visit (bundles, quantity
+  breaks, the free-delivery bar, checkout), Part 2 build more into the store
+  (metafields, metaobjects, Flow, Custom Liquid, Functions, webhooks and APIs),
+  Part 3 what most stores overlook (personalisation, speed, recovery, profit
+  per order), Part 4 for developers (Liquid and metaobject code, Flow rules,
+  Functions, integrations, what to learn first), an exercise, and Part 5 the
+  simulation (1.2, 2.4, 5.1, 6.1, 9.1, 9.2, 11.1). Fit it, then copy the
+  cover and the three code slides (`shp-dev-pages`, `shp-dev-content`,
+  `shp-dev-integrate`) back from an unfitted build. Plan availability was
+  checked in October 2026 and changes often.
 
 ## The decks
 
@@ -113,3 +126,7 @@ the instructor's standing rules. Apply them to every new deck and every edit.
   toolkit, in sections *Shopify*, *Meta*, *Google* and *Applied*; Part 3, AI in
   the simulation. To teach it over two sessions, take Parts 1 and 3 in one and
   Part 2 (about 90 minutes) in the other; the cover's notes give the plan.
+- Advanced Shopify, a workshop — https://claude.ai/artifact/WhGF2uURecWUA6nHT5LHHn
+  (39 slides). One block of about two and a half hours, or two sessions: for
+  founders, Parts 1 and 3, the exercise and Part 5 (about 90 minutes); for
+  whoever builds the store, Parts 2 and 4 (about 75 minutes).
