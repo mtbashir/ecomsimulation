@@ -26,6 +26,7 @@ where it is answered. Each answer sits in the doc it belongs to, under
 | 2026-10-25 | How does a team win its orders in each segment, in detail? | `00-game-world.md` - *Stage 1 in detail* |
 | 2026-10-27 | Can every page in the console and the team portal name a team by team number and brand only? | `17-instructor-guide.md` |
 | 2026-10-27 | Why is a team's marketing spend in the P&L (PKR 2m) more than its campaign total (PKR 1.2m)? | `10-kpi-dictionary.md` |
+| 2026-11-01 | Can I see the market size each month, the orders each team got, and the factors from its decisions that won them? | `17-instructor-guide.md` |
 
 The record of our conversations available when this index was written starts on
 2026-10-13; questions asked before then and not listed here are welcome additions.

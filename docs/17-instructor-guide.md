@@ -34,8 +34,8 @@ force.
 4. **Run** the month. Nothing is processed until you do.
 5. **Read the console** (*Read the round*): the leaderboard (cumulative from
    month 1, each month on its own beside it), results by round, one debrief card
-   per team, technology builds, campaigns, market size by product and segment,
-   and the results workbooks.
+   per team, technology builds, *how this month's orders were shared*,
+   campaigns, market size by product and segment, and the results workbooks.
 6. **Decide what teams see** for the month (*What teams see in their monthly
    report*), then open the next month.
 
@@ -138,6 +138,39 @@ all back for a full refund the next month; it can be cancelled until then.
 
 Asked by the instructor while running the Fall-2026 cohort; the index of every
 question is `18-questions.md`.
+
+### Can I see the market each month and why each team got its orders? *(2026-11-01)*
+
+Yes, from 2026-11-01, in two places.
+
+- **The console**, each month: a section *How this month's orders were
+  shared*. One line gives the market (PKR size ÷ last month's average order =
+  contested orders; what the AI competitors and the teams won; repeat orders;
+  orders served and demand lost). A table gives each team's contested orders
+  won, share of them, repeat demand, demand, traffic capacity (visitors ×
+  conversion), stock capacity, orders and what bound. A second table puts the
+  decisions that ran beside the scores the engine read: average discount and
+  price index, brand spend and brand, creative spend and perceived quality,
+  perceived delivery, in stock, paid media, visitors, conversion and the
+  team's strongest segment.
+- **The order allocation workbook** (*Download order allocation* on the
+  Overview, or the button in that console section): every month to the one
+  chosen. *Market* gives size, seasonal index, events, average order, orders by
+  segment, the AI competitors' and the teams' orders, repeat demand, orders
+  served and demand not served. *Orders by team*, *Attractiveness* and
+  *Conversion* have every team-month: orders won by segment; the six scores,
+  utility, founding focus and share in each segment; visitors by source and the
+  conversion rate factor by factor. Then one sheet per team reads top to
+  bottom, decision to order: the decisions that ran (carried ones included),
+  the factors they produced, attractiveness and orders won by segment, visitors
+  and conversion, and the orders, with what bound - a column per month.
+
+How it is made: each month is run again from the game saved at the end of the
+month before, set up exactly as the month was, and the engine's own numbers are
+read off as it runs (`ecomsim/allocation.py`). Nothing is saved. The *Market*
+sheet says, month by month, whether the rebuilt orders, demand and visitors
+match the month as recorded; a month that does not (the engine changed after
+it was played) is flagged, and its numbers are today's engine's reading of it.
 
 ### Can every page name a team the same way, by team number and brand? *(2026-10-27)*
 

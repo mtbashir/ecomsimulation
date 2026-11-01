@@ -72,7 +72,11 @@ def run(world, params, resolved, ctx) -> None:
             binding = "balanced"
         ctx.setdefault("binding_constraint", {})[tid] = binding
 
+    # Orders before and after unmet demand is offered round again, for the
+    # instructor's allocation workbook (ecomsim.allocation).
+    ctx["orders_own"] = dict(orders)
     _redistribute(world, params, ctx, orders, spare)
+    ctx["orders_reoffered"] = dict(orders)
     from .. import marketplace
     marketplace.take_orders(world, params, ctx, orders)
     ctx["orders"] = orders
@@ -113,6 +117,10 @@ def _conversion_rate(team, params, ctx) -> float:
     threshold = ctx.get("resolved", {}).get(tid, {}).get("2.4")
     m_ship = freeship_conversion(float(threshold), params) if threshold not in (None, "") else 1.0
 
+    ctx.setdefault("cr_parts", {})[tid] = {
+        "base": params["cr_base"], "price": m_price, "website": m_ux, "rating": m_rating,
+        "stock": m_stock, "payment": m_pay, "delivery": m_deliv, "range": m_assort,
+        "free_delivery": m_ship, "ux_score": team.ux_score, "rating_value": team.rating}
     return (params["cr_base"] * m_price * m_ux * m_rating
             * m_stock * m_pay * m_deliv * m_assort * m_ship)
 

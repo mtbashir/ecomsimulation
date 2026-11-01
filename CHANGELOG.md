@@ -36,6 +36,25 @@ switches; `docs/01-decision-list.md` is the decision list as built.
 
 The engine version moves to 2.3.0 for the engine changes since 2.2.0 below.
 
+### 2026-11-01 — how the market's orders were shared, month by month
+
+- The console gains *How this month's orders were shared*: the market (size,
+  average order, contested orders, what the AI competitors and the teams won,
+  repeat orders, orders served and demand lost), each team's orders from
+  contested and repeat demand through traffic and stock capacity to what bound,
+  and the decisions that ran beside the scores the engine read.
+- *Download order allocation (.xlsx)* on the Overview and in that section: every
+  month to the one chosen - the market by month; orders by team and segment;
+  each team's six scores, utility, founding focus and share by segment; visitors
+  and conversion factor by factor; and one sheet per team from the decisions
+  that ran to the orders they won (`ecomsim/allocation.py`).
+- Each month is rebuilt from the game saved at the end of the month before,
+  set up as `process_round` set it up (the set-up is now one function both
+  use), and checked against the month as recorded; nothing is saved. M7 and M8
+  record what they read in the month's working data (`share_detail`,
+  `cr_parts`, orders before and after demand is re-offered); no result or score
+  changes. *Applies to:* all games, live and past.
+
 ### 2026-10-27 — every page names a team by its number and its brand
 
 - A team was shown three ways: its seat (team_01), the free-text team name it

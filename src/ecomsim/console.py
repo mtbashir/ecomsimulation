@@ -219,13 +219,89 @@ def _market(teams, params) -> str:
         + '</details></section>')
 
 
+def _allocation(ranked, name_of, allocation, url) -> str:
+    """How this month's orders were shared: the market, then each team from
+    the factors its decisions produced to the orders it took. From the month
+    rebuilt (ecomsim.allocation); the workbook has every month in full."""
+    if not allocation:
+        return ""
+    from .allocation import BOUND
+    record, (ok, check) = allocation
+    mk, teams = record["market"], record["teams"]
+    ai = sum(a["total"] for a in mk["ai"])
+    won = sum(x["contested"] for x in teams.values())
+    repeat = sum(x["repeat"] for x in teams.values())
+    served = sum(x["orders"] for x in teams.values())
+    lost = max(0.0, sum(x["potential"] for x in teams.values())
+               - sum(x["own"] + x["reoffered"] for x in teams.values()))
+    dl = (f'<a class="wbk all" href="{escape(url)}">Order allocation workbook '
+          f'(months 1&ndash;{mk["month"]}, .xlsx)</a>') if url else ""
+    head = (f'<p class="note" style="margin-top:0">Market <b>PKR {mk["category_size"] / 1e6:,.1f}M</b> '
+            f'&divide; average order PKR {mk["avg_order"]:,.0f} = <b>{mk["orders"]:,.0f}</b> '
+            f'contested orders. AI competitors won {ai:,.0f} ({ai / max(mk["orders"], 1):.0%}), '
+            f'the teams {won:,.0f}; the teams&rsquo; own customers added {repeat:,.0f} repeat '
+            f'orders. Orders served {served:,.0f}; demand lost to the market {lost:,.0f}.</p>')
+
+    def cell(v, fmt="{:,.0f}"):
+        return f"<td>{'&mdash;' if v is None else fmt.format(v)}</td>"
+
+    rows, facts = [], []
+    for t in ranked:
+        x = teams.get(t.team_id)
+        if x is None:
+            continue
+        i, d = x["inputs"], x["decisions"]
+        rows.append(
+            f"<tr><td>{escape(name_of(t))}</td>" + cell(x["contested"])
+            + cell(x["contested"] / max(mk["orders"], 1), "{:.1%}") + cell(x["repeat"])
+            + cell(x["potential"]) + cell(x["traffic_capacity"]) + cell(x["stock_capacity"])
+            + cell(x["reoffered"] + x["marketplace"]) + f'<td class="top">{x["orders"]:,.0f}</td>'
+            + f'<td class="mute">{escape(BOUND.get(x["binding"], x["binding"]))}</td></tr>')
+        paid = sum(float(d.get(c, 0) or 0) for c in ("3.1", "3.2", "3.4"))
+        best = max(x["utility"], key=x["utility"].get) if x["utility"] else ""
+        names = dict(mk["segments"])
+        facts.append(
+            f"<tr><td>{escape(name_of(t))}</td>"
+            + cell(x["discount"], "{:.0%}") + cell(i["price_index"], "{:.2f}")
+            + cell(float(d.get("3.9", 0) or 0) / 1e3, "{:,.0f}k") + cell(i["brand"], "{:.2f}")
+            + cell(float(d.get("3.8", 0) or 0) / 1e3, "{:,.0f}k") + cell(i["quality"], "{:.2f}")
+            + cell(i["delivery"], "{:.2f}") + cell(i["instock"], "{:.0%}")
+            + cell(paid / 1e3, "{:,.0f}k") + cell(x["own_sessions"])
+            + cell(x["conversion_rate"], "{:.2%}")
+            + f"<td>{escape(names.get(best, ''))} {x['share'].get(best, 0):.0%}</td></tr>")
+    flag = ("" if ok else f'<p class="flag">Rebuilt with today&rsquo;s engine: {escape(check)}.</p>')
+    return (
+        '<section class="wide"><h2>How this month&rsquo;s orders were shared</h2>'
+        f'{flag}{head}<div class="wbks">{dl}</div>'
+        '<div class="gridwrap"><table class="t alloc" aria-label="Orders by team"><thead><tr>'
+        "<th>Team</th><th>Contested orders won</th><th>Share of contested orders</th>"
+        "<th>Repeat demand</th><th>Demand</th><th>Traffic capacity</th><th>Stock capacity</th>"
+        "<th>Re-offered and marketplace</th><th>Orders</th><th>What bound</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody></table></div>"
+        '<p class="note">Orders = the smallest of demand (contested orders won + repeat), '
+        'traffic capacity (visitors &times; conversion) and stock, plus demand other teams '
+        'could not serve and marketplace orders.</p>'
+        '<div class="gridwrap"><table class="t alloc" aria-label="Decisions and factors"><thead><tr>'
+        "<th>Team</th><th>Average discount</th><th>Price index</th><th>Brand spend (3.9)</th>"
+        "<th>Brand</th><th>Creative (3.8)</th><th>Perceived quality</th>"
+        "<th>Perceived delivery</th><th>In stock</th><th>Paid media (3.1&ndash;3.4)</th>"
+        "<th>Visitors</th><th>Conversion</th><th>Strongest segment, share</th></tr></thead>"
+        f"<tbody>{''.join(facts)}</tbody></table></div>"
+        '<p class="note">The decisions that ran this month (carried ones included) beside the '
+        'scores the engine read. Each segment&rsquo;s orders go to the stores in proportion to '
+        'e<sup>2 &times; attractiveness</sup>; attractiveness weighs price, quality, delivery, '
+        'stock, brand and range fit differently by segment. The workbook has every factor, '
+        'segment and month.</p></section>')
+
+
 def render(world, params, out_dir: str | Path, submissions: dict | None = None,
            open_codes: list[str] | None = None, workbook_url=None,
            workbooks_zip: str | None = None, memo_rejected: set | None = None,
            memo_url=None, footer: str = "", seen_by_teams: str = "",
            total_rounds: int = 12, by_round: list[dict] | None = None,
            round_urls: list[tuple[int, str]] | None = None,
-           builds: dict | None = None) -> Path:
+           builds: dict | None = None, allocation=None,
+           allocation_url: str | None = None) -> Path:
     round_ = world.round
     teams = list(world.teams.values())
     cards = {t.team_id: scoring.final_score(t, params, world.teams, memo_rejected)
@@ -352,6 +428,7 @@ table.t.grid tr.tot td{{font-weight:700;border-top:2px solid #c9c8c0}}
 table.t.grid tr.mix td{{color:#52514e}}
 table.t.key th,table.t.key td{{text-align:left;font-size:12px;vertical-align:top}}
 table.t.key td.l{{min-width:240px}}
+table.t.alloc td:first-child{{white-space:nowrap}}
 @media(prefers-color-scheme:dark){{
 body{{background:#0d0d0d;color:#fff}}
 section{{background:#1a1a19;border-color:rgba(255,255,255,.10)}}
@@ -369,7 +446,7 @@ table.t th,table.t td{{border-color:#2c2c2a}} table.t thead th{{color:#c3c2b7}}
 {_round_nav(round_urls, round_)}
 <p class="sub">Instructor console &middot; {len(teams)} teams &middot;
 config {params.config_hash()}</p>
-{downloads}{board}{_by_round(ranked, name_of, by_round)}{_projects(ranked, name_of, builds)}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags, workbook_url, memo_rejected, memo_url, coaching)}{watch}{_targeting(ranked, params, name_of)}{_market(ranked, params)}
+{downloads}{board}{_by_round(ranked, name_of, by_round)}{_projects(ranked, name_of, builds)}{debrief.section(ranked, params, submissions, open_codes or [], name_of, {k: v['total'] for k, v in cards.items()}, flags, workbook_url, memo_rejected, memo_url, coaching)}{watch}{_allocation(ranked, name_of, allocation, allocation_url)}{_targeting(ranked, params, name_of)}{_market(ranked, params)}
 {f'<p class="note ver">{escape(footer)}</p>' if footer else ''}
 </div></body></html>"""
 

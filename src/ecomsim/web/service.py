@@ -1066,6 +1066,31 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
     if world is None:
         world = first_world(con, params, g)
 
+    submitted, n_submitted, how = _prepare_month(con, world, g, nxt)
+    run_round(world, params, submitted, **how)
+
+    db.save_round(con, nxt, world, params.config_hash())
+    db.set_game(con, round=nxt, open_round=None)
+    with con:
+        db.log(con, actor, "round.run",
+               f"r{nxt}: {n_submitted}/{len(world.teams)} submitted")
+
+    if out_dir is not None:
+        for team in world.teams.values():
+            card = (scoring.final_score(team, params, world.teams, db.memo_rejected(con))
+                    if nxt >= 2 else None)
+            report.render(team, nxt, out_dir / f"round_{nxt}", card)
+        console.render(world, params, out_dir / f"round_{nxt}")
+
+    return {"round": nxt, "submitted": n_submitted, "teams": len(world.teams)}
+
+
+def _prepare_month(con, world, g, nxt: int) -> tuple[dict, int, dict]:
+    """Everything set on the world before the engine runs month `nxt`, and
+    what the engine is given: the decisions, how many teams submitted, and
+    run_round's other arguments. Shared by process_round and replay_month, so
+    a rebuilt month is set up exactly as the month was. Reads the database;
+    writes nothing to it."""
     submitted = db.submissions(con, nxt)
     n_submitted = len(submitted)   # before standing campaigns are carried in
     world.rules_from = db.rules_from(con)
@@ -1087,24 +1112,99 @@ def process_round(con, actor: str = "admin", out_dir=None) -> dict:
         if team_id in world.teams:
             world.teams[team_id].stock_returns = plan
     _refund_withdrawn(con, world)
-    run_round(world, params, submitted, preset=g["preset"],
-              decision_overrides=window_overrides(con, nxt),
-              open_codes=[s.code for s in form_decisions(con, nxt)])
+    return submitted, n_submitted, {
+        "preset": g["preset"],
+        "decision_overrides": window_overrides(con, nxt),
+        "open_codes": [s.code for s in form_decisions(con, nxt)]}
 
-    db.save_round(con, nxt, world, params.config_hash())
-    db.set_game(con, round=nxt, open_round=None)
-    with con:
-        db.log(con, actor, "round.run",
-               f"r{nxt}: {n_submitted}/{len(world.teams)} submitted")
 
-    if out_dir is not None:
-        for team in world.teams.values():
-            card = (scoring.final_score(team, params, world.teams, db.memo_rejected(con))
-                    if nxt >= 2 else None)
-            report.render(team, nxt, out_dir / f"round_{nxt}", card)
-        console.render(world, params, out_dir / f"round_{nxt}")
+# --- How the market's orders were shared (ecomsim.allocation) -------------------------
 
-    return {"round": nxt, "submitted": n_submitted, "teams": len(world.teams)}
+def replay_month(con, month: int, params=None) -> tuple[dict, tuple[bool, str]] | None:
+    """Month `month` run again from the saved world at the end of the month
+    before, set up as process_round set it up: its allocation record, and
+    whether the rebuild matches the month as recorded (orders, demand and
+    visitors, team by team). Nothing is saved."""
+    import copy
+    from .. import allocation
+    g = db.game(con)
+    if month < 1 or month > (g["round"] or 0):
+        return None
+    params = params or load_params(con)
+    if month == 1:
+        world = first_world(con, params, g)
+    else:
+        world = db.load_world(con, month - 1)
+        if world is None:
+            return None
+    after = db.load_world(con, month)
+    world = copy.deepcopy(world)
+    submitted, _, how = _prepare_month(con, world, g, month)
+    ctx = run_round(world, params, submitted, **how)
+    record = allocation.capture(world, params, ctx)
+    return record, _matches(record, after, month)
+
+
+def _matches(record: dict, after, month: int) -> tuple[bool, str]:
+    """Whether a rebuilt month gave each team the orders, demand and visitors
+    recorded when the month was played."""
+    if after is None:
+        return False, "No saved record to compare"
+    worst, who = 0.0, ""
+    for tid, x in record["teams"].items():
+        team = after.teams.get(tid)
+        h = next((r for r in (team.history if team else [])
+                  if int(r.get("round", 0)) == month), None)
+        if h is None:
+            return False, f"{tid} has no record for month {month}"
+        for key, got in (("orders", x["orders"]), ("potential", x["potential"]),
+                         ("sessions", x["own_sessions"] + x["sessions"]["marketplace"])):
+            want = float(h.get(key, 0.0) or 0.0)
+            gap = abs(got - want) / max(abs(want), 1.0)
+            if gap > worst:
+                worst, who = gap, f"{tid} {key}"
+    if worst <= 1e-6:
+        return True, "Yes"
+    return False, f"No: off by up to {worst:.1%} ({who}); today's engine's reading"
+
+
+def allocation_months(con, upto: int | None = None) -> tuple[list[dict], dict]:
+    """Every month played (to `upto`), rebuilt: the records and the checks."""
+    g = db.game(con)
+    last = min(upto or g["round"] or 0, g["round"] or 0)
+    params = load_params(con)
+    months, checks = [], {}
+    for m in range(1, last + 1):
+        got = replay_month(con, m, params)
+        if got is None:
+            continue
+        record, check = got
+        months.append(record)
+        checks[m] = check
+    return months, checks
+
+
+def allocation_workbook(con, upto: int | None = None) -> tuple[bytes, str] | None:
+    """The allocation workbook for the game so far, and its file name."""
+    from .. import allocation
+    months, checks = allocation_months(con, upto)
+    if not months:
+        return None
+    labels = team_labels(con, sorted({t for m in months for t in m["teams"]}))
+
+    def describe(code, value):
+        spec = REGISTRY.get(code)
+        if spec is None or value is None or value == "":
+            return ""
+        try:
+            return decision_summary(spec, value) or ""
+        except (TypeError, ValueError, AttributeError):
+            return str(value)
+
+    g = db.game(con)
+    data = allocation.build(months, labels, describe, checks, game=g["name"] or "")
+    last = months[-1]["market"]["month"]
+    return data, f"order_allocation_months_1-{last}.xlsx"
 
 
 def _refund_withdrawn(con, world) -> None:
@@ -1666,7 +1766,7 @@ def team_workbook(con, team_id: str, round_: int,
 
 def instructor_console(con, round_: int, workbook_url=None,
                        workbooks_zip: str | None = None, memo_url=None,
-                       console_url=None) -> str | None:
+                       console_url=None, allocation_url: str | None = None) -> str | None:
     world = db.load_world(con, round_)
     if world is None:
         return None
@@ -1691,10 +1791,21 @@ def instructor_console(con, round_: int, workbook_url=None,
                               total_rounds=db.game(con)["total_rounds"] or 12,
                               by_round=rankings(con, round_),
                               builds=project_timeline(con, round_),
+                              allocation=_safe_replay(con, round_),
+                              allocation_url=allocation_url,
                               round_urls=([(r, console_url(r)) for r in
                                            range(1, (db.game(con)["round"] or 0) + 1)]
                                           if console_url else None),
                               ).read_text(encoding="utf-8")
+
+
+def _safe_replay(con, round_: int):
+    """The month rebuilt for the console, or None if it cannot be: the console
+    must open whatever happens to the rebuild."""
+    try:
+        return replay_month(con, round_)
+    except Exception:     # noqa: BLE001 - a missing section, never a broken page
+        return None
 
 
 def all_workbooks(con, round_: int) -> bytes | None:

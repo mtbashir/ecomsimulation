@@ -358,6 +358,9 @@ month's cash</span>{% endif %}</td>
 {% for r in range(1, game['round']) %}<a href="{{ url_for('admin_console', round_=r) }}"
    target="_blank">{{ r }}</a>{{ ' · ' if not loop.last }}{% endfor %}</span>{% endif %}
 {% else %}<p class="note">Nothing processed yet.</p>{% endif %}
+{% if game['round'] %}<a class="btn ghost" style="margin-left:8px"
+   href="{{ url_for('admin_allocation', round_=game['round']) }}">
+   Download order allocation (.xlsx)</a>{% endif %}
 <a class="btn ghost" style="margin-left:8px"
    href="{{ url_for('admin_export', round_=game['open_round'] or next_round) }}">
    Download decisions CSV</a>

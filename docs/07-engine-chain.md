@@ -363,6 +363,12 @@ sessions[t] ×= 1 - OVERLAP × (1 - 1/n_active_channels)      OVERLAP = 0.12
 
 ## M7 — Demand & share allocation
 
+*Recorded (2026-11-01):* M7 leaves what it read - the pools, each store's scores,
+utility terms, founding focus and orders won by segment - in `ctx["share_detail"]`,
+and M8 its conversion factors (`cr_parts`) and the orders before and after unmet
+demand is re-offered, for the instructor's allocation workbook
+(`ecomsim/allocation.py`). Nothing reads them back.
+
 Category order potential:
 ```
 category_orders[t] = category[t] / AOV_market[t-1]

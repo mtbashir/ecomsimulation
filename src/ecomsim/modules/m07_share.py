@@ -35,16 +35,38 @@ def run(world, params, resolved, ctx) -> None:
     # A customer won from Quality Loyalists repeats half again as often as one
     # won from Deal Hunters, and M12 cannot know that unless M7 says so.
     by_segment: dict[str, dict[str, float]] = {tid: {} for tid in utilities}
+    focus: dict[str, dict[str, float]] = {tid: {} for tid in utilities}
+    pools: dict[str, float] = {}
     for seg in params.segments:
         code, seg_share = seg["code"], float(seg["share"])
-        exps = {tid: math.exp(beta * u[code]) * _team_focus(world, tid, seg, params, ctx)
+        for tid in utilities:
+            focus[tid][code] = _team_focus(world, tid, seg, params, ctx)
+        exps = {tid: math.exp(beta * u[code]) * focus[tid][code]
                 for tid, u in utilities.items()}
         total = sum(exps.values()) or 1.0
         seg_orders = category_orders * seg_share
+        pools[code] = seg_orders
         for tid, e in exps.items():
             won = seg_orders * (e / total)
             potential[tid] += won
             by_segment[tid][code] = won
+
+    # What the share was made of, for the instructor's allocation workbook
+    # (ecomsim.allocation). Read only by reports: nothing below uses it.
+    ctx["share_detail"] = {
+        "category_size": world.category_size,
+        "avg_order": world.market_avg_aov,
+        "orders": category_orders,
+        "beta": beta,
+        "pools": pools,
+        "utility": utilities,
+        "focus": focus,
+        "won": by_segment,
+        "inputs": {team.team_id: _inputs(team, params, ctx) for team in world.teams.values()},
+        "parts": {team.team_id: {seg["code"]: utility_parts(team, seg, params, ctx)
+                                 for seg in params.segments}
+                  for team in world.teams.values()},
+    }
 
     for tid, won in by_segment.items():
         drawn = sum(won.values()) or 1.0
@@ -99,6 +121,39 @@ def _utility(team, seg, params, ctx) -> float:
         + float(seg["w_brand"]) * team.brand_equity
         + float(seg["w_fit"]) * fit
     )
+
+
+def _inputs(team, params, ctx) -> dict:
+    """The six scores M7 read for a team, as it read them."""
+    tid = team.team_id
+    price_index = ctx.get("price_index", {}).get(tid, 1.0)
+    return {
+        "price_index": max(params["price_index_floor"],
+                           min(params["price_index_cap"], price_index)),
+        "quality": team.quality_perceived,
+        "delivery": team.delivery_perceived,
+        "instock": ctx.get("instock_ratio", {}).get(tid, 0.95),
+        "brand": team.brand_equity,
+        "fit": dict(ctx.get("assortment_fit", {}).get(tid, {})),
+    }
+
+
+def utility_parts(team, seg, params, ctx) -> dict:
+    """_utility, term by term: weight x score for each of the six scores, and
+    the over-price penalty (negative). The terms add up to _utility."""
+    x = _inputs(team, params, ctx)
+    over_wtp = 0.0
+    if ctx.get("fair_pricing"):
+        over_wtp = params["wtp_penalty"] * max(0.0, x["price_index"] - float(seg["wtp_index"]))
+    return {
+        "price": float(seg["w_price"]) * (1 - x["price_index"]),
+        "over_price": -over_wtp,
+        "quality": float(seg["w_quality"]) * x["quality"],
+        "delivery": float(seg["w_delivery"]) * x["delivery"],
+        "instock": float(seg["w_availability"]) * x["instock"],
+        "brand": float(seg["w_brand"]) * x["brand"],
+        "fit": float(seg["w_fit"]) * x["fit"].get(seg["code"], 0.5),
+    }
 
 
 def _focus_weight(team, seg, params, ctx) -> float:

@@ -1476,10 +1476,24 @@ def register_routes(app: Flask) -> None:
             workbook_url=lambda team: url_for("results_admin_xlsx", team=team, round_=round_),
             workbooks_zip=url_for("admin_workbooks", round_=round_),
             memo_url=lambda team, rnd: url_for("admin_memo", round_=rnd, team=team),
-            console_url=lambda r: url_for("admin_console", round_=r))
+            console_url=lambda r: url_for("admin_console", round_=r),
+            allocation_url=url_for("admin_allocation", round_=round_))
         if html is None:
             abort(404)
         return Response(html, mimetype="text/html")
+
+    @app.route("/admin/allocation/<int:round_>.xlsx")
+    @login_required("admin")
+    def admin_allocation(round_):
+        """How the market's orders were shared, months 1 to round_, rebuilt
+        from the saved game: market, segments, each team's factors and orders."""
+        made = service.allocation_workbook(g.db, round_)
+        if made is None:
+            abort(404)
+        data, filename = made
+        return Response(
+            data, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
     @app.post("/admin/memo/<int:round_>/<team>")
     @login_required("admin")

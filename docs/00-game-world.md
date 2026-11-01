@@ -68,7 +68,11 @@ M7 (demand and share) and M8 (orders realised). Every month, in this order:
    205,000 marketplace sessions a month by listing rank (`docs/03`, mechanism 7).
 
 The console's *Market size* grid shows the result: every store's orders asked
-for - served plus lost to stock-outs - by product and segment.
+for - served plus lost to stock-outs - by product and segment. Its section *How
+this month's orders were shared*, and the order allocation workbook beside it,
+show each step above for every team and month: the market and its segments,
+each store's scores, utility and share by segment, repeat demand, visitors and
+conversion, stock, and the orders (`17-instructor-guide.md`).
 
 ### The market is one pool of orders, not of products
 

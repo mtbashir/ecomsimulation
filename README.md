@@ -35,7 +35,7 @@ teams see each month; memo verdicts; per-game rule switches; results as Excel
 workbooks; a scoring playbook for coaching. See
 [`docs/17-instructor-guide.md`](docs/17-instructor-guide.md).
 
-**Quality gates.** `pytest` (502 tests, including checks that the generated
+**Quality gates.** `pytest` (510 tests, including checks that the generated
 documentation matches the engine), `validate.py` (thirteen balance invariants,
 all passing) and `calibrate.py` (the baseline holds).
 
@@ -178,6 +178,7 @@ src/ecomsim/
   founding.py        The founding round
   scoring.py         The published scorecard, final and monthly scores, ranks
   naming.py          How every page names a team: "Team 1 · Tarz"
+  allocation.py      How each month's orders were shared: the instructor's workbook
   report.py console.py debrief.py coach.py workbook.py charts.py funnel.py
                      What teams and the instructor read
   backfill.py        Rebuilds stock and cash detail for early months
