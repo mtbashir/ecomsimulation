@@ -200,7 +200,8 @@ def _readme(book, f, game, months, checks):
          "month before, with the decisions that ran. A month whose rebuilt orders, demand and "
          "visitors match the ones recorded at the time is marked as matching on the Market sheet; "
          "one that does not (the engine changed after the month was played) is flagged, and its "
-         "factors are today's engine's reading of that month.", "txt"),
+         "factors are today's engine's reading of that month. The orders recorded at the time "
+         "sit beside the rebuilt ones on Orders by team and on each team's sheet.", "txt"),
         ("These are the simulation's numbers, not market data.", "note"),
     ]
     for i, (text, fmt) in enumerate(lines):
@@ -218,7 +219,13 @@ def _hdr(ws, f, row, heads, widths=None):
 
 def _market_sheet(book, f, months, segs, labels, checks):
     ws = book.add_worksheet("Market")
-    ais = months[0]["market"]["ai"] if months else []
+    # Every AI competitor that took part in any month, in the order they came
+    # in: an entrant joins mid-game, and its column must not shift the rest.
+    ais, seen = [], set()
+    for m in months:
+        for a in m["market"]["ai"]:
+            if a["id"] not in seen:
+                seen.add(a["id"]); ais.append(a)
     heads = (["Month", "Market size (PKR)", "Seasonal index", "Events", "Average order last month (PKR)",
               "Contested orders"]
              + [f"{n} orders" for _, n in segs]
@@ -239,8 +246,11 @@ def _market_sheet(book, f, months, segs, labels, checks):
         c = 6
         for code, _ in segs:
             ws.write(r, c, mk["pools"].get(code, 0.0), f["int"]); c += 1
-        for a in mk["ai"]:
-            ws.write(r, c, a["total"], f["int"]); c += 1
+        won_by = {a["id"]: a["total"] for a in mk["ai"]}
+        for a in ais:
+            if a["id"] in won_by:
+                ws.write(r, c, won_by[a["id"]], f["int"])
+            c += 1
         won = sum(x["contested"] for x in t)
         repeat = sum(x["repeat"] for x in t)
         demand = sum(x["potential"] for x in t)
@@ -258,8 +268,8 @@ def _orders_sheet(book, f, months, order, labels, segs):
              + ["Contested orders won", "Share of contested orders", "Repeat demand", "Demand",
                 "Visitors (own site)", "Conversion rate", "Traffic capacity", "Stock capacity",
                 "Orders before re-offer", "From demand re-offered", "Marketplace orders",
-                "Orders", "What bound"])
-    _hdr(ws, f, 0, heads, [7, 24] + [12] * len(segs) + [12] * 12 + [26])
+                "Orders", "Orders as recorded at the time", "What bound"])
+    _hdr(ws, f, 0, heads, [7, 24] + [12] * len(segs) + [12] * 13 + [26])
     ws.freeze_panes(1, 2)
     r = 1
     for m in months:
@@ -284,6 +294,9 @@ def _orders_sheet(book, f, months, order, labels, segs):
             c += 1
             for v in (x["own"], x["reoffered"], x["marketplace"], x["orders"]):
                 ws.write(r, c, v, f["int"]); c += 1
+            if x.get("recorded_orders") is not None:
+                ws.write(r, c, x["recorded_orders"], f["int"])
+            c += 1
             ws.write(r, c, BOUND.get(x["binding"], x["binding"]), f["txt"])
             r += 1
 
@@ -466,6 +479,8 @@ def _team_sheet(book, f, months, tid, label, segs, describe):
     row("From demand re-offered", "Other teams' unserved demand", [x["reoffered"] for x in X], "int")
     row("Marketplace orders", "4.1", [x["marketplace"] for x in X], "int")
     row("Orders", "", [x["orders"] for x in X], "int")
+    row("Orders as recorded at the time", "Differs only where the engine changed since",
+        [x.get("recorded_orders") for x in X], "int")
     row("What bound", "The smallest of the three", [BOUND.get(x["binding"], x["binding"]) for x in X], "txt")
 
 

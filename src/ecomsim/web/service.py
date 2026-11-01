@@ -1120,13 +1120,14 @@ def _prepare_month(con, world, g, nxt: int) -> tuple[dict, int, dict]:
 
 # --- How the market's orders were shared (ecomsim.allocation) -------------------------
 
-def replay_month(con, month: int, params=None) -> tuple[dict, tuple[bool, str]] | None:
+def replay_month(con, month: int, params=None, labels=None) -> tuple[dict, tuple[bool, str]] | None:
     """Month `month` run again from the saved world at the end of the month
     before, set up as process_round set it up: its allocation record, and
     whether the rebuild matches the month as recorded (orders, demand and
     visitors, team by team). Nothing is saved."""
     import copy
     from .. import allocation
+    from ..modules.m04_capability import WITHDRAWN
     g = db.game(con)
     if month < 1 or month > (g["round"] or 0):
         return None
@@ -1139,33 +1140,56 @@ def replay_month(con, month: int, params=None) -> tuple[dict, tuple[bool, str]] 
             return None
     after = db.load_world(con, month)
     world = copy.deepcopy(world)
+    # A withdrawn lever's refund is paid once, in the month it was paid; a
+    # month rebuilt from before that must not pay it again.
+    before = set(getattr(world, "withdrawn_refunded", None) or ())
+    if not set(getattr(after, "withdrawn_refunded", None) or ()) - before:
+        world.withdrawn_refunded = frozenset(before | set(WITHDRAWN))
     submitted, _, how = _prepare_month(con, world, g, month)
     ctx = run_round(world, params, submitted, **how)
     record = allocation.capture(world, params, ctx)
-    return record, _matches(record, after, month)
+    for tid, x in record["teams"].items():
+        h = _recorded(after, tid, month)
+        x["recorded_orders"] = float(h.get("orders", 0.0) or 0.0) if h else None
+    return record, _matches(record, after, month, labels or {})
 
 
-def _matches(record: dict, after, month: int) -> tuple[bool, str]:
+def _recorded(after, tid: str, month: int) -> dict | None:
+    team = after.teams.get(tid) if after is not None else None
+    return next((r for r in (team.history if team else [])
+                 if int(r.get("round", 0)) == month), None)
+
+
+def _matches(record: dict, after, month: int, labels: dict) -> tuple[bool, str]:
     """Whether a rebuilt month gave each team the orders, demand and visitors
-    recorded when the month was played."""
+    recorded when the month was played: on its own store first, then on the
+    marketplace (4.1), which was rebuilt in a game already under way."""
     if after is None:
         return False, "No saved record to compare"
-    worst, who = 0.0, ""
+    worst, who, mp_gap = 0.0, "", 0.0
     for tid, x in record["teams"].items():
-        team = after.teams.get(tid)
-        h = next((r for r in (team.history if team else [])
-                  if int(r.get("round", 0)) == month), None)
+        h = _recorded(after, tid, month)
         if h is None:
-            return False, f"{tid} has no record for month {month}"
-        for key, got in (("orders", x["orders"]), ("potential", x["potential"]),
-                         ("sessions", x["own_sessions"] + x["sessions"]["marketplace"])):
-            want = float(h.get(key, 0.0) or 0.0)
+            return False, f"{labels.get(tid, tid)} has no record for month {month}"
+        mp = h.get("marketplace") or {}
+        served = float(mp.get("new_orders", 0.0) or 0.0) + float(mp.get("repeat_orders", 0.0) or 0.0)
+        own_sessions = float(h.get("sessions", 0.0) or 0.0) - float(mp.get("sessions", 0.0) or 0.0)
+        for key, got, want in (
+                ("orders", x["orders"] - x["marketplace"], float(h.get("orders", 0.0) or 0.0) - served),
+                ("demand", x["potential"], float(h.get("potential", 0.0) or 0.0)),
+                ("visitors", x["own_sessions"], own_sessions)):
             gap = abs(got - want) / max(abs(want), 1.0)
             if gap > worst:
-                worst, who = gap, f"{tid} {key}"
-    if worst <= 1e-6:
+                worst, who = gap, f"{labels.get(tid, tid)}, {key}"
+        mp_gap += abs(x["marketplace"] - served)
+    if worst <= 1e-6 and mp_gap <= 0.5:
         return True, "Yes"
-    return False, f"No: off by up to {worst:.1%} ({who}); today's engine's reading"
+    if worst <= 1e-6:
+        return False, (f"On the store, yes. The marketplace orders here ({mp_gap:,.0f} in all) "
+                       "were not in the month as played: the marketplace changed after it")
+    start = "Month 1 is rebuilt from the game's set-up. " if month == 1 else ""
+    return False, (f"{start}No: off by up to {worst:.1%} ({who}); the engine changed after this "
+                   "month, so these are today's engine's reading of it")
 
 
 def allocation_months(con, upto: int | None = None) -> tuple[list[dict], dict]:
@@ -1173,9 +1197,10 @@ def allocation_months(con, upto: int | None = None) -> tuple[list[dict], dict]:
     g = db.game(con)
     last = min(upto or g["round"] or 0, g["round"] or 0)
     params = load_params(con)
+    labels = team_labels(con)
     months, checks = [], {}
     for m in range(1, last + 1):
-        got = replay_month(con, m, params)
+        got = replay_month(con, m, params, labels)
         if got is None:
             continue
         record, check = got
@@ -1803,7 +1828,7 @@ def _safe_replay(con, round_: int):
     """The month rebuilt for the console, or None if it cannot be: the console
     must open whatever happens to the rebuild."""
     try:
-        return replay_month(con, round_)
+        return replay_month(con, round_, labels=team_labels(con))
     except Exception:     # noqa: BLE001 - a missing section, never a broken page
         return None
 

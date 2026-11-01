@@ -171,6 +171,15 @@ read off as it runs (`ecomsim/allocation.py`). Nothing is saved. The *Market*
 sheet says, month by month, whether the rebuilt orders, demand and visitors
 match the month as recorded; a month that does not (the engine changed after
 it was played) is flagged, and its numbers are today's engine's reading of it.
+The orders recorded at the time sit beside the rebuilt ones on *Orders by team*
+and each team's sheet.
+
+In the Fall-2026 game, months 2 and 4 onward rebuild exactly. Month 3 matches
+on every team's own store, but the rebuild adds marketplace orders for the
+teams listed that month: the marketplace brought no orders until it was rebuilt
+on 2026-10-13, after month 3 was played. Month 1 starts from the game's set-up,
+which today's engine builds differently from the day it ran, so its figures are
+an approximation; its recorded orders are beside them.
 
 ### Can every page name a team the same way, by team number and brand? *(2026-10-27)*
 

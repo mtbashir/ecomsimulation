@@ -144,3 +144,37 @@ def test_a_team_cannot_download_the_allocation(played):
     c.post("/login", data={"username": "team_01", "password": pw})
     r = c.get("/admin/allocation/3.xlsx")
     assert r.status_code in (302, 403)
+
+
+def test_an_ai_entrant_mid_game_does_not_shift_the_market_columns(played):
+    import copy
+    _, con = played
+    months, checks = service.allocation_months(con)
+    late = copy.deepcopy(months[2])
+    late["market"]["ai"].append({"id": "entrant", "name": "Funded entrant", "utility": 0.58,
+                                 "won": {}, "total": 123.0})
+    data = allocation.build(months[:2] + [late], {}, lambda c, v: "", checks)
+    ws = openpyxl.load_workbook(io.BytesIO(data))["Market"]
+    head = [c.value for c in ws[1]]
+    assert "Won by Funded entrant" in head
+    assert ws.cell(4, head.index("Won by Funded entrant") + 1).value == 123.0
+    assert ws.cell(2, head.index("Won by Funded entrant") + 1).value is None
+    assert ws.cell(4, len(head)).value == "Yes"        # the check stays in its column
+
+
+def test_the_check_tells_a_marketplace_change_from_a_store_change(played):
+    import copy
+    _, con = played
+    record, (ok, _) = service.replay_month(con, 2)
+    assert ok
+    after = db.load_world(con, 2)
+    mp = copy.deepcopy(record)
+    x = mp["teams"]["team_01"]
+    x["marketplace"] += 100.0
+    x["orders"] += 100.0
+    ok, note = service._matches(mp, after, 2, {})
+    assert not ok and note.startswith("On the store, yes")
+    store = copy.deepcopy(record)
+    store["teams"]["team_02"]["potential"] *= 1.2
+    ok, note = service._matches(store, after, 2, {"team_02": "Team 2 · Brand"})
+    assert not ok and "Team 2 · Brand, demand" in note

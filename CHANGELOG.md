@@ -53,7 +53,11 @@ The engine version moves to 2.3.0 for the engine changes since 2.2.0 below.
   use), and checked against the month as recorded; nothing is saved. M7 and M8
   record what they read in the month's working data (`share_detail`,
   `cr_parts`, orders before and after demand is re-offered); no result or score
-  changes. *Applies to:* all games, live and past.
+  changes. The check tells a month that matches on the store but not on the
+  marketplace (rebuilt after the Fall-2026 game's month 3) from one that does
+  not match at all, and the orders recorded at the time are shown beside the
+  rebuilt ones. A refund for a withdrawn lever is paid in a rebuilt month only
+  if it was paid in that month. *Applies to:* all games, live and past.
 
 ### 2026-10-27 — every page names a team by its number and its brand
 
