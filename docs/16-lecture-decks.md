@@ -107,6 +107,20 @@ the instructor's standing rules. Apply them to every new deck and every edit.
   cover and the three code slides (`shp-dev-pages`, `shp-dev-content`,
   `shp-dev-integrate`) back from an unfitted build. Plan availability was
   checked in October 2026 and changes often.
+- `costs_slides.py` — *The Founder's Cost Sheet*, a reference deck for students
+  who plan to sell online in Pakistan (38 slides, `fc-` ids): the store
+  (Shopify, WooCommerce, domains, a first year's bill), payment gateways
+  (PayFast, Safepay, JazzCash, Easypaisa, XPay, banks, Raast) with their terms,
+  couriers (TCS, Leopards, PostEx, Trax, others, Pakistan Post) with their
+  terms, Meta, Google and TikTok rates and how to pay for ads, Daraz step by
+  step and its fees, other places to sell, selling abroad, Airbnb hosting, and
+  every fee in rupees on one PKR 3,000 order; then the simulation's versions of
+  the same costs. Rates were published or reported between August and
+  November 2026, mostly by Pakistani comparison guides rather than the
+  providers' own rate cards: each slide names its source, ranges are shown
+  where sources disagree, and the deck tells founders to sign on a written
+  quote. Check the rates again before teaching it. A reference deck: it has
+  no Pakistani-and-global case pairs.
 
 ## The decks
 
@@ -130,3 +144,6 @@ the instructor's standing rules. Apply them to every new deck and every edit.
   (39 slides). One block of about two and a half hours, or two sessions: for
   founders, Parts 1 and 3, the exercise and Part 5 (about 90 minutes); for
   whoever builds the store, Parts 2 and 4 (about 75 minutes).
+- The Founder's Cost Sheet — https://claude.ai/artifact/KBZQpbee9axVTQzQJZC2ZU
+  (38 slides). About two hours with both exercises; Parts 2 and 3 (payments
+  and delivery) are the core if time is short.
